@@ -1,0 +1,36 @@
+version: '3.3'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mrs_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: mrs
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  redis:
+    image: redis:alpine
+    container_name: mrs_redis
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: mrs_app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_DSN=root:example@tcp(db:3306)/mrs?charset=utf8mb4&parseTime=True&loc=Local
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+
+volumes:
+  db_data:
