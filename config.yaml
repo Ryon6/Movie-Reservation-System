@@ -1,2 +1,12 @@
 server:
   port: "8080"
+  host: "localhost"
+
+database:
+  dsn: "ryon:123456@tcp(127.0.0.1:3306)/movie_reservation_system?charset=utf8mb4&parseTime=True&loc=Local"
+
+redis:
+  addr: 127.0.0.1:6379
+
+debug_mode: true
+
