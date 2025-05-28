@@ -7,14 +7,16 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"log"
 	config "mrs/internal/infrastructure/config"
+	mrslog "mrs/pkg/log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -28,10 +30,17 @@ func initConfig() (*config.Config, error) {
 	return cfg, nil
 }
 
-func initLogger() *zap.Logger {
-	logger, err := zap.NewProduction()
+func ensureLogDirectory() error {
+	if err := os.MkdirAll("./var/log", 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+	return nil
+}
+
+func initLogger(cfg *config.Config) mrslog.Logger {
+	logger, err := mrslog.NewZapLogger(cfg.Log)
 	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
 	return logger
 }
@@ -42,13 +51,13 @@ var rdb *redis.Client
 func initDB(cfg *config.Config) {
 	dsn := cfg.Database.ConnectionString
 	if dsn == "" {
-		log.Fatalf("Database DSN is not set in config")
+		panic("Database DSN is not set in config")
 	}
 
 	var err error
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		panic(fmt.Sprintf("Failed to connect to database: %v", err))
 	}
 }
 
@@ -61,7 +70,7 @@ func initRedis(cfg *config.Config) {
 
 	_, err := rdb.Ping(context.Background()).Result()
 	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
 	}
 }
 
@@ -69,13 +78,22 @@ func main() {
 	// 初始化配置
 	cfg, err := initConfig()
 	if err != nil {
-		log.Fatalf("Failed to initialize config: %v", err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
 	viper.Set("config", cfg)
 
+	// 确保日志目录存在
+	if err := ensureLogDirectory(); err != nil {
+		if err := ensureLogDirectory(); err != nil {
+			log.Fatalf("Failed to ensure log directory: %v", err)
+		}
+	}
+
 	// 初始化日志
-	logger := initLogger()
+	logger := initLogger(cfg)
 	defer logger.Sync() // 确保所有日志都已刷新到磁盘
+
+	logger.Info("Logger initialized successfully")
 
 	// 初始化数据库
 	initDB(cfg)
@@ -84,10 +102,7 @@ func main() {
 	initRedis(cfg)
 
 	// 获取服务端口
-	port := viper.GetString("server.port")
-	if port == "" {
-		port = "8080" // 默认端口
-	}
+	port := fmt.Sprintf("%d", cfg.ServerPort)
 
 	// 创建 Gin 引擎
 	r := gin.Default()
@@ -102,6 +117,6 @@ func main() {
 	// 启动 HTTP 服务器
 	logger.Info("Starting server on port " + port)
 	if err := r.Run(":" + port); err != nil {
-		logger.Fatal("Failed to start server", zap.Error(err))
+		logger.Fatal("Failed to start server", mrslog.Field{Key: "error", Value: err.Error()})
 	}
 }
