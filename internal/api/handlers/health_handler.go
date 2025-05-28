@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"mrs/internal/api/dto/response"
