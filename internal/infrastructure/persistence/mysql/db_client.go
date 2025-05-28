@@ -1,4 +1,3 @@
-// TODO: 更具扩展性的数据库配置
 package mysql
 
 import (
