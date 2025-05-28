@@ -40,9 +40,15 @@ func LoadConfig() (*Config, error) {
 		RefreshTokenDuration: viper.GetDuration("jwt.refreshTokenDuration"),
 	}
 
+	log := Log{
+		Level: viper.GetString("log.level"),
+	}
+
 	config.Database = db
 	config.Redis = redis
 	config.JWT = jwt
+	config.Log = log
+
 	if port := viper.GetString("server.port"); port != "" {
 		config.ServerPort, _ = strconv.Atoi(port)
 	} else {

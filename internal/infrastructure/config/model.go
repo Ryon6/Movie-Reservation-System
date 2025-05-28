@@ -1,12 +1,19 @@
 package config
 
-import "time"
+import (
+	"time"
+)
+
+type Log struct {
+	Level string `mapstructure:"level"`
+}
 
 type Config struct {
 	ServerPort int
 	Database
 	Redis
 	JWT
+	Log
 }
 
 type Database struct {

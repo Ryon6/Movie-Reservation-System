@@ -17,4 +17,8 @@ jwt:
   accessTokenDuration: 15m
   refreshTokenDuration: 72h
 
-debug_mode: true
+log:
+  level: debug
+  outputPaths: ["stdout", "./var/log/app.log"]
+  errorOutputPaths: ["stderr", "./var/log/error.log"]
+  encoding: json
