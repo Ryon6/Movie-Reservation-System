@@ -13,42 +13,25 @@ import (
 
 func LoadConfig() (*Config, error) {
 	var config Config
+
+	// 设置配置文件路径和类型
 	viper.SetConfigName("app") // 配置文件名
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("configs")
 
+	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
 		err = fmt.Errorf("error reading config file: %w", err)
 		return nil, err
 	}
 
-	db := Database{
-		ConnectionString:   viper.GetString("database.dsn"),
-		MaxOpenConnections: viper.GetInt("database.maxOpenConnections"),
-		MaxIdleConnections: viper.GetInt("database.maxIdleConnections"),
+	// 使用 Unmarshal 自动映射配置
+	if err := viper.Unmarshal(&config); err != nil {
+		err = fmt.Errorf("error unmarshalling config: %w", err)
+		return nil, err
 	}
 
-	redis := Redis{
-		Address:  viper.GetString("redis.addr"),
-		Password: viper.GetString("redis.password"),
-		DB:       viper.GetInt("redis.db"),
-	}
-
-	jwt := JWT{
-		SecretKey:            viper.GetString("jwt.secretKey"),
-		AccessTokenDuration:  viper.GetDuration("jwt.accessTokenDuration"),
-		RefreshTokenDuration: viper.GetDuration("jwt.refreshTokenDuration"),
-	}
-
-	log := Log{
-		Level: viper.GetString("log.level"),
-	}
-
-	config.Database = db
-	config.Redis = redis
-	config.JWT = jwt
-	config.Log = log
-
+	// 设置默认值
 	if port := viper.GetString("server.port"); port != "" {
 		config.ServerPort, _ = strconv.Atoi(port)
 	} else {
