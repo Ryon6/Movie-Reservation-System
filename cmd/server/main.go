@@ -10,6 +10,7 @@ import (
 
 	"log"
 	config "mrs/internal/infrastructure/config"
+	appmysql "mrs/internal/infrastructure/persistence/mysql"
 	applog "mrs/pkg/log"
 	"net/http"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -54,19 +54,6 @@ func initLogger(cfg *config.Config) applog.Logger {
 
 var db *gorm.DB
 var rdb *redis.Client
-
-func initDB(cfg *config.Config) {
-	dsn := cfg.DatabaseConfig.ConnectionString
-	if dsn == "" {
-		panic("Database DSN is not set in config")
-	}
-
-	var err error
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to database: %v", err))
-	}
-}
 
 func initRedis(cfg *config.Config) {
 	rdb = redis.NewClient(&redis.Options{
@@ -104,7 +91,11 @@ func main() {
 	logger.Debug("Logger initialized successfully")
 
 	// 初始化数据库
-	initDB(cfg)
+	dbFactory := appmysql.NewMysqlDBFactory(logger)
+	db, err = dbFactory.CreateDBConnection(cfg.DatabaseConfig)
+	if err != nil {
+		logger.Fatal("Failed to connect to MySQL", applog.Error(err))
+	}
 
 	// 初始化 Redis
 	initRedis(cfg)
