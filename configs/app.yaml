@@ -3,7 +3,13 @@ server:
   host: "localhost"
 
 database:
-  dsn: "ryon:123456@tcp(127.0.0.1:3306)/movie_reservation_system?charset=utf8mb4&parseTime=True&loc=Local"
+  # dsn: "ryon:123456@tcp(127.0.0.1:3306)/movie_reservation_system?charset=utf8mb4&parseTime=True&loc=Local"
+  user: "ryon"
+  password: "123456"
+  host: "127.0.0.1"
+  port: "3306"
+  name: "movie_reservation_system"
+  charset: "utf8mb4"
   maxOpenConnections: 10
   maxIdleConnections: 5
 

@@ -26,7 +26,13 @@ type LogConfig struct {
 }
 
 type DatabaseConfig struct {
-	ConnectionString   string `mapstructure:"dsn"`
+	// ConnectionString   string `mapstructure:"dsn"`
+	User               string `mapstructure:"user"`
+	Password           string `mapstructure:"password"`
+	Host               string `mapstructure:"host"`
+	Port               string `mapstructure:"port"`
+	Name               string `mapstructure:"name"`
+	Charset            string `mapstructure:"charset"`
 	MaxOpenConnections int    `mapstructure:"maxOpenConnections"`
 	MaxIdleConnections int    `mapstructure:"maxIdleConnections"`
 }
