@@ -18,7 +18,8 @@ func LoadConfig() (*Config, error) {
 	viper.AddConfigPath("configs")
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Load Config error: %v", err)
+		log.Fatalf("Error reading config file: %v", err)
+		return nil, err
 	}
 
 	db := Database{
