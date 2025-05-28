@@ -8,8 +8,8 @@ type ComponentStatus struct {
 }
 
 type HealthResponse struct {
-	OverallStatus string            `json:"overall_status"`       // 服务的总体健康状态
-	Version       string            `json:"version,omitempty"`    // 应用程序版本 (可选)
-	TimeStamp     string            `json:"timestamp"`            // 健康检查的时间戳
-	Components    []ComponentStatus `json:"components,omitempty"` // 各依赖组件的状态 (可选)
+	OverallStatus      string            `json:"overall_status"`       // 服务的总体健康状态
+	Version            string            `json:"version,omitempty"`    // 应用程序版本 (可选)
+	TimeStamp          string            `json:"timestamp"`            // 健康检查的时间戳
+	DependenciesStatus []ComponentStatus `json:"components,omitempty"` // 各依赖组件的状态 (可选)
 }
