@@ -40,9 +40,15 @@ type DatabaseConfig struct {
 }
 
 type RedisConfig struct {
-	Address  string `mapstructure:"addr" yaml:"addr"`         // ip:port
-	Password string `mapstructure:"password" yaml:"password"` // 默认不需要
-	DB       int    `mapstructure:"db" yaml:"db"`             // 数据库编号
+	Address      string        `mapstructure:"address"`      // Redis 服务器地址，例如 "localhost:6379"
+	Password     string        `mapstructure:"password"`     // Redis 密码，如果没有则为空字符串
+	DB           int           `mapstructure:"db"`           // Redis 数据库编号，默认为 0
+	PoolSize     int           `mapstructure:"poolSize"`     // 连接池大小
+	MinIdleConns int           `mapstructure:"minIdleConns"` // 最小空闲连接数
+	PoolTimeout  time.Duration `mapstructure:"poolTimeout"`  // 从连接池获取连接的超时时间
+	ReadTimeout  time.Duration `mapstructure:"readTimeout"`  // 读取超时
+	WriteTimeout time.Duration `mapstructure:"writeTimeout"` // 写入超时
+	IdleTimeout  time.Duration `mapstructure:"idleTimeout"`  // 空闲连接超时时间 5m
 }
 
 type JWTConfig struct {
