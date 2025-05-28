@@ -1,6 +1,10 @@
-package domain
+package user
 
-import "gorm.io/gorm"
+import (
+	"mrs/internal/domain/role"
+
+	"gorm.io/gorm"
+)
 
 type User struct {
 	gorm.Model
@@ -8,5 +12,5 @@ type User struct {
 	PasswordHash string
 	Email        string `gorm:"uniqueIndex"`
 	RoleId       uint
-	Role         Role
+	Role         role.Role
 }
