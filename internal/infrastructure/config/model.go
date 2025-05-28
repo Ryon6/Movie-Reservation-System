@@ -33,6 +33,7 @@ type DatabaseConfig struct {
 	Port               string `mapstructure:"port"`
 	Name               string `mapstructure:"name"`
 	Charset            string `mapstructure:"charset"`
+	LogMode            bool   `mapstructure:"logMode"` // 是否开启日志模式
 	MaxOpenConnections int    `mapstructure:"maxOpenConnections"`
 	MaxIdleConnections int    `mapstructure:"maxIdleConnections"`
 }
