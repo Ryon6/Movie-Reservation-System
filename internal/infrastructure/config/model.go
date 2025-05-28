@@ -5,11 +5,16 @@ import (
 )
 
 type Config struct {
-	ServerPort int
-	DatabaseConfig
-	RedisConfig
-	JWTConfig
-	LogConfig
+	ServerConfig   `mapstructure:"server"`
+	DatabaseConfig `mapstructure:"database"`
+	RedisConfig    `mapstructure:"redis"`
+	JWTConfig      `mapstructure:"jwt"`
+	LogConfig      `mapstructure:"log"`
+}
+
+type ServerConfig struct {
+	Port string `mapstructure:"port"` // 服务端口
+	Host string `mapstructure:"host"` // 服务主机名或IP地址
 }
 
 type LogConfig struct {

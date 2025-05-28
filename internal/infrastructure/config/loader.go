@@ -6,7 +6,6 @@ package config
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/spf13/viper"
 )
@@ -32,10 +31,8 @@ func LoadConfig() (*Config, error) {
 	}
 
 	// 设置默认值
-	if port := viper.GetString("server.port"); port != "" {
-		config.ServerPort, _ = strconv.Atoi(port)
-	} else {
-		config.ServerPort = 8080
+	if config.ServerConfig.Port == "" {
+		config.ServerConfig.Port = "8080" // 默认端口
 	}
 
 	return &config, nil
