@@ -8,14 +8,14 @@ import (
 	"fmt"
 
 	"log"
+	"mrs/internal/api"
+	"mrs/internal/api/handlers"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
 	appmysql "mrs/internal/infrastructure/persistence/mysql"
 	applog "mrs/pkg/log"
-	"net/http"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -91,14 +91,8 @@ func main() {
 	port := cfg.ServerConfig.Port
 
 	// 创建 Gin 引擎
-	r := gin.Default()
-
-	// 健康检查 API
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
-		})
-	})
+	healthHandler := handlers.NewHealthHandler(logger, db, rdb)
+	r := api.SetupRouter(healthHandler)
 
 	// 启动 HTTP 服务器
 	logger.Info("Starting server on port " + port)
