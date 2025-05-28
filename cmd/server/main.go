@@ -10,13 +10,15 @@ import (
 
 	"log"
 	config "mrs/internal/infrastructure/config"
-	mrslog "mrs/pkg/log"
+	applog "mrs/pkg/log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -25,20 +27,25 @@ import (
 func initConfig() (*config.Config, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
+		return nil, fmt.Errorf("Failed to load config: %w", err)
 	}
 	return cfg, nil
 }
 
 func ensureLogDirectory() error {
 	if err := os.MkdirAll("./var/log", 0755); err != nil {
-		return fmt.Errorf("failed to create log directory: %w", err)
+		return fmt.Errorf("Failed to create log directory: %w", err)
 	}
 	return nil
 }
 
-func initLogger(cfg *config.Config) mrslog.Logger {
-	logger, err := mrslog.NewZapLogger(cfg.Log)
+func initLogger(cfg *config.Config) applog.Logger {
+	zapcfg := zap.NewDevelopmentConfig()
+	zapcfg.OutputPaths = cfg.LogConfig.OutputPaths
+	zapcfg.ErrorOutputPaths = cfg.LogConfig.ErrorOutputPaths
+	zapLevel, _ := zapcore.ParseLevel(cfg.LogConfig.Level)
+	zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
+	logger, err := applog.NewZapLogger(zapcfg)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
 	}
@@ -49,7 +56,7 @@ var db *gorm.DB
 var rdb *redis.Client
 
 func initDB(cfg *config.Config) {
-	dsn := cfg.Database.ConnectionString
+	dsn := cfg.DatabaseConfig.ConnectionString
 	if dsn == "" {
 		panic("Database DSN is not set in config")
 	}
@@ -63,9 +70,9 @@ func initDB(cfg *config.Config) {
 
 func initRedis(cfg *config.Config) {
 	rdb = redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Address,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
+		Addr:     cfg.RedisConfig.Address,
+		Password: cfg.RedisConfig.Password,
+		DB:       cfg.RedisConfig.DB,
 	})
 
 	_, err := rdb.Ping(context.Background()).Result()
@@ -91,9 +98,10 @@ func main() {
 
 	// 初始化日志
 	logger := initLogger(cfg)
+	// logger, err := zap.NewDevelopment()
 	defer logger.Sync() // 确保所有日志都已刷新到磁盘
 
-	logger.Info("Logger initialized successfully")
+	logger.Debug("Logger initialized successfully")
 
 	// 初始化数据库
 	initDB(cfg)
@@ -102,7 +110,7 @@ func main() {
 	initRedis(cfg)
 
 	// 获取服务端口
-	port := fmt.Sprintf("%d", cfg.ServerPort)
+	port := cfg.ServerConfig.Port
 
 	// 创建 Gin 引擎
 	r := gin.Default()
@@ -117,6 +125,6 @@ func main() {
 	// 启动 HTTP 服务器
 	logger.Info("Starting server on port " + port)
 	if err := r.Run(":" + port); err != nil {
-		logger.Fatal("Failed to start server", mrslog.Field{Key: "error", Value: err.Error()})
+		logger.Fatal("Failed to start server", applog.Field{Key: "error", Value: err.Error()})
 	}
 }
