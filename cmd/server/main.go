@@ -1,8 +1,14 @@
+// **`cmd/server/main.go` 基础**:
+// *   实现基础的 HTTP 服务器启动 (使用 Gin)。
+// *   初步的依赖注入逻辑框架。
+
 package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	config "mrs/internal/infrastructure/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,14 +19,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func initConfig() {
-	viper.SetConfigName("config") // 配置文件名 (不带扩展)
-	viper.SetConfigType("yaml")   // 配置文件类型
-	viper.AddConfigPath(".")      // 查找配置文件的路径
-
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
+// 使用已实现的 LoadConfig 函数加载配置
+func initConfig() (*config.Config, error) {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
+	return cfg, nil
 }
 
 func initLogger() *zap.Logger {
@@ -34,10 +39,10 @@ func initLogger() *zap.Logger {
 var db *gorm.DB
 var rdb *redis.Client
 
-func initDB() {
-	dsn := viper.GetString("database.dsn")
+func initDB(cfg *config.Config) {
+	dsn := cfg.Database.ConnectionString
 	if dsn == "" {
-		log.Fatalf("Database DSN is not set in config file")
+		log.Fatalf("Database DSN is not set in config")
 	}
 
 	var err error
@@ -47,11 +52,11 @@ func initDB() {
 	}
 }
 
-func initRedis() {
+func initRedis(cfg *config.Config) {
 	rdb = redis.NewClient(&redis.Options{
-		Addr:     viper.GetString("redis.addr"),
-		Password: viper.GetString("redis.password"), // no password set
-		DB:       viper.GetInt("redis.db"),          // use default DB
+		Addr:     cfg.Redis.Address,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
 	})
 
 	_, err := rdb.Ping(context.Background()).Result()
@@ -62,17 +67,21 @@ func initRedis() {
 
 func main() {
 	// 初始化配置
-	initConfig()
+	cfg, err := initConfig()
+	if err != nil {
+		log.Fatalf("Failed to initialize config: %v", err)
+	}
+	viper.Set("config", cfg)
 
 	// 初始化日志
 	logger := initLogger()
 	defer logger.Sync() // 确保所有日志都已刷新到磁盘
 
 	// 初始化数据库
-	initDB()
+	initDB(cfg)
 
 	// 初始化 Redis
-	initRedis()
+	initRedis(cfg)
 
 	// 获取服务端口
 	port := viper.GetString("server.port")
