@@ -27,15 +27,16 @@ type LogConfig struct {
 
 type DatabaseConfig struct {
 	// ConnectionString   string `mapstructure:"dsn"`
-	User               string `mapstructure:"user"`
-	Password           string `mapstructure:"password"`
-	Host               string `mapstructure:"host"`
-	Port               string `mapstructure:"port"`
-	Name               string `mapstructure:"name"`
-	Charset            string `mapstructure:"charset"`
-	LogMode            bool   `mapstructure:"logMode"` // 是否开启日志模式
-	MaxOpenConnections int    `mapstructure:"maxOpenConnections"`
-	MaxIdleConnections int    `mapstructure:"maxIdleConnections"`
+	User                   string `mapstructure:"user"`
+	Password               string `mapstructure:"password"`
+	Host                   string `mapstructure:"host"`
+	Port                   string `mapstructure:"port"`
+	Name                   string `mapstructure:"name"`
+	Charset                string `mapstructure:"charset"`
+	LogMode                bool   `mapstructure:"logMode"` // 是否开启日志模式
+	MaxOpenConnections     int    `mapstructure:"maxOpenConnections"`
+	MaxIdleConnections     int    `mapstructure:"maxIdleConnections"`
+	ConnMaxLifetimeMinutes int    `mapstructure:"connMaxLifetimeMinutes"` // 连接最大生命周期，单位分钟
 }
 
 type RedisConfig struct {
