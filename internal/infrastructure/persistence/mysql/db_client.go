@@ -25,6 +25,11 @@ func NewMysqlDBFactory(logger applog.Logger) *mysqlDBFactary {
 }
 
 func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
+	f.logger.Info("Initializing MySQL database connection",
+		applog.String("host", dbConfig.Host),
+		applog.String("port", dbConfig.Port),
+	)
+
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
 		dbConfig.User,
 		dbConfig.Password,
