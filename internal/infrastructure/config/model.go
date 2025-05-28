@@ -6,32 +6,33 @@ import (
 
 type Config struct {
 	ServerPort int
-	Database
-	Redis
-	JWT
-	Log
+	DatabaseConfig
+	RedisConfig
+	JWTConfig
+	LogConfig
 }
 
-type Log struct {
-	Level            string   `mapstructure:"level"`
-	OutputPaths      []string `mapstructure:"outputPaths"`
-	ErrorOutputPaths []string `mapstructure:"errorOutputPaths"`
-	Encoding         string   `mapstructure:"encoding"`
+type LogConfig struct {
+	Level            string   `mapstructure:"level"`            // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
+	OutputPaths      []string `mapstructure:"outputPaths"`      // 日志编码，例如 "json", "console"
+	ErrorOutputPaths []string `mapstructure:"errorOutputPaths"` // 日志输出路径，例如 ["stdout", "/var/log/app.log"]
+	Encoding         string   `mapstructure:"encoding"`         // 错误日志输出路径，例如 ["stderr"]
+	DevelopmentMode  bool     `mapstructure:"development_mode"` // 是否使用开发模式日志配置（会覆盖上面的一些精细配置）
 }
 
-type Database struct {
+type DatabaseConfig struct {
 	ConnectionString   string `mapstructure:"dsn"`
 	MaxOpenConnections int    `mapstructure:"maxOpenConnections"`
 	MaxIdleConnections int    `mapstructure:"maxIdleConnections"`
 }
 
-type Redis struct {
+type RedisConfig struct {
 	Address  string `mapstructure:"addr" yaml:"addr"`         // ip:port
 	Password string `mapstructure:"password" yaml:"password"` // 默认不需要
 	DB       int    `mapstructure:"db" yaml:"db"`             // 数据库编号
 }
 
-type JWT struct {
+type JWTConfig struct {
 	SecretKey            string        `mapstructure:"secretKey" yaml:"secretKey"`
 	AccessTokenDuration  time.Duration `mapstructure:"accessTokenDuration" yaml:"accessTokenDuration"`
 	RefreshTokenDuration time.Duration `mapstructure:"refreshTokenDuration" yaml:"refreshTokenDuration"`
