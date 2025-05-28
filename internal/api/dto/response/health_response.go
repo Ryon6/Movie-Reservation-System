@@ -7,7 +7,7 @@ type ComponentStatus struct {
 	Message string `json:"message,omitempty"` // 可选的额外信息或错误消息
 }
 
-type HealthResopnse struct {
+type HealthResponse struct {
 	OverallStatus string            `json:"overall_status"`       // 服务的总体健康状态
 	Version       string            `json:"version,omitempty"`    // 应用程序版本 (可选)
 	TimeStamp     string            `json:"timestamp"`            // 健康检查的时间戳
