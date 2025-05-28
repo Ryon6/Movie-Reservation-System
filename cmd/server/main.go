@@ -5,10 +5,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"log"
+	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
 	appmysql "mrs/internal/infrastructure/persistence/mysql"
 	applog "mrs/pkg/log"
@@ -55,19 +55,6 @@ func initLogger(cfg *config.Config) applog.Logger {
 var db *gorm.DB
 var rdb *redis.Client
 
-func initRedis(cfg *config.Config) {
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisConfig.Address,
-		Password: cfg.RedisConfig.Password,
-		DB:       cfg.RedisConfig.DB,
-	})
-
-	_, err := rdb.Ping(context.Background()).Result()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
-	}
-}
-
 func main() {
 	// 初始化配置
 	cfg, err := initConfig()
@@ -98,7 +85,7 @@ func main() {
 	}
 
 	// 初始化 Redis
-	initRedis(cfg)
+	rdb, err = cache.NewRedisClient(cfg.RedisConfig, logger)
 
 	// 获取服务端口
 	port := cfg.ServerConfig.Port
