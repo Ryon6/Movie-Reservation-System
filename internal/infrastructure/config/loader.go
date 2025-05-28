@@ -5,7 +5,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"strconv"
 
 	"github.com/spf13/viper"
@@ -18,7 +18,7 @@ func LoadConfig() (*Config, error) {
 	viper.AddConfigPath("configs")
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file: %v", err)
+		err = fmt.Errorf("error reading config file: %w", err)
 		return nil, err
 	}
 
