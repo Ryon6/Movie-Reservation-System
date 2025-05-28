@@ -1,6 +1,8 @@
+// TODO: NewZapLogger 传入参数应该是 config.LogConfig, 以实现应用层与日志层的解耦
 package log
 
 import (
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -9,14 +11,19 @@ import (
 
 type ZapLogger struct {
 	sugar *zap.SugaredLogger
+	level zap.AtomicLevel // 新增字段，持有 zap 的日志等级控制器
 }
 
 func NewZapLogger(config zap.Config, options ...zap.Option) (Logger, error) {
+	automicLevel := config.Level
 	baseLogger, err := config.Build(options...)
 	if err != nil {
 		return nil, err
 	}
-	return &ZapLogger{sugar: baseLogger.Sugar()}, nil
+	return &ZapLogger{
+		sugar: baseLogger.Sugar(),
+		level: automicLevel,
+	}, nil
 }
 
 // NewDevelopmentZapLogger 是一个便捷函数，用于创建开发环境的 Zap Logger。
@@ -83,4 +90,17 @@ func (l *ZapLogger) With(fields ...Field) Logger {
 	// SugaredLogger.With 返回一个新的 SugaredLogger
 	// 我们需要将其包装回我们的 zapLogger 类型
 	return &ZapLogger{sugar: l.sugar.With(convertFields(fields...)...)}
+}
+
+func (l *ZapLogger) GetLoggerLevel() string {
+	return l.level.String()
+}
+
+func (l *ZapLogger) SetLoggerLevel(level string) error {
+	zapLevel, err := zapcore.ParseLevel(level)
+	if err != nil {
+		return fmt.Errorf("parse zap level %s failed: %w", level, err)
+	}
+	l.level.SetLevel(zapLevel)
+	return nil
 }
