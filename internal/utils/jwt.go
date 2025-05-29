@@ -20,6 +20,7 @@ type CustomClaims struct {
 type JWTManager interface {
 	GenerateToken(userID uint, username string, role string) (string, error)
 	VerifyToken(tokenString string) (*CustomClaims, error)
+	GetMetadata(tokenString string) (*CustomClaims, error)
 }
 
 type jwtManagerImpl struct {
@@ -92,4 +93,19 @@ func (j *jwtManagerImpl) VerifyToken(tokenString string) (*CustomClaims, error) 
 	}
 
 	return nil, fmt.Errorf("token is invalid")
+}
+
+// GetMetadata 轻量级解析token元数据（不验证签名）
+func (j *jwtManagerImpl) GetMetadata(tokenString string) (*CustomClaims, error) {
+	// 只解析不验证，性能开销小
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, &CustomClaims{})
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(*CustomClaims); ok {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token claims")
 }
