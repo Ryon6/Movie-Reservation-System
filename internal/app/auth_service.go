@@ -6,12 +6,13 @@ import (
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 type AuthService interface {
-	Login(ctx context.Context, username string, password string) (string, error)
+	Login(ctx context.Context, username string, password string) (*LoginResult, error)
 }
 
 type authService struct {
@@ -35,7 +36,18 @@ func NewAuthService(
 	}
 }
 
-func (s *authService) Login(ctx context.Context, username string, password string) (string, error) {
+type LoginResult struct {
+	Token     string
+	UserID    uint
+	Username  string
+	RoleName  string
+	Email     string
+	ExpiresAt time.Time
+	CreateAt  time.Time
+	UpdateAt  time.Time
+}
+
+func (s *authService) Login(ctx context.Context, username string, password string) (*LoginResult, error) {
 	logger := s.logger.With(applog.String("Method", "authService.Login"))
 
 	// 查询用户
@@ -43,7 +55,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not Found", applog.String("username", username))
-			return "", errors.New("invalid username or password")
+			return nil, errors.New("invalid username or password")
 		}
 		logger.Error("failed to find user by name", applog.String("username", username), applog.Error(err))
 	}
@@ -52,20 +64,35 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	match, err := s.hasher.Check(usr.PasswordHash, password)
 	if err != nil {
 		logger.Error("password check failed with an internal error", applog.String("username", username), applog.Error(err))
-		return "", errors.New("authentication failed due to an internal error")
+		return nil, errors.New("authentication failed due to an internal error")
 	}
 
 	if !match {
 		logger.Warn("password not match")
-		return "", errors.New("invalid username or password")
+		return nil, errors.New("invalid username or password")
 	}
 
 	// 生成JWT
 	token, err := s.jwtManager.GenerateToken(usr.ID, usr.Username, usr.Role.Name)
 	if err != nil {
 		logger.Error("failed to generater JWT", applog.String("username", username), applog.Error(err))
-		return "", errors.New("failed to generate authentication token")
+		return nil, errors.New("failed to generate authentication token")
 	}
 
-	return token, nil
+	claims, err := s.jwtManager.GetMetadata(token)
+	if err != nil {
+		logger.Error("failed to get JWT metadata", applog.Error(err))
+		return nil, errors.New(("failed to get authentication token metadata"))
+	}
+
+	return &LoginResult{
+		UserID:    usr.ID,
+		Username:  usr.Username,
+		Email:     usr.Email,
+		RoleName:  usr.Role.Name,
+		Token:     token,
+		ExpiresAt: claims.ExpiresAt.Time,
+		CreateAt:  usr.CreatedAt,
+		UpdateAt:  usr.UpdatedAt,
+	}, nil
 }
