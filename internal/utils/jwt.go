@@ -28,7 +28,7 @@ type jwtManagerImpl struct {
 	expirationHours int64
 }
 
-func NewJWTManagerImpl(secretKey string, issuer string, expirationHours int64) (*jwtManagerImpl, error) {
+func NewJWTManagerImpl(secretKey string, issuer string, expirationHours int64) (JWTManager, error) {
 	if secretKey == "" {
 		return nil, fmt.Errorf("NewJWTManagerImpl: jwt secretKey cannot be empty")
 	}

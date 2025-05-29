@@ -23,7 +23,7 @@ type bcryptHasher struct {
 	cost int // bcrypt 的计算成本
 }
 
-func NewBcryptHasher(cost int) *bcryptHasher {
+func NewBcryptHasher(cost int) PasswordHasher {
 	if cost == 0 {
 		cost = bcrypt.DefaultCost
 	}

@@ -14,7 +14,7 @@ type gormRoleRepository struct {
 	logger applog.Logger
 }
 
-func NewGormRoleRepository(logger applog.Logger, db *gorm.DB) *gormRoleRepository {
+func NewGormRoleRepository(logger applog.Logger, db *gorm.DB) role.RoleRepository {
 	return &gormRoleRepository{
 		db:     db,
 		logger: logger,
