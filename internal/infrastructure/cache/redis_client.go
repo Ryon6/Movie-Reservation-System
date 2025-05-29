@@ -36,7 +36,7 @@ func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (*redis.Client
 
 	if _, err := rdb.Ping(ctx).Result(); err != nil {
 		logger.Error("failed to connect to Redis", applog.Error(err))
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+		return nil, fmt.Errorf("NewRedisClient: %w", err)
 	}
 	logger.Info("redis client conneted successfully and ping result is ok",
 		applog.String("address", cfg.Address))

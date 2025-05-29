@@ -30,7 +30,7 @@ type jwtManagerImpl struct {
 
 func NewJWTManagerImpl(secretKey string, issuer string, expirationHours int64) (JWTManager, error) {
 	if secretKey == "" {
-		return nil, fmt.Errorf("NewJWTManagerImpl: jwt secretKey cannot be empty")
+		return nil, errors.New("NewJWTManagerImpl: jwt secretKey cannot be empty")
 	}
 	return &jwtManagerImpl{
 		secretKey:       []byte(secretKey),
