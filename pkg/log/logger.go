@@ -32,6 +32,7 @@ type Field struct {
 // Helper functions to create Fields easily
 func String(key string, value string) Field   { return Field{Key: key, Value: value} }
 func Int(key string, value int) Field         { return Field{Key: key, Value: value} }
+func Uint(key string, value uint) Field       { return Field{Key: key, Value: value} }
 func Int64(key string, value int64) Field     { return Field{Key: key, Value: value} }
 func Float64(key string, value float64) Field { return Field{Key: key, Value: value} }
 func Bool(key string, value bool) Field       { return Field{Key: key, Value: value} }
