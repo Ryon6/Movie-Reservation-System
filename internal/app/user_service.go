@@ -1,3 +1,4 @@
+// TODO: 配置依赖注入规范化
 package app
 
 import (
@@ -18,23 +19,26 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo user.UserRepository
-	roleRepo role.RoleRepository
-	hasher   utils.PasswordHasher
-	logger   applog.Logger
+	defaultRoleName string // 注入配置依赖：默认角色
+	userRepo        user.UserRepository
+	roleRepo        role.RoleRepository
+	hasher          utils.PasswordHasher
+	logger          applog.Logger
 }
 
 func NewUserService(
+	defaultRoleName string,
 	userRepo user.UserRepository,
 	roleRepo role.RoleRepository,
 	hasher utils.PasswordHasher,
 	logger applog.Logger,
 ) UserService {
 	return &userService{
-		userRepo: userRepo,
-		roleRepo: roleRepo,
-		hasher:   hasher,
-		logger:   logger,
+		defaultRoleName: defaultRoleName,
+		userRepo:        userRepo,
+		roleRepo:        roleRepo,
+		hasher:          hasher,
+		logger:          logger,
 	}
 }
 
@@ -64,6 +68,9 @@ func (s *userService) RegisterUser(ctx context.Context, username, email, plainPa
 	}
 
 	// 查找默认角色
+	if defaultRoleName == "" {
+		defaultRoleName = s.defaultRoleName
+	}
 	defaultRole, err := s.roleRepo.FindByName(ctx, defaultRoleName)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
