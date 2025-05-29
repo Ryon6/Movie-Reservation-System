@@ -1,7 +1,7 @@
 package response
 
 import (
-	"mrs/internal/domain/user"
+	"mrs/internal/app"
 	"time"
 )
 
@@ -16,13 +16,13 @@ type UserReponse struct {
 }
 
 // 从领域用户实体转换为 UserResponse DTO
-func FromDomainUser(usr *user.User) UserReponse {
+func FromDomainUser(rst *app.LoginResult) UserReponse {
 	return UserReponse{
-		ID:       usr.ID,
-		Username: usr.Username,
-		Email:    usr.Email,
-		RoleName: usr.Role.Name,
-		CreateAt: usr.CreatedAt,
-		UpdateAt: usr.UpdatedAt,
+		ID:       rst.UserID,
+		Username: rst.Username,
+		Email:    rst.Email,
+		RoleName: rst.RoleName,
+		CreateAt: rst.CreateAt,
+		UpdateAt: rst.UpdateAt,
 	}
 }
