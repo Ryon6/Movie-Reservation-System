@@ -26,7 +26,7 @@ type JWTManager interface {
 type jwtManagerImpl struct {
 	secretKey       []byte
 	issuer          string
-	expirationHours int64
+	expirationHours int64 // 以小时为单位
 }
 
 func NewJWTManagerImpl(secretKey string, issuer string, expirationHours int64) (JWTManager, error) {
