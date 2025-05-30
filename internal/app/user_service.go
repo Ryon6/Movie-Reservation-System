@@ -1,4 +1,3 @@
-// TODO: 配置依赖注入规范化
 package app
 
 import (

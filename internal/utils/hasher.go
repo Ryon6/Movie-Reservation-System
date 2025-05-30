@@ -1,5 +1,3 @@
-// TODO: 修改user的验证部分，采用该接口验证
-
 package utils
 
 import (
