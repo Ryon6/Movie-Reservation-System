@@ -15,7 +15,6 @@ type UserResponse struct {
 	// IsActive bool      `json:"is_active"`
 }
 
-// 从领域用户实体转换为 UserResponse DTO
 func ToUserResponse(rst *dto.AuthResult) UserResponse {
 	return UserResponse{
 		ID:       rst.UserID,
