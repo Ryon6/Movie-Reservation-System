@@ -1,9 +1,8 @@
-// TODO: NewZapLogger 传入参数应该是 config.LogConfig, 以实现应用层与日志层的解耦
 package log
 
 import (
 	"fmt"
-	"time"
+	"mrs/internal/infrastructure/config"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -14,9 +13,15 @@ type ZapLogger struct {
 	level zap.AtomicLevel // 新增字段，持有 zap 的日志等级控制器
 }
 
-func NewZapLogger(config zap.Config, options ...zap.Option) (Logger, error) {
-	automicLevel := config.Level
-	baseLogger, err := config.Build(options...)
+func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, error) {
+	zapcfg := zap.NewDevelopmentConfig()
+	zapcfg.OutputPaths = logCfg.OutputPaths
+	zapcfg.ErrorOutputPaths = logCfg.ErrorOutputPaths
+	zapLevel, _ := zapcore.ParseLevel(logCfg.Level)
+	zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
+
+	automicLevel := zapcfg.Level
+	baseLogger, err := zapcfg.Build(options...)
 	if err != nil {
 		return nil, err
 	}
@@ -26,24 +31,24 @@ func NewZapLogger(config zap.Config, options ...zap.Option) (Logger, error) {
 	}, nil
 }
 
-// NewDevelopmentZapLogger 是一个便捷函数，用于创建开发环境的 Zap Logger。
-// 它提供了彩色的、人类可读的输出。
-func NewDevelopmentZapLogger() (Logger, error) {
-	cfg := zap.NewDevelopmentConfig()
-	// 你可以在这里进一步定制 cfg，例如修改时间格式
-	cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder         // 彩色级别
-	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339) // 更标准的时间格式
-	return NewZapLogger(cfg)
-}
+// // NewDevelopmentZapLogger 是一个便捷函数，用于创建开发环境的 Zap Logger。
+// // 它提供了彩色的、人类可读的输出。
+// func NewDevelopmentZapLogger() (Logger, error) {
+// 	cfg := zap.NewDevelopmentConfig()
+// 	// 你可以在这里进一步定制 cfg，例如修改时间格式
+// 	cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder         // 彩色级别
+// 	cfg.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339) // 更标准的时间格式
+// 	return NewZapLogger(cfg)
+// }
 
-// NewProductionZapLogger 是一个便捷函数，用于创建生产环境的 Zap Logger。
-// 它通常输出 JSON 格式，级别为 Info，性能更高。
-func NewProductionZapLogger() (Logger, error) {
-	cfg := zap.NewProductionConfig()
-	// 你可以在这里进一步定制 cfg
-	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder // ISO8601 时间格式
-	return NewZapLogger(cfg)
-}
+// // NewProductionZapLogger 是一个便捷函数，用于创建生产环境的 Zap Logger。
+// // 它通常输出 JSON 格式，级别为 Info，性能更高。
+// func NewProductionZapLogger() (Logger, error) {
+// 	cfg := zap.NewProductionConfig()
+// 	// 你可以在这里进一步定制 cfg
+// 	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder // ISO8601 时间格式
+// 	return NewZapLogger(cfg)
+// }
 
 // zapFieldsToZap converts our Field type to []zap.Field for zap.Logger
 // or prepares for zap.SugaredLogger's key-value pair arguments.

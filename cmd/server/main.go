@@ -7,7 +7,6 @@ import (
 	"mrs/internal/api/handlers"
 	"mrs/internal/api/middleware"
 	"mrs/internal/app"
-	"mrs/internal/dbsetup"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
 	appmysql "mrs/internal/infrastructure/persistence/mysql"
@@ -17,8 +16,6 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
 )
 
@@ -39,12 +36,12 @@ func ensureLogDirectory(logPath string) error {
 }
 
 func initLogger(cfg *config.Config) applog.Logger {
-	zapcfg := zap.NewDevelopmentConfig()
-	zapcfg.OutputPaths = cfg.LogConfig.OutputPaths
-	zapcfg.ErrorOutputPaths = cfg.LogConfig.ErrorOutputPaths
-	zapLevel, _ := zapcore.ParseLevel(cfg.LogConfig.Level)
-	zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
-	logger, err := applog.NewZapLogger(zapcfg)
+	// zapcfg := zap.NewDevelopmentConfig()
+	// zapcfg.OutputPaths = cfg.LogConfig.OutputPaths
+	// zapcfg.ErrorOutputPaths = cfg.LogConfig.ErrorOutputPaths
+	// zapLevel, _ := zapcore.ParseLevel(cfg.LogConfig.Level)
+	// zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
+	logger, err := applog.NewZapLogger(cfg.LogConfig)
 	if err != nil {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))
 	}
@@ -86,10 +83,10 @@ func main() {
 		logger.Error("failed to create redis", applog.Error(err))
 	}
 
-	// 自动迁移
-	if err := dbsetup.InitializeDatabase(db, cfg.AdminConfig, logger); err != nil {
-		logger.Fatal("Failed to initialize database", applog.Error(err))
-	}
+	// // 自动迁移
+	// if err := dbsetup.InitializeDatabase(db, cfg.AdminConfig, logger); err != nil {
+	// 	logger.Fatal("Failed to initialize database", applog.Error(err))
+	// }
 
 	// 获取服务端口
 	port := cfg.ServerConfig.Port
