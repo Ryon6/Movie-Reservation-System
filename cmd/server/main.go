@@ -1,12 +1,7 @@
-// **`cmd/server/main.go` 基础**:
-// *   实现基础的 HTTP 服务器启动 (使用 Gin)。
-// *   初步的依赖注入逻辑框架。
-
 package main
 
 import (
 	"fmt"
-
 	"log"
 	"mrs/internal/api"
 	"mrs/internal/api/handlers"
@@ -27,15 +22,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	DefaultRoleName        = "USER"                            // RoleRepo
-	DefaultHasherCost      = 0                                 // Hansher
-	DefaultSecretKey       = "Rome will return like lightning" // JWT
-	DefaultIssuer          = "Peng"                            //JWT
-	DefaultExpirationHours = 1                                 //JWT
-	DefaultLogPath         = "./var/log"
-)
-
 // 使用已实现的 LoadConfig 函数加载配置
 func initConfig() (*config.Config, error) {
 	cfg, err := config.LoadConfig()
@@ -45,8 +31,8 @@ func initConfig() (*config.Config, error) {
 	return cfg, nil
 }
 
-func ensureLogDirectory() error {
-	if err := os.MkdirAll(DefaultLogPath, 0755); err != nil {
+func ensureLogDirectory(logPath string) error {
+	if err := os.MkdirAll(logPath, 0755); err != nil {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 	return nil
@@ -77,15 +63,12 @@ func main() {
 	viper.Set("config", cfg)
 
 	// 确保日志目录存在
-	if err := ensureLogDirectory(); err != nil {
-		if err := ensureLogDirectory(); err != nil {
-			log.Fatalf("Failed to ensure log directory: %v", err)
-		}
+	if err := ensureLogDirectory("./var/log"); err != nil {
+		log.Fatalf("Failed to ensure log directory: %v", err)
 	}
 
 	// 初始化日志
 	logger := initLogger(cfg)
-	// logger, err := zap.NewDevelopment()
 	defer logger.Sync() // 确保所有日志都已刷新到磁盘
 
 	logger.Debug("Logger initialized successfully")
@@ -100,22 +83,26 @@ func main() {
 	// 初始化 Redis
 	rdb, err = cache.NewRedisClient(cfg.RedisConfig, logger)
 	if err != nil {
-		logger.Error("failed to craete redis", applog.Error(err))
+		logger.Error("failed to create redis", applog.Error(err))
 	}
 
 	// 自动迁移
-	if err := dbsetup.InitializeDatabase(db, logger); err != nil {
+	if err := dbsetup.InitializeDatabase(db, cfg.AdminConfig, logger); err != nil {
 		logger.Fatal("Failed to initialize database", applog.Error(err))
 	}
 
 	// 获取服务端口
 	port := cfg.ServerConfig.Port
 
-	// utiis
-	hasher := utils.NewBcryptHasher(DefaultHasherCost) // 采用默认
-	jwtManager, err := utils.NewJWTManagerImpl(DefaultSecretKey, DefaultIssuer, DefaultExpirationHours)
+	// 实用工具
+	hasher := utils.NewBcryptHasher(cfg.AuthConfig.HasherCost)
+	jwtManager, err := utils.NewJWTManagerImpl(
+		cfg.JWTConfig.SecretKey,
+		cfg.JWTConfig.Issuer,
+		int64(cfg.JWTConfig.AccessTokenDuration.Hours()),
+	)
 	if err != nil {
-		logger.Error("failed to create jwtManager")
+		logger.Error("failed to create jwtManager", applog.Error(err))
 	}
 
 	// 基础设施层
@@ -123,7 +110,7 @@ func main() {
 	roleRepo := appmysql.NewGormRoleRepository(db, logger)
 
 	// 应用层
-	userService := app.NewUserService(DefaultRoleName, userRepo, roleRepo, hasher, logger)
+	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, userRepo, roleRepo, hasher, logger)
 	authService := app.NewAuthService(userRepo, hasher, jwtManager, logger)
 
 	// 接口层
