@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
 
@@ -25,6 +26,11 @@ func NewGormUserRepository(db *gorm.DB, logger applog.Logger) user.UserRepositor
 func (r *gormUserRepository) Create(ctx context.Context, usr *user.User) error {
 	logger := r.logger.With(applog.String("Method", "gormUserRepository.Create"))
 	if err := r.db.WithContext(ctx).Create(usr).Error; err != nil {
+		// 封装哨兵错误
+		if errors.Is(err, gorm.ErrDuplicatedKey) || errors.Is(err, gorm.ErrRegistered) {
+			logger.Warn("user already exists", applog.Error(err))
+			return fmt.Errorf("%w: %w", user.ErrUserExists, err)
+		}
 		logger.Error("failed to create user", applog.Error(err))
 		return err
 	}
@@ -38,9 +44,10 @@ func (r *gormUserRepository) FindByID(ctx context.Context, id uint) (*user.User,
 	var usr user.User
 	// Preload("Role") 会根据 User 结构体中的 Role 字段和外键 RoleID 加载关联的角色信息。
 	if err := r.db.WithContext(ctx).Preload("Role").First(&usr, id).Error; err != nil {
+		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not found by ID", applog.Uint("user_id", id))
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
 		}
 		logger.Error("failed to find user by ID", applog.Uint("user_id", id), applog.Error(err))
 		return nil, err
@@ -54,9 +61,10 @@ func (r *gormUserRepository) FindByUsername(ctx context.Context, username string
 	logger := r.logger.With(applog.String("Method", "gormUserRepository.FindByUsername"))
 	var usr user.User
 	if err := r.db.WithContext(ctx).Preload("Role").Where("username = ?", username).First(&usr).Error; err != nil {
+		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not found by username", applog.String("username", username))
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
 		}
 		logger.Error("failed to find user by username", applog.String("username", username), applog.Error(err))
 		return nil, err
@@ -70,9 +78,10 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 	logger := r.logger.With(applog.String("Method", "gormUserRepository.FindByEmail"))
 	var usr user.User
 	if err := r.db.WithContext(ctx).Preload("Role").Where("email = ?", email).First(&usr).Error; err != nil {
+		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not found by email", applog.String("email", email))
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
 		}
 		logger.Error("failed to find user by email", applog.String("email", email), applog.Error(err))
 		return nil, err

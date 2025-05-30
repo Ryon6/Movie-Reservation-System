@@ -4,6 +4,7 @@ import "errors"
 
 var (
 	// 用户存在性错误
+	ErrUserExists     = errors.New("user already exists")
 	ErrUsernameExists = errors.New("username already exists")
 	ErrEmailExists    = errors.New("email already exists")
 	ErrUserNotFound   = errors.New("user not found")
