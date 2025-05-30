@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mrs/internal/domain/role" // 你的 Role 实体定义
 	"mrs/internal/domain/user" // 你的 User 实体定义
+	"mrs/internal/infrastructure/config"
 
 	// 你的 PasswordHasher 工具
 	applog "mrs/pkg/log" // 你的日志包
@@ -14,18 +15,8 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	adminRoleName = "ADMIN"
-	userRoleName  = "USER"
-
-	// 从配置或环境变量中获取初始管理员凭据是更好的做法
-	adminUsername = "admin"
-	adminEmail    = "admin@example.com"
-	adminPassword = "SecureAdminPassword123!" // 警告：不要在生产中硬编码密码
-)
-
 // InitializeDatabase 执行数据库迁移和初始数据植入。
-func InitializeDatabase(db *gorm.DB, logger applog.Logger) error {
+func InitializeDatabase(db *gorm.DB, admCfg config.AdminConfig, logger applog.Logger) error {
 	logger.Info("Starting database initialization...")
 
 	// 1. 自动迁移表结构
@@ -47,19 +38,19 @@ func InitializeDatabase(db *gorm.DB, logger applog.Logger) error {
 
 	// 2. 植入角色数据
 
-	adminRole, err := seedRole(db, logger, adminRoleName, "Administrator with full access")
+	adminRole, err := seedRole(db, logger, role.AdminRoleName, "Administrator with full access")
 	if err != nil {
 		return fmt.Errorf("failed to seed admin role: %w", err)
 	}
 
-	_, err = seedRole(db, logger, userRoleName, "Standard user with basic access")
+	_, err = seedRole(db, logger, role.UserRoleName, "Standard user with basic access")
 	if err != nil {
 		return fmt.Errorf("failed to seed user role: %w", err)
 	}
 
 	// 3. 植入管理员账户
 
-	err = seedAdminUser(db, logger, adminUsername, adminEmail, adminPassword, adminRole)
+	err = seedAdminUser(db, logger, admCfg.Username, admCfg.Email, admCfg.Password, adminRole)
 	if err != nil {
 		return fmt.Errorf("failed to seed admin user: %w", err)
 	}
