@@ -12,6 +12,7 @@ import (
 	"mrs/internal/api/handlers"
 	"mrs/internal/api/middleware"
 	"mrs/internal/app"
+	"mrs/internal/dbsetup"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
 	appmysql "mrs/internal/infrastructure/persistence/mysql"
@@ -32,6 +33,7 @@ const (
 	DefaultSecretKey       = "Rome will return like lightning" // JWT
 	DefaultIssuer          = "Peng"                            //JWT
 	DefaultExpirationHours = 1                                 //JWT
+	DefaultLogPath         = "./var/log"
 )
 
 // 使用已实现的 LoadConfig 函数加载配置
@@ -44,7 +46,7 @@ func initConfig() (*config.Config, error) {
 }
 
 func ensureLogDirectory() error {
-	if err := os.MkdirAll("./var/log", 0755); err != nil {
+	if err := os.MkdirAll(DefaultLogPath, 0755); err != nil {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 	return nil
@@ -97,6 +99,14 @@ func main() {
 
 	// 初始化 Redis
 	rdb, err = cache.NewRedisClient(cfg.RedisConfig, logger)
+	if err != nil {
+		logger.Error("failed to craete redis", applog.Error(err))
+	}
+
+	// 自动迁移
+	if err := dbsetup.InitializeDatabase(db, logger); err != nil {
+		logger.Fatal("Failed to initialize database", applog.Error(err))
+	}
 
 	// 获取服务端口
 	port := cfg.ServerConfig.Port
