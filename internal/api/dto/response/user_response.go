@@ -1,11 +1,11 @@
 package response
 
 import (
-	"mrs/internal/app"
+	"mrs/internal/app/dto"
 	"time"
 )
 
-type UserReponse struct {
+type UserResponse struct {
 	ID       uint      `json:"id"`
 	Username string    `json:"username"`
 	Email    string    `json:"email"`
@@ -16,8 +16,8 @@ type UserReponse struct {
 }
 
 // 从领域用户实体转换为 UserResponse DTO
-func FromDomainUser(rst *app.LoginResult) UserReponse {
-	return UserReponse{
+func ToUserResponse(rst *dto.AuthResult) UserResponse {
+	return UserResponse{
 		ID:       rst.UserID,
 		Username: rst.Username,
 		Email:    rst.Email,
