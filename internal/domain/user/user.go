@@ -17,8 +17,8 @@ type User struct {
 	FullName     string     `gorm:"varchar(100)"`                      // 用户全名（可选）
 	LastLogin    *time.Time // 最后登录时间（可选）,使用指针可为null
 
-	RoleID uint `gorm:"not null"` // 关联的角色ID
-	Role   role.Role
+	RoleID uint      `gorm:"not null"`           // 关联的角色ID
+	Role   role.Role `gorm:"foreignKey:RoleID "` // 通常会隐式推断，这里显式定义防止出错
 }
 
 // 接收明文密码并使用bcrypt哈希化存储
