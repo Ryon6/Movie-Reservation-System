@@ -1,4 +1,3 @@
-// TODO: 确保密钥通过配置安全管理，而不是硬编码
 package utils
 
 import (
