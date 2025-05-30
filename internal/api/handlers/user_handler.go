@@ -1,6 +1,3 @@
-// TODO: username already exists 等错误直接定义好用于调用
-// TODO: 自顶向下修改错误的使用方法
-
 package handlers
 
 import (
@@ -41,7 +38,8 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	// 在service层判断DefaultRole是否为空
 	usrPrf, err := h.userService.RegisterUser(ctx, req.Username, req.Email, req.Password, req.DefaultRole)
 	if err != nil {
-		if errors.Is(err, user.ErrEmailExists) || errors.Is(err, user.ErrUsernameExists) {
+		// 用户可能已存在
+		if errors.Is(err, user.ErrUserExists) {
 			logger.Warn("User registration conflict", applog.Error(err))
 			ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
