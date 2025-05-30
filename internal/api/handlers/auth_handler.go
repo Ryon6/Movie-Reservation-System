@@ -48,7 +48,7 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	loginResp := response.LoginResponse{
 		Token:     loginResult.Token,
 		ExpiresAt: time.Now().Add(time.Hour),
-		User:      response.FromDomainUser(loginResult),
+		User:      response.ToUserResponse(loginResult),
 	}
 	logger.Info("User logged in successfully", applog.String("username", req.Username))
 	ctx.JSON(http.StatusOK, loginResp)
