@@ -7,6 +7,7 @@ import (
 	"errors"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
+	"mrs/internal/api/middleware"
 	"mrs/internal/app"
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
@@ -60,4 +61,44 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	}
 	logger.Info("User profile retrieved successfully", applog.Uint("user_id", usrPrf.ID))
 	ctx.JSON(http.StatusOK, userResp)
+}
+
+func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("handler", "UserHandler.GetUserProfile"))
+	userID, exists := ctx.Get(middleware.UserIDKey)
+	if !exists {
+		logger.Error("userID not found in context, auth middleware might not have run or failed")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: User ID not found in context"})
+		return
+	}
+
+	id, ok := userID.(uint)
+	if !ok {
+		logger.Error("UserID in context is not of type uint", applog.Any("userID_type", userID))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: User ID format issue"})
+		return
+	}
+
+	userProfile, err := h.userService.GetUserByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user profile not found", applog.Uint("user_id", id))
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User profile not found"})
+			return
+		}
+		logger.Error("Failed to get user profile", applog.Uint("user_id", id), applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: User ID format issue"})
+		return
+	}
+
+	resp := response.UserResponse{
+		ID:       userProfile.ID,
+		Username: userProfile.Username,
+		Email:    userProfile.Email,
+		RoleName: userProfile.RoleName,
+		CreateAt: userProfile.CreateAt,
+		UpdateAt: userProfile.UpdateAt,
+	}
+	logger.Info("user profile retrieved successfully", applog.Uint("user_id", userProfile.ID))
+	ctx.JSON(http.StatusOK, resp)
 }
