@@ -17,14 +17,14 @@ import (
 )
 
 type UserHandler struct {
-	logger      applog.Logger
 	userService app.UserService
+	logger      applog.Logger
 }
 
-func NewUserHandler(logger applog.Logger, userService app.UserService) *UserHandler {
+func NewUserHandler(userService app.UserService, logger applog.Logger) *UserHandler {
 	return &UserHandler{
-		logger:      logger,
 		userService: userService,
+		logger:      logger,
 	}
 }
 

@@ -12,16 +12,16 @@ import (
 )
 
 type HealthHandler struct {
-	logger applog.Logger
 	db     *gorm.DB
 	rdb    *redis.Client
+	logger applog.Logger
 }
 
-func NewHealthHandler(logger applog.Logger, db *gorm.DB, rdb *redis.Client) *HealthHandler {
+func NewHealthHandler(db *gorm.DB, rdb *redis.Client, logger applog.Logger) *HealthHandler {
 	return &HealthHandler{
-		logger: logger,
 		db:     db,
 		rdb:    rdb,
+		logger: logger,
 	}
 }
 
