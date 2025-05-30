@@ -19,19 +19,19 @@ const (
 
 func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		logger = logger.With(applog.String("middleware", "AuthMiddleware"))
+		inlogger := logger.With(applog.String("middleware", "AuthMiddleware"))
 
 		// 获取 Authorization 头部
 		authHeader := ctx.GetHeader(AuthorizationHeaderKey)
 		if authHeader == "" {
-			logger.Warn("authorization header is missing")
+			inlogger.Warn("authorization header is missing")
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
 			return
 		}
 
 		// 校验 Authorization 格式
 		if !strings.HasPrefix(authHeader, BearerSchema) {
-			logger.Warn("authorization header format is invalid", applog.String("header", authHeader))
+			inlogger.Warn("authorization header format is invalid", applog.String("header", authHeader))
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header format must be Bearer {token}"})
 			return
 		}
@@ -39,7 +39,7 @@ func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.Handl
 		// 提取Token
 		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, BearerSchema))
 		if tokenString == "" {
-			logger.Warn("token is empty after trimming Bearer prefix", applog.String("header", authHeader))
+			inlogger.Warn("token is empty after trimming Bearer prefix", applog.String("header", authHeader))
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token is missing"})
 			return
 		}
@@ -47,7 +47,7 @@ func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.Handl
 		// 校验Token
 		claims, err := jwtManager.VerifyToken(tokenString)
 		if err != nil {
-			logger.Warn("failed to verify token", applog.Error(err))
+			inlogger.Warn("failed to verify token", applog.Error(err))
 			// 可以根据 err 类型返回更具体的错误，例如 token 过期
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			return
@@ -56,7 +56,7 @@ func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.Handl
 		ctx.Set(UserIDKey, claims.UserID)
 		ctx.Set(UserRoleNameKey, claims.RoleName)
 
-		logger.Info("user authenticated successfully", applog.Uint("userID", claims.UserID), applog.String("role", claims.RoleName))
+		inlogger.Info("user authenticated successfully", applog.Uint("userID", claims.UserID), applog.String("role", claims.RoleName))
 		ctx.Next()
 	}
 }
