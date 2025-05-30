@@ -3,16 +3,16 @@ package app
 import (
 	"context"
 	"errors"
+	"mrs/internal/app/dto"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
-	"time"
 
 	"gorm.io/gorm"
 )
 
 type AuthService interface {
-	Login(ctx context.Context, username string, password string) (*LoginResult, error)
+	Login(ctx context.Context, username string, password string) (*dto.AuthResult, error)
 }
 
 type authService struct {
@@ -36,18 +36,7 @@ func NewAuthService(
 	}
 }
 
-type LoginResult struct {
-	Token     string
-	UserID    uint
-	Username  string
-	RoleName  string
-	Email     string
-	ExpiresAt time.Time
-	CreateAt  time.Time
-	UpdateAt  time.Time
-}
-
-func (s *authService) Login(ctx context.Context, username string, password string) (*LoginResult, error) {
+func (s *authService) Login(ctx context.Context, username string, password string) (*dto.AuthResult, error) {
 	logger := s.logger.With(applog.String("Method", "authService.Login"))
 
 	// 查询用户
@@ -85,7 +74,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 		return nil, errors.New(("failed to get authentication token metadata"))
 	}
 
-	return &LoginResult{
+	return &dto.AuthResult{
 		UserID:    usr.ID,
 		Username:  usr.Username,
 		Email:     usr.Email,
