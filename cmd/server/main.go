@@ -10,9 +10,12 @@ import (
 	"log"
 	"mrs/internal/api"
 	"mrs/internal/api/handlers"
+	"mrs/internal/api/middleware"
+	"mrs/internal/app"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
 	appmysql "mrs/internal/infrastructure/persistence/mysql"
+	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"os"
 
@@ -23,18 +26,26 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	DefaultRoleName        = "USER"                            // RoleRepo
+	DefaultHasherCost      = 0                                 // Hansher
+	DefaultSecretKey       = "Rome will return like lightning" // JWT
+	DefaultIssuer          = "Peng"                            //JWT
+	DefaultExpirationHours = 1                                 //JWT
+)
+
 // 使用已实现的 LoadConfig 函数加载配置
 func initConfig() (*config.Config, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load config: %w", err)
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 	return cfg, nil
 }
 
 func ensureLogDirectory() error {
 	if err := os.MkdirAll("./var/log", 0755); err != nil {
-		return fmt.Errorf("Failed to create log directory: %w", err)
+		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 	return nil
 }
@@ -47,7 +58,7 @@ func initLogger(cfg *config.Config) applog.Logger {
 	zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
 	logger, err := applog.NewZapLogger(zapcfg)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to initialize logger: %v", err))
+		panic(fmt.Sprintf("failed to initialize logger: %v", err))
 	}
 	return logger
 }
@@ -90,9 +101,30 @@ func main() {
 	// 获取服务端口
 	port := cfg.ServerConfig.Port
 
-	// 创建 Gin 引擎
-	healthHandler := handlers.NewHealthHandler(logger, db, rdb)
-	r := api.SetupRouter(healthHandler)
+	// utiis
+	hasher := utils.NewBcryptHasher(DefaultHasherCost) // 采用默认
+	jwtManager, err := utils.NewJWTManagerImpl(DefaultSecretKey, DefaultIssuer, DefaultExpirationHours)
+	if err != nil {
+		logger.Error("failed to create jwtManager")
+	}
+
+	// 基础设施层
+	userRepo := appmysql.NewGormUserRepository(db, logger)
+	roleRepo := appmysql.NewGormRoleRepository(db, logger)
+
+	// 应用层
+	userService := app.NewUserService(DefaultRoleName, userRepo, roleRepo, hasher, logger)
+	authService := app.NewAuthService(userRepo, hasher, jwtManager, logger)
+
+	// 接口层
+	healthHandler := handlers.NewHealthHandler(db, rdb, logger)
+	authHandler := handlers.NewAuthHandler(authService, logger)
+	userHandler := handlers.NewUserHandler(userService, logger)
+
+	r := api.SetupRouter(healthHandler,
+		authHandler,
+		userHandler,
+		middleware.AuthMiddleware(jwtManager, logger))
 
 	// 启动 HTTP 服务器
 	logger.Info("Starting server on port " + port)
