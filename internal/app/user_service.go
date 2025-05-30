@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mrs/internal/app/dto"
 	"mrs/internal/domain/role"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
@@ -14,8 +15,8 @@ import (
 )
 
 type UserService interface {
-	RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*user.User, error)
-	GetUserByID(ctx context.Context, userID uint) (*user.User, error)
+	RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*dto.UserProfile, error)
+	GetUserByID(ctx context.Context, userID uint) (*dto.UserProfile, error)
 }
 
 type userService struct {
@@ -42,7 +43,7 @@ func NewUserService(
 	}
 }
 
-func (s *userService) RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*user.User, error) {
+func (s *userService) RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*dto.UserProfile, error) {
 	logger := s.logger.With(applog.String("Method", "userService.RegisterUser"),
 		applog.String("username", username),
 		applog.String("email", email))
@@ -102,10 +103,10 @@ func (s *userService) RegisterUser(ctx context.Context, username, email, plainPa
 		return nil, fmt.Errorf("userService.RegisterUser: %w", err)
 	}
 	logger.Info("create user successful")
-	return &newUser, nil
+	return dto.ToUserProfile(&newUser), nil
 }
 
-func (s *userService) GetUserByID(ctx context.Context, userID uint) (*user.User, error) {
+func (s *userService) GetUserByID(ctx context.Context, userID uint) (*dto.UserProfile, error) {
 	logger := s.logger.With(applog.String("Method", "userService.GetUserByID"), applog.Uint("user_id", userID))
 	usr, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
@@ -118,5 +119,5 @@ func (s *userService) GetUserByID(ctx context.Context, userID uint) (*user.User,
 	}
 
 	logger.Info("find user successfully")
-	return usr, nil
+	return dto.ToUserProfile(usr), nil
 }
