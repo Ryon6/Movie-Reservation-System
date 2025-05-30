@@ -22,9 +22,10 @@ redis:
   minIdleConns: 5
 
 jwt:
-  secretKey: "your-256-bit-secret"
-  accessTokenDuration: 15m
+  secretKey: "Rome will return like lightning"
+  accessTokenDuration: 1h
   refreshTokenDuration: 72h
+  issuer: "Peng"
 
 log:
   level: debug
@@ -32,3 +33,12 @@ log:
   errorOutputPaths: ["stderr", "./var/log/error.log"]
   encoding: json
   development_mode: true
+
+auth:
+  defaultRoleName: "USER"
+  hasherCost: 10
+
+admin:
+  username: "admin"
+  email: "admin@example.com"
+  password: "SecureAdminPassword123!"

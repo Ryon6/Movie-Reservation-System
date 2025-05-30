@@ -10,6 +10,8 @@ type Config struct {
 	RedisConfig    `mapstructure:"redis"`
 	JWTConfig      `mapstructure:"jwt"`
 	LogConfig      `mapstructure:"log"`
+	AuthConfig     `mapstructure:"auth"`
+	AdminConfig    `mapstructure:"admin"`
 }
 
 type ServerConfig struct {
@@ -51,8 +53,20 @@ type RedisConfig struct {
 	IdleTimeout  time.Duration `mapstructure:"idleTimeout"`  // 空闲连接超时时间 5m
 }
 
+type AuthConfig struct {
+	DefaultRoleName string `mapstructure:"defaultRoleName"`
+	HasherCost      int    `mapstructure:"hasherCost"`
+}
+
+type AdminConfig struct {
+	Username string `mapstructure:"username"`
+	Email    string `mapstructure:"email"`
+	Password string `mapstructure:"password"`
+}
+
 type JWTConfig struct {
 	SecretKey            string        `mapstructure:"secretKey" yaml:"secretKey"`
 	AccessTokenDuration  time.Duration `mapstructure:"accessTokenDuration" yaml:"accessTokenDuration"`
 	RefreshTokenDuration time.Duration `mapstructure:"refreshTokenDuration" yaml:"refreshTokenDuration"`
+	Issuer               string        `mapstructure:"issuer" yaml:"issuer"`
 }
