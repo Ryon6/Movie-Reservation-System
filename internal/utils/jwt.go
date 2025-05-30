@@ -13,7 +13,7 @@ import (
 type CustomClaims struct {
 	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
-	Role     string `json:"role"`
+	RoleName string `json:"role_name"`
 	jwt.RegisteredClaims
 }
 
@@ -41,11 +41,11 @@ func NewJWTManagerImpl(secretKey string, issuer string, expirationHours int64) (
 }
 
 // GenerateToken 为指定的用户信息生成一个新的 JWT。
-func (j *jwtManagerImpl) GenerateToken(userID uint, username string, role string) (string, error) {
+func (j *jwtManagerImpl) GenerateToken(userID uint, username string, roleName string) (string, error) {
 	claims := CustomClaims{
 		UserID:   userID,
 		Username: username,
-		Role:     role,
+		RoleName: roleName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.issuer,
 			Subject:   fmt.Sprintf("%d", userID), // 通常是用户的唯一标识
