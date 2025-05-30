@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
 	"mrs/internal/app"
+	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
 	"net/http"
 	"time"
@@ -37,8 +39,18 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	// 验证登录信息
 	loginResult, err := h.authService.Login(ctx, req.Username, req.Password)
 	if err != nil {
-		// 可添加自定义错误
-		// if errors.Is(err, 自定义错误)
+		// 用户不存在
+		if errors.Is(err, user.ErrUserExists) {
+			logger.Warn("user cannot found", applog.String("username", req.Username))
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+		// 密码验证错误
+		if errors.Is(err, user.ErrInvalidPassword) {
+			logger.Warn("invalid password", applog.Error(err))
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("Login service failed", applog.Error(err), applog.String("username", req.Username))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Login failed due to an internal error"})
 		return
