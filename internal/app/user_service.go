@@ -91,7 +91,7 @@ func (s *userService) RegisterUser(ctx context.Context, username, email, plainPa
 		Role:     *defaultRole,
 	}
 
-	if err := newUser.SetPassword(plainPassword); err != nil {
+	if err := newUser.SetPassword(plainPassword, s.hasher); err != nil {
 		logger.Error("failed to hash password", applog.Error(err))
 		return nil, errors.New("failed to process password")
 	}
