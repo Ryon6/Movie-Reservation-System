@@ -42,9 +42,9 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	// 查询用户
 	usr, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, user.ErrUserExists) {
 			logger.Warn("user not Found", applog.String("username", username))
-			return nil, errors.New("invalid username or password")
+			return nil, user.ErrUserExists
 		}
 		logger.Error("failed to find user by name", applog.String("username", username), applog.Error(err))
 	}
@@ -58,7 +58,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 
 	if !match {
 		logger.Warn("password not match")
-		return nil, errors.New("invalid username or password")
+		return nil, user.ErrInvalidPassword
 	}
 
 	// 生成JWT
