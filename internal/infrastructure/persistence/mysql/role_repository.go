@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"errors"
+	"fmt"
 	"mrs/internal/domain/role"
 	applog "mrs/pkg/log"
 
@@ -37,7 +38,8 @@ func (r *gormRoleRepository) FindByID(ctx context.Context, id uint) (*role.Role,
 	if err := r.db.WithContext(ctx).First(&rl, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("role not found by ID", applog.Uint("role_id", id))
-			return nil, err
+			// 封装哨兵错误
+			return nil, fmt.Errorf("%w: %w", role.ErrRoleNotFound, err)
 		}
 		logger.Error("failed to find role by ID", applog.Uint("role_id", rl.ID), applog.Error(err))
 		return nil, err
@@ -52,7 +54,8 @@ func (r *gormRoleRepository) FindByName(ctx context.Context, name string) (*role
 	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&rl).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("role not found by name", applog.String("role_name", name))
-			return nil, err
+			// 封装哨兵错误
+			return nil, fmt.Errorf("%w: %w", role.ErrRoleNotFound, err)
 		}
 		logger.Error("failed to find role by name", applog.String("role_name", name), applog.Error(err))
 		return nil, err
