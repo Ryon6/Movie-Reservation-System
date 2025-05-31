@@ -14,8 +14,8 @@ type Movie struct {
 	DurationMinutes int    // 电影时长，单位为分钟
 
 	// 关系
-	Genres    []*Genre   `gorm:"many2many:movies_genres"` // 多对多：GORM会自动创建名为movie_genres的连接表。
-	Showtimes []Showtime `gorm:"foreignKey:MovieID"`      // 一对多
+	Genres    []*Genre   `gorm:"many2many:movies_genres;constraint:OnDelete:CASCADE;"` // 多对多：GORM会自动创建名为movie_genres的连接表。
+	Showtimes []Showtime `gorm:"foreignKey:MovieID;constraint:OnDelete:CASCADE;"`      // 一对多
 
 	// 可选
 	ReleaseDate time.Time // 上映日期（可空）
