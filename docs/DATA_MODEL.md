@@ -34,9 +34,12 @@
     *   `id` (BIGINT, 主键, 自增): 电影唯一标识符。
     *   `title` (VARCHAR): 电影标题。
     *   `description` (TEXT): 电影剧情简介或描述。
-    *   `poster_image_url` (VARCHAR, 可空): 电影海报图片的 URL 地址。
+    *   `poster_url` (VARCHAR, 可空): 电影海报图片的 URL 地址。
     *   `duration_minutes` (INT): 电影时长，单位为分钟。
     *   `release_date` (DATE, 可空): 上映日期。
+    *   `rating` (FLOAT, 可空): 评分
+    *   `age_rating` (VARCHAR, 可空): 年龄分级
+    *   `cast` (TEXT): 演员表
     *   `created_at` (TIMESTAMP): 记录创建时间。
     *   `updated_at` (TIMESTAMP): 记录最后更新时间。
 
@@ -66,9 +69,9 @@
 *   **字段**:
     *   `id` (BIGINT, 主键, 自增): 影厅唯一标识符。
     *   `name` (VARCHAR): 影厅名称 (例如: "1号厅", "IMAX厅")。
-    *   `total_rows` (INT): 影厅座位总行数。
-    *   `total_columns_per_row` (INT): 影厅每行座位总列数 (假设为规则矩形布局，复杂布局见 `Seat` 表)。
     *   `capacity` (INT): 影厅总容量 (可由 `Seat` 表聚合或直接存储)。
+    *   `screen_type` (VARCHAR): 屏幕类型。
+    *   `sound_system` (VARCHAR): 音响系统。
     *   `created_at` (TIMESTAMP): 记录创建时间。
     *   `updated_at` (TIMESTAMP): 记录最后更新时间。
 
@@ -79,10 +82,9 @@
 *   **字段**:
     *   `id` (BIGINT, 主键, 自增): 座位唯一标识符。
     *   `hall_id` (BIGINT, 外键 -> CinemaHall.id): 该座位所属的影厅 ID。
-    *   `row_identifier` (VARCHAR): 座位行标识 (例如: "A", "B", 或数字 "1", "2")。
-    *   `seat_number_in_row` (VARCHAR): 座位在本行中的编号 (例如: "1", "2", "3")。
+    *   `row` (VARCHAR): 座位行标识 (例如: "A", "B", 或数字 "1", "2")。
+    *   `row_number` (VARCHAR): 座位在本行中的编号 (例如: "1", "2", "3")。
     *   `type` (VARCHAR, 可空): 座位类型 (例如: 'REGULAR', 'VIP', 'ACCESSIBLE')。
-    *   `is_active` (BOOLEAN, 默认 TRUE): 标记座位是否可用（例如，某些座位可能损坏或预留）。
     *   `created_at` (TIMESTAMP): 记录创建时间。
     *   `updated_at` (TIMESTAMP): 记录最后更新时间。
     *   **索引**: 建议在 `(hall_id, row_identifier, seat_number_in_row)` 上创建联合唯一索引。
