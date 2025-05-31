@@ -14,6 +14,7 @@ var (
 	// Genre 相关错误
 	ErrGenreNotFound      = errors.New("genre not found")
 	ErrGenreAlreadyExists = errors.New("genre already exists")
+	ErrGenreReferenced    = errors.New("genre is referenced by other records, cannot delete")
 
 	// Movie 相关错误
 	ErrMovieNotFound        = errors.New("movie not found")
