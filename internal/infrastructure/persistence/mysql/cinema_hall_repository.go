@@ -134,6 +134,10 @@ func (r *gormCinemaHallRepository) Delete(ctx context.Context, id uint) error {
 			logger.Warn("cannot delete cinema hall due to foreign key constraint", applog.Error(err))
 			return fmt.Errorf("%w: %w", movie.ErrCinemaHallReferenced, err)
 		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Warn("cinema hall to delete not found", applog.Error(err))
+			return fmt.Errorf("%w: %w", movie.ErrCinemaHallNotFound, err)
+		}
 		logger.Error("failed to delete cinema hall", applog.Error(err))
 		return fmt.Errorf("failed to delete cinema hall: %w", err)
 	}

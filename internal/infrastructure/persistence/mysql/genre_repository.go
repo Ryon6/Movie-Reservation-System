@@ -122,6 +122,10 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 			logger.Warn("cannot delete genre due to foreign key constraint", applog.Error(err))
 			return fmt.Errorf("%w: %w", movie.ErrGenreReferenced, err)
 		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Warn("genre to delete not found", applog.Error(err))
+			return fmt.Errorf("%w: %w", movie.ErrGenreNotFound, err)
+		}
 		logger.Error("failed to delete genre", applog.Error(err))
 		return fmt.Errorf("failed to delete genre: %w", err)
 	}

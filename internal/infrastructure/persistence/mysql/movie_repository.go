@@ -134,6 +134,10 @@ func (r *gormMovieRepository) Delete(ctx context.Context, id uint) error {
 
 	result := r.db.WithContext(ctx).Delete(&movie.Movie{}, id)
 	if err := result.Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Warn("movie to delete not found", applog.Error(err))
+			return fmt.Errorf("%w: %w", movie.ErrMovieNotFound, err)
+		}
 		logger.Error("failed to delete movie", applog.Error(err))
 		return fmt.Errorf("failed to delete movie: %w", err)
 	}
