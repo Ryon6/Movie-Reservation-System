@@ -9,6 +9,6 @@ type CinemaHall struct {
 	SoundSystem string `gorm:"type:varchar(100)"`                      // 音响系统
 	Capacity    int    // 总座位数
 
-	Seats     []Seat     `gorm:"foreignKey:CinemaHallID"`
-	Showtimes []Showtime `gorm:"foreignKey:CinemaHallID"`
+	Seats     []Seat     `gorm:"foreignKey:CinemaHallID;OnDelete:RESTRICT"`
+	Showtimes []Showtime `gorm:"foreignKey:CinemaHallID;OnDelete:RESTRICT"`
 }
