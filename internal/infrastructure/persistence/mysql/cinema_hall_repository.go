@@ -127,15 +127,15 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *movie.Cinem
 func (r *gormCinemaHallRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "gormCinemaHallRepository.Delete"), applog.Uint("hall_id", id))
 
-	result := r.db.WithContext(ctx).Delete(&movie.Genre{}, id)
+	result := r.db.WithContext(ctx).Delete(&movie.CinemaHall{}, id)
 	if err := result.Error; err != nil {
 		// 是否为外键约束错误，是则返回哨兵错误，有服务层进一步处理
 		if isForeignKeyConstraintError(err) {
 			logger.Warn("cannot delete cinema hall due to foreign key constraint", applog.Error(err))
 			return fmt.Errorf("%w: %w", movie.ErrCinemaHallReferenced, err)
 		}
-		logger.Error("failed to delete genre", applog.Error(err))
-		return fmt.Errorf("failed to delete genre: %w", err)
+		logger.Error("failed to delete cinema hall", applog.Error(err))
+		return fmt.Errorf("failed to delete cinema hall: %w", err)
 	}
 
 	// 是否不存在或已删除
