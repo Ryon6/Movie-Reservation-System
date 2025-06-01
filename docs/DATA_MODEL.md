@@ -87,7 +87,7 @@
     *   `type` (VARCHAR, 可空): 座位类型 (例如: 'REGULAR', 'VIP', 'ACCESSIBLE')。
     *   `created_at` (TIMESTAMP): 记录创建时间。
     *   `updated_at` (TIMESTAMP): 记录最后更新时间。
-    *   **索引**: 建议在 `(hall_id, row_identifier, seat_number_in_row)` 上创建联合唯一索引。
+    *   **索引**: 建议在 `(hall_id, row, row_number)` 上创建联合唯一索引。
 
 ## 8. `Showtime` 表 (放映时间表)
 
@@ -96,10 +96,10 @@
 *   **字段**:
     *   `id` (BIGINT, 主键, 自增): 放映场次唯一标识符。
     *   `movie_id` (BIGINT, 外键 -> Movie.id): 放映的电影 ID。
-    *   `hall_id` (BIGINT, 外键 -> CinemaHall.id): 放映所在的影厅 ID。
+    *   `cinema_hall_id` (BIGINT, 外键 -> CinemaHall.id): 放映所在的影厅 ID。
     *   `start_time` (TIMESTAMP): 放映开始时间 (日期和时间)。
     *   `end_time` (TIMESTAMP): 放映结束时间 (日期和时间)。可由 `start_time` 和电影时长计算，也可显式存储。
-    *   `price_per_seat` (DECIMAL): 该场次每个座位的基准票价。
+    *   `price` (DECIMAL): 该场次每个座位的基准票价。
     *   `created_at` (TIMESTAMP): 记录创建时间。
     *   `updated_at` (TIMESTAMP): 记录最后更新时间。
     *   **索引**: 建议在 `(movie_id, start_time)` 和 `(hall_id, start_time)` 上创建索引。
