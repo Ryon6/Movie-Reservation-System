@@ -11,6 +11,7 @@ var (
 	ErrCinemaHallNotFound         = errors.New("cinema hall not found")
 	ErrCinemaHallAlreadyExists    = errors.New("cinema hall already exists")
 	ErrCinemaHallCapacityExceeded = errors.New("cinema hall capacity exceeded")
+	ErrCinemaHallReferenced       = errors.New("cinema hall is referenced by other records, cannot delete")
 
 	// Genre 相关错误
 	ErrGenreNotFound      = errors.New("genre not found")
