@@ -9,6 +9,8 @@
 
 package log
 
+import "time"
+
 // Logger 定义了应用程序中所有日志记录器应遵循的接口。
 type Logger interface {
 	Debug(msg string, fields ...Field) // Debug 记录调试级别的日志。
@@ -36,5 +38,6 @@ func Uint(key string, value uint) Field       { return Field{Key: key, Value: va
 func Int64(key string, value int64) Field     { return Field{Key: key, Value: value} }
 func Float64(key string, value float64) Field { return Field{Key: key, Value: value} }
 func Bool(key string, value bool) Field       { return Field{Key: key, Value: value} }
+func Time(key string, value time.Time) Field  { return Field{Key: key, Value: value} }
 func Error(err error) Field                   { return Field{Key: "error", Value: err.Error()} } // Common field for errors
 func Any(key string, value interface{}) Field { return Field{Key: key, Value: value} }
