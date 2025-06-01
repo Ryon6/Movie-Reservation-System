@@ -4,7 +4,8 @@ import "errors"
 
 var (
 	// 通用错误
-	ErrInvalidInput = errors.New("invalid input")
+	ErrInvalidInput   = errors.New("invalid input")
+	ErrNoRowsAffected = errors.New("no rows affected")
 
 	// CinemaHall 相关错误
 	ErrCinemaHallNotFound         = errors.New("cinema hall not found")
@@ -18,6 +19,7 @@ var (
 
 	// Movie 相关错误
 	ErrMovieNotFound        = errors.New("movie not found")
+	ErrMovieAlreadyExists   = errors.New("movie already exists")
 	ErrInvalidMovieDuration = errors.New("invalid movie duration")
 	ErrInvalidReleaseDate   = errors.New("invalid release date")
 	ErrInvalidAgeRating     = errors.New("invalid age rating")

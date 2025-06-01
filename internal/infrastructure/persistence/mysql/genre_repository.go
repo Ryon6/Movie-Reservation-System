@@ -29,7 +29,7 @@ func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) er
 	if err := r.db.WithContext(ctx).Create(genre).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			logger.Warn("genre name already exists", applog.String("name", genre.Name), applog.Error(err))
-			return fmt.Errorf("genre name already exists: %w", movie.ErrGenreAlreadyExists)
+			return fmt.Errorf("%w: %w", movie.ErrGenreAlreadyExists, err)
 		}
 		logger.Error("failed to create genre", applog.Uint("genre_id", genre.ID), applog.Error(err))
 		return fmt.Errorf("failed to create genre: %w", err)
@@ -44,7 +44,7 @@ func (r *gormGenreRepository) FindByID(ctx context.Context, id uint) (*movie.Gen
 	if err := r.db.WithContext(ctx).First(&genre, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("genre id not found", applog.Error(err))
-			return nil, fmt.Errorf("%w: %w", movie.ErrGenreNotFound, err)
+			return nil, fmt.Errorf("%w(id): %w", movie.ErrGenreNotFound, err)
 		}
 		logger.Error("failed to find genre by id", applog.Error(err))
 		return nil, fmt.Errorf("failed to find genre by id: %w", err)
@@ -60,7 +60,7 @@ func (r *gormGenreRepository) FindByName(ctx context.Context, name string) (*mov
 	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&genre).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("genre name not found", applog.Error(err))
-			return nil, fmt.Errorf("genre name not found: %w", movie.ErrGenreNotFound)
+			return nil, fmt.Errorf("%w(name): %w", movie.ErrGenreNotFound, err)
 		}
 		logger.Error("failed to find genre by name", applog.Error(err))
 		return nil, fmt.Errorf("failed to find genre by name: %w", err)
@@ -87,8 +87,8 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 	// 检查存在性
 	if _, err := r.FindByID(ctx, genre.ID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("update failed: genre not found")
-			return movie.ErrGenreNotFound
+			logger.Warn("genre id not found", applog.Error(err))
+			return fmt.Errorf("%w(id): %w", movie.ErrGenreNotFound, err)
 		}
 		return fmt.Errorf("failed to find by id: %w", err)
 	}
@@ -105,7 +105,7 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 
 	if result.RowsAffected == 0 {
 		logger.Warn("no rows affected during update")
-		return movie.ErrGenreNotFound
+		return errors.New("no rows affected during update")
 	}
 
 	logger.Info("update genre successfully")
@@ -129,7 +129,7 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 
 	// 是否不存在或已删除
 	if result.RowsAffected == 0 {
-		logger.Warn("Genre to delete not found or already deleted")
+		logger.Warn("genre to delete not found or already deleted")
 		return movie.ErrGenreNotFound
 	}
 	logger.Info("delete genre successfully")
