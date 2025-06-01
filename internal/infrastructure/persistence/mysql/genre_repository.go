@@ -7,7 +7,6 @@ import (
 	"mrs/internal/domain/movie"
 	applog "mrs/pkg/log"
 
-	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -134,15 +133,6 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 	}
 	logger.Info("delete genre successfully")
 	return nil
-}
-
-// isForeignKeyConstraintError 检查错误是否是MySQL外键约束错误（错误码1451）
-func isForeignKeyConstraintError(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	if errors.As(err, &mysqlErr) {
-		return mysqlErr.Number == 1451
-	}
-	return false
 }
 
 // FindOrCreateByName 查找指定名称的类型，如果不存在则创建它。
