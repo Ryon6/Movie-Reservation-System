@@ -194,14 +194,15 @@ mrs/
     *   存放数据库迁移文件 (e.g., 使用 `golang-migrate/migrate` 或 GORM 的 AutoMigrate 功能的脚本/代码)。
 
 *   **`internal/infrastructure/cache/`**:
+    *   遵循 "Cache-Aside" 模式。支持列表缓存：每条记录只存一份，列表缓存中只存放主键ID。
     *   **`redis_client.go`**:
-        *   提供函数 (e.g., `NewRedisClient(cfg *config.RedisConfig) (*redis.Client, error)`) 来建立和配置 Redis 连接。
+        *   定义抽象接口。提供函数来建立和配置 Redis 连接。
     *   **`movie_cache.go`**:
-        *   (可选，如果缓存逻辑复杂) 封装与电影相关的缓存操作，例如 `GetMovieFromCache`, `SetMovieToCache`, `InvalidateMovieCache`。可能直接被应用层服务调用，或者应用层服务自己实现缓存逻辑。
+        *   封装与电影相关的缓存操作，例如 `GetMovie`, `SetMovie`, `DeleteMovie`,`GetMovieList`, `SetMovieList`。直接被应用层服务调用。
     *   **`showtime_cache.go`**: 类似地封装与场次相关的缓存。
     *   **`distributed_lock.go` (如果需要抽象)**:
         *   (可选) 提供分布式锁的接口和 Redis 实现 (e.g., `AcquireLock`, `ReleaseLock`)。
-
+    
 *   **`internal/infrastructure/messagequeue/` (未来规划)**:
     *   **`kafka_producer.go` / `nats_producer.go`**: 实现消息生产者，提供发送消息到特定主题的方法。
     *   **`kafka_consumer.go` / `nats_consumer.go`**: 实现消息消费者，订阅主题并处理接收到的消息。

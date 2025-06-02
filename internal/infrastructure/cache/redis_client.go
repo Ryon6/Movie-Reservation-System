@@ -30,11 +30,6 @@ type RedisClient interface {
 
 var _ RedisClient = (*redis.Client)(nil)
 
-type RedisClientWrapper struct {
-	Client *redis.Client
-	logger applog.Logger
-}
-
 func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (RedisClient, error) {
 	logger.Info("Initializing Redis client", applog.String("address", cfg.Address), applog.Int("db", cfg.DB))
 	opts := &redis.Options{
