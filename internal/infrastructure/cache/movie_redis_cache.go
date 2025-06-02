@@ -21,10 +21,10 @@ type RedisMovieCache struct {
 }
 
 const (
-	movieKeyPrefix = "movie:"
-	listKeyPrefix  = "movies:list:"
-	setKeyPrefix   = "movies:set:"
-	indexKeyPrefix = "movies:index:"
+	movieKeyPrefix      = "movie:"
+	movieListKeyPrefix  = "movies:list:"
+	movieSetKeyPrefix   = "movies:set:"
+	movieIndexKeyPrefix = "movies:index:"
 )
 
 // 创建一个RedisMovieCache实例
@@ -44,7 +44,7 @@ func (c *RedisMovieCache) movieKey(movieID uint) string {
 // movieListKey 生成电影列表的缓存键
 func (c *RedisMovieCache) movieListKey(params map[string]interface{}) string {
 	if len(params) == 0 {
-		return listKeyPrefix + "all"
+		return movieListKeyPrefix + "all"
 	}
 
 	// 规范化参数以确保键的一致性
@@ -55,7 +55,7 @@ func (c *RedisMovieCache) movieListKey(params map[string]interface{}) string {
 	sort.Strings(keys)
 
 	var sb strings.Builder
-	sb.WriteString(listKeyPrefix)
+	sb.WriteString(movieListKeyPrefix)
 	for _, k := range keys {
 		sb.WriteString(fmt.Sprintf("%s=%v:", k, params[k])) // 构建器追加字符串
 	}
@@ -64,12 +64,12 @@ func (c *RedisMovieCache) movieListKey(params map[string]interface{}) string {
 
 // movieSetKey 生成存储电影ID集合的键
 func (c *RedisMovieCache) movieSetKey(params map[string]interface{}) string {
-	return setKeyPrefix + strings.TrimPrefix(c.movieListKey(params), listKeyPrefix)
+	return movieSetKeyPrefix + strings.TrimPrefix(c.movieListKey(params), movieListKeyPrefix)
 }
 
 // movieIndexKey 生成电影的反向索引键
 func (c *RedisMovieCache) movieIndexKey(movieID uint) string {
-	return fmt.Sprintf("%s%d", indexKeyPrefix, movieID)
+	return fmt.Sprintf("%s%d", movieIndexKeyPrefix, movieID)
 }
 
 // invalidateMovieLists 使包含指定电影的所有列表缓存失效
@@ -94,7 +94,7 @@ func (c *RedisMovieCache) invalidateMovieLists(ctx context.Context, movieID uint
 	// 构造要删除的列表缓存键
 	listKeys := make([]string, len(setKeys))
 	for i, setKey := range setKeys {
-		listKeys[i] = strings.Replace(setKey, setKeyPrefix, listKeyPrefix, 1)
+		listKeys[i] = strings.Replace(setKey, movieSetKeyPrefix, movieListKeyPrefix, 1)
 	}
 
 	// 使用管道批量删除缓存
