@@ -10,12 +10,32 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// RedisClient defines the interface for Redis operations used by the cache.
+// This allows for easier mocking and testing if needed.
+// It mirrors a subset of methods from *redis.Client from github.com/redis/go-redis/v8.
+type RedisClient interface {
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	Scan(ctx context.Context, cursor uint64, match string, count int64) *redis.ScanCmd
+	Pipeline() redis.Pipeliner
+	// Set operations
+	SAdd(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
+	SRem(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
+	SMembers(ctx context.Context, key string) *redis.StringSliceCmd
+	// Key operations
+	Exists(ctx context.Context, keys ...string) *redis.IntCmd
+	// Ping(ctx context.Context) *redis.StatusCmd // If needed for health checks by cache layer
+}
+
+var _ RedisClient = (*redis.Client)(nil)
+
 type RedisClientWrapper struct {
 	Client *redis.Client
 	logger applog.Logger
 }
 
-func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (*redis.Client, error) {
+func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (RedisClient, error) {
 	logger.Info("Initializing Redis client", applog.String("address", cfg.Address), applog.Int("db", cfg.DB))
 	opts := &redis.Options{
 		Addr:         cfg.Address,

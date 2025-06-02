@@ -49,7 +49,7 @@ func initLogger(cfg *config.Config) applog.Logger {
 }
 
 var db *gorm.DB
-var rdb *redis.Client
+var rdb cache.RedisClient
 
 func main() {
 	// 初始化配置
@@ -111,7 +111,7 @@ func main() {
 	authService := app.NewAuthService(userRepo, hasher, jwtManager, logger)
 
 	// 接口层
-	healthHandler := handlers.NewHealthHandler(db, rdb, logger)
+	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	userHandler := handlers.NewUserHandler(userService, logger)
 
