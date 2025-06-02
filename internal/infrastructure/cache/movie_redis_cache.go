@@ -173,18 +173,18 @@ func (c *RedisMovieCache) GetMovie(ctx context.Context, movieID uint) (*movie.Mo
 	logger := c.logger.With(applog.String("Method", "GetMovie"), applog.Uint("movie_id", movieID))
 	key := c.movieKey(movieID)
 
-	jsonStr, err := c.redisClient.Get(ctx, key).Result()
-	if err == redis.Nil {
-		logger.Info("movie not found in redis", applog.String("key", key))
-		return nil, fmt.Errorf("%w: %w", ErrKeyNotFound, err)
-	}
+	valBytes, err := c.redisClient.Get(ctx, key).Bytes()
 	if err != nil {
+		if err == redis.Nil {
+			logger.Info("movie not found in redis", applog.String("key", key))
+			return nil, fmt.Errorf("%w: %w", ErrKeyNotFound, err)
+		}
 		logger.Error("failed to get movie from redis", applog.Error(err))
 		return nil, fmt.Errorf("failed to get movie from redis: %w", err)
 	}
 
 	var movie movie.Movie
-	if err := json.Unmarshal([]byte(jsonStr), &movie); err != nil {
+	if err := json.Unmarshal(valBytes, &movie); err != nil {
 		logger.Error("failed to unmarshal movie", applog.Error(err))
 		return nil, fmt.Errorf("failed to unmarshal movie: %w", err)
 	}
@@ -310,36 +310,3 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, params map[string]in
 		applog.Int("movies_count", len(movies)))
 	return movies, nil
 }
-
-// // InvalidateMovieList 根据给定的模式删除所有匹配的缓存键。
-// func (c *RedisMovieCache) InvalidateMovieList(ctx context.Context, pattern string) error {
-// 	logger := c.logger.With(applog.String("Method", "InvalidateMovieList"), applog.String("pattern", pattern))
-// 	var cursor uint64
-// 	var keysFound int
-// 	for {
-// 		var keys []string
-// 		var err error
-// 		keys, cursor, err = c.redisClient.Scan(ctx, cursor, pattern, 50).Result() // 每次扫描50个
-// 		if err != nil {
-// 			logger.Error("Error scanning movie list keys for invalidation", applog.Error(err))
-// 			return fmt.Errorf("error scanning keys: %w", err)
-// 		}
-
-// 		if len(keys) > 0 {
-// 			if errDel := c.redisClient.Del(ctx, keys...).Err(); errDel != nil {
-// 				logger.Error("Error deleting movie list keys during invalidation", applog.Error(errDel))
-// 				// 根据策略决定是否继续或返回错误
-// 			}
-// 			keysFound += len(keys)
-// 		}
-// 		if cursor == 0 { // 迭代完成
-// 			break
-// 		}
-// 	}
-// 	if keysFound > 0 {
-// 		logger.Info("Invalidated movie list caches", applog.Int("count", keysFound))
-// 	} else {
-// 		logger.Debug("No movie list caches to invalidate with pattern")
-// 	}
-// 	return nil
-// }
