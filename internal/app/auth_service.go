@@ -3,16 +3,16 @@ package app
 import (
 	"context"
 	"errors"
-	"mrs/internal/app/dto"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 type AuthService interface {
-	Login(ctx context.Context, username string, password string) (*dto.AuthResult, error)
+	Login(ctx context.Context, username string, password string) (*AuthResult, error)
 }
 
 type authService struct {
@@ -20,6 +20,18 @@ type authService struct {
 	hasher     utils.PasswordHasher
 	jwtManager utils.JWTManager
 	logger     applog.Logger
+}
+
+// AuthResult 定义认证服务返回的统一数据结构
+type AuthResult struct {
+	Token     string    `json:"token"`
+	UserID    uint      `json:"user_id"`
+	Username  string    `json:"username"`
+	RoleName  string    `json:"role_name"`
+	Email     string    `json:"email"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreateAt  time.Time `json:"create_at"`
+	UpdateAt  time.Time `json:"update_at"`
 }
 
 func NewAuthService(
@@ -36,7 +48,7 @@ func NewAuthService(
 	}
 }
 
-func (s *authService) Login(ctx context.Context, username string, password string) (*dto.AuthResult, error) {
+func (s *authService) Login(ctx context.Context, username string, password string) (*AuthResult, error) {
 	logger := s.logger.With(applog.String("Method", "authService.Login"))
 
 	// 查询用户
@@ -74,7 +86,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 		return nil, errors.New(("failed to get authentication token metadata"))
 	}
 
-	return &dto.AuthResult{
+	return &AuthResult{
 		UserID:    usr.ID,
 		Username:  usr.Username,
 		Email:     usr.Email,

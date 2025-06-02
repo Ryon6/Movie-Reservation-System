@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mrs/internal/app/dto"
 	"mrs/internal/domain/role"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
+	"time"
 
 	"gorm.io/gorm"
 )
 
 type UserService interface {
-	RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*dto.UserProfile, error)
-	GetUserByID(ctx context.Context, userID uint) (*dto.UserProfile, error)
+	RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*UserProfile, error)
+	GetUserByID(ctx context.Context, userID uint) (*UserProfile, error)
 }
 
 type userService struct {
@@ -24,6 +24,26 @@ type userService struct {
 	roleRepo        role.RoleRepository
 	hasher          utils.PasswordHasher
 	logger          applog.Logger
+}
+
+type UserProfile struct {
+	ID       uint      `json:"id"`
+	Username string    `json:"username"`
+	Email    string    `json:"email"`
+	RoleName string    `json:"role_name"`
+	CreateAt time.Time `json:"create_at"`
+	UpdateAt time.Time `json:"update_at"`
+}
+
+func toUserProfile(usr *user.User) *UserProfile {
+	return &UserProfile{
+		ID:       usr.ID,
+		Username: usr.Username,
+		Email:    usr.Email,
+		RoleName: usr.Role.Name,
+		CreateAt: usr.CreatedAt,
+		UpdateAt: usr.UpdatedAt,
+	}
 }
 
 func NewUserService(
@@ -42,7 +62,7 @@ func NewUserService(
 	}
 }
 
-func (s *userService) RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*dto.UserProfile, error) {
+func (s *userService) RegisterUser(ctx context.Context, username, email, plainPassword, defaultRoleName string) (*UserProfile, error) {
 	logger := s.logger.With(applog.String("Method", "userService.RegisterUser"),
 		applog.String("username", username),
 		applog.String("email", email))
@@ -102,10 +122,10 @@ func (s *userService) RegisterUser(ctx context.Context, username, email, plainPa
 		return nil, fmt.Errorf("userService.RegisterUser: %w", err)
 	}
 	logger.Info("create user successful")
-	return dto.ToUserProfile(&newUser), nil
+	return toUserProfile(&newUser), nil
 }
 
-func (s *userService) GetUserByID(ctx context.Context, userID uint) (*dto.UserProfile, error) {
+func (s *userService) GetUserByID(ctx context.Context, userID uint) (*UserProfile, error) {
 	logger := s.logger.With(applog.String("Method", "userService.GetUserByID"), applog.Uint("user_id", userID))
 	usr, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
@@ -118,5 +138,5 @@ func (s *userService) GetUserByID(ctx context.Context, userID uint) (*dto.UserPr
 	}
 
 	logger.Info("find user successfully")
-	return dto.ToUserProfile(usr), nil
+	return toUserProfile(usr), nil
 }

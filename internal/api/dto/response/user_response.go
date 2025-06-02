@@ -1,7 +1,7 @@
 package response
 
 import (
-	"mrs/internal/app/dto"
+	"mrs/internal/app"
 	"time"
 )
 
@@ -15,7 +15,7 @@ type UserResponse struct {
 	// IsActive bool      `json:"is_active"`
 }
 
-func ToUserResponse(rst *dto.AuthResult) UserResponse {
+func ToUserResponse(rst *app.AuthResult) UserResponse {
 	return UserResponse{
 		ID:       rst.UserID,
 		Username: rst.Username,
