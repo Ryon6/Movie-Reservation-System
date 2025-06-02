@@ -7,12 +7,18 @@ import (
 	"mrs/internal/domain/movie"
 	applog "mrs/pkg/log"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 )
+
+// MovieListResult 电影列表的查询结果
+type MovieListResult struct {
+	Movies          []*movie.Movie // 成功获取的电影记录
+	AllMovieIDs     []uint         // 列表中所有的电影ID
+	MissingMovieIDs []uint         // 缓存中未找到的电影ID
+}
 
 type RedisMovieCache struct {
 	redisClient       RedisClient
@@ -21,10 +27,8 @@ type RedisMovieCache struct {
 }
 
 const (
-	movieKeyPrefix      = "movie:"
-	movieListKeyPrefix  = "movies:list:"
-	movieSetKeyPrefix   = "movies:set:"
-	movieIndexKeyPrefix = "movies:index:"
+	movieKeyPrefix     = "movie:"
+	movieListKeyPrefix = "movies:list:"
 )
 
 // 创建一个RedisMovieCache实例
@@ -62,61 +66,6 @@ func (c *RedisMovieCache) movieListKey(params map[string]interface{}) string {
 	return strings.TrimRight(sb.String(), ":") // 移除字符串右侧的:符号
 }
 
-// movieSetKey 生成存储电影ID集合的键
-func (c *RedisMovieCache) movieSetKey(params map[string]interface{}) string {
-	return movieSetKeyPrefix + strings.TrimPrefix(c.movieListKey(params), movieListKeyPrefix)
-}
-
-// movieIndexKey 生成电影的反向索引键
-func (c *RedisMovieCache) movieIndexKey(movieID uint) string {
-	return fmt.Sprintf("%s%d", movieIndexKeyPrefix, movieID)
-}
-
-// invalidateMovieLists 使包含指定电影的所有列表缓存失效
-func (c *RedisMovieCache) invalidateMovieLists(ctx context.Context, movieID uint) error {
-	logger := c.logger.With(
-		applog.String("Method", "invalidateMovieLists"),
-		applog.Uint("movie_id", movieID),
-	)
-
-	// 获取包含该电影的所有列表集合键
-	indexKey := c.movieIndexKey(movieID)
-	setKeys, err := c.redisClient.SMembers(ctx, indexKey).Result()
-	if err != nil && err != redis.Nil {
-		logger.Error("failed to get movie lists", applog.Error(err))
-		return fmt.Errorf("failed to get movie lists: %w", err)
-	}
-
-	if len(setKeys) == 0 {
-		return nil
-	}
-
-	// 构造要删除的列表缓存键
-	listKeys := make([]string, len(setKeys))
-	for i, setKey := range setKeys {
-		listKeys[i] = strings.Replace(setKey, movieSetKeyPrefix, movieListKeyPrefix, 1)
-	}
-
-	// 使用管道批量删除缓存
-	pipe := c.redisClient.Pipeline()
-
-	// 删除列表缓存
-	pipe.Del(ctx, listKeys...)
-	// 删除集合
-	pipe.Del(ctx, setKeys...)
-	// 删除反向索引
-	pipe.Del(ctx, indexKey)
-
-	if _, err := pipe.Exec(ctx); err != nil {
-		logger.Error("failed to invalidate movie lists", applog.Error(err))
-		return fmt.Errorf("failed to invalidate movie lists: %w", err)
-	}
-
-	logger.Info("invalidated movie lists successfully",
-		applog.Int("list_count", len(listKeys)))
-	return nil
-}
-
 // SetMovie 设置单个电影的缓存
 func (c *RedisMovieCache) SetMovie(ctx context.Context, movie *movie.Movie, expiration time.Duration) error {
 	logger := c.logger.With(applog.String("Method", "SetMovie"), applog.Uint("movie_id", movie.ID))
@@ -148,12 +97,6 @@ func (c *RedisMovieCache) DeleteMovie(ctx context.Context, movieID uint) error {
 		applog.Uint("movie_id", movieID),
 	)
 
-	// 首先使相关的列表缓存失效
-	if err := c.invalidateMovieLists(ctx, movieID); err != nil {
-		logger.Error("failed to invalidate related lists", applog.Error(err))
-		// 继续执行，不要因为列表缓存失效失败而中断
-	}
-
 	// 删除电影缓存
 	key := c.movieKey(movieID)
 	if err := c.redisClient.Del(ctx, key).Err(); err != nil {
@@ -169,6 +112,7 @@ func (c *RedisMovieCache) DeleteMovie(ctx context.Context, movieID uint) error {
 	return nil
 }
 
+// GetMovie 获取单个电影缓存
 func (c *RedisMovieCache) GetMovie(ctx context.Context, movieID uint) (*movie.Movie, error) {
 	logger := c.logger.With(applog.String("Method", "GetMovie"), applog.Uint("movie_id", movieID))
 	key := c.movieKey(movieID)
@@ -192,7 +136,35 @@ func (c *RedisMovieCache) GetMovie(ctx context.Context, movieID uint) (*movie.Mo
 	return &movie, nil
 }
 
-// SetMovieList 设置电影列表缓存
+// SetMovies 批量设置多个电影缓存
+func (c *RedisMovieCache) SetMovies(ctx context.Context, movies []*movie.Movie, expiration time.Duration) error {
+	logger := c.logger.With(applog.String("Method", "SetMovies"), applog.Int("movies_count", len(movies)))
+
+	pipe := c.redisClient.Pipeline()
+
+	if expiration == 0 {
+		expiration = c.defaultExpiration
+	}
+
+	for _, movie := range movies {
+		data, err := json.Marshal(movie)
+		if err != nil {
+			logger.Error("failed to marshal movie", applog.Error(err))
+			continue
+		}
+		pipe.Set(ctx, c.movieKey(movie.ID), data, expiration)
+	}
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		logger.Error("failed to set movies", applog.Error(err))
+		return fmt.Errorf("failed to set movies: %w", err)
+	}
+
+	logger.Info("set movies successfully", applog.Int("movies_count", len(movies)))
+	return nil
+}
+
+// SetMovieList 设置电影列表缓存（只存储ID）
 func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movie, params map[string]interface{}, expiration time.Duration) error {
 	logger := c.logger.With(
 		applog.String("Method", "SetMovieList"),
@@ -203,110 +175,123 @@ func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movi
 		expiration = c.defaultExpiration
 	}
 
-	// 序列化电影列表
-	data, err := json.Marshal(movies)
-	if err != nil {
-		logger.Error("failed to marshal movie list", applog.Error(err))
-		return fmt.Errorf("failed to marshal movie list: %w", err)
-	}
-
-	// 使用管道批量执行操作
-	pipe := c.redisClient.Pipeline()
-
-	// 设置列表缓存
-	listKey := c.movieListKey(params)
-	setKey := c.movieSetKey(params)
-
-	// 1. 获取旧的电影ID集合
-	oldMovieIDs, err := c.redisClient.SMembers(ctx, setKey).Result()
-	if err != nil && err != redis.Nil {
-		logger.Error("failed to get old movie IDs", applog.Error(err))
-		return fmt.Errorf("failed to get old movie IDs: %w", err)
-	}
-
-	// 2. 从旧电影的反向索引中移除当前列表
-	for _, idStr := range oldMovieIDs {
-		movieID, err := strconv.ParseUint(idStr, 10, 32)
-		if err != nil {
-			logger.Error("failed to parse movie ID", applog.Error(err))
-			continue
-		}
-		indexKey := c.movieIndexKey(uint(movieID))
-		pipe.SRem(ctx, indexKey, setKey)
-	}
-
-	// 3. 设置新的列表数据
-	pipe.Set(ctx, listKey, data, expiration)
-
-	// 4. 重置并更新电影ID集合
-	pipe.Del(ctx, setKey)
-	newMovieIDs := make([]interface{}, len(movies))
+	// 提取电影ID列表
+	movieIDs := make([]uint, len(movies))
 	for i, m := range movies {
-		newMovieIDs[i] = m.ID
-		// 5. 更新每个电影的反向索引
-		indexKey := c.movieIndexKey(m.ID)
-		pipe.SAdd(ctx, indexKey, setKey)
+		movieIDs[i] = m.ID
 	}
 
-	// 只有在有电影时才添加到集合
-	if len(newMovieIDs) > 0 {
-		pipe.SAdd(ctx, setKey, newMovieIDs...)
+	// 序列化ID列表
+	data, err := json.Marshal(movieIDs)
+	if err != nil {
+		logger.Error("failed to marshal movie ID list", applog.Error(err))
+		return fmt.Errorf("failed to marshal movie ID list: %w", err)
 	}
 
-	// 执行所有操作
-	if _, err := pipe.Exec(ctx); err != nil {
-		logger.Error("failed to set movie list", applog.Error(err))
-		return fmt.Errorf("failed to set movie list: %w", err)
+	// 设置列表缓存（仅包含ID）
+	listKey := c.movieListKey(params)
+	if err := c.redisClient.Set(ctx, listKey, data, expiration).Err(); err != nil {
+		logger.Error("failed to set movie ID list", applog.Error(err))
+		return fmt.Errorf("failed to set movie ID list: %w", err)
 	}
 
-	logger.Info("set movie list successfully",
+	// 同时缓存单个电影记录
+	if err := c.SetMovies(ctx, movies, expiration); err != nil {
+		logger.Error("failed to set individual movies", applog.Error(err))
+		return fmt.Errorf("failed to set individual movies: %w", err)
+	}
+
+	logger.Info("set movie_id list and individual movies successfully",
 		applog.String("list_key", listKey),
-		applog.String("set_key", setKey),
-		applog.Int("old_movies_count", len(oldMovieIDs)),
-		applog.Int("new_movies_count", len(newMovieIDs)))
+		applog.Int("movies_count", len(movies)))
 	return nil
 }
 
-// GetMovieList 获取电影列表缓存
-func (c *RedisMovieCache) GetMovieList(ctx context.Context, params map[string]interface{}) ([]*movie.Movie, error) {
+// GetMovieList 获取电影列表缓存，同时返回缓存状态信息
+func (c *RedisMovieCache) GetMovieList(ctx context.Context, params map[string]interface{}) (*MovieListResult, error) {
 	logger := c.logger.With(
 		applog.String("Method", "GetMovieList"),
 		applog.Any("params", params),
 	)
 
+	result := &MovieListResult{
+		Movies: make([]*movie.Movie, 0),
+	}
+
+	// 获取ID列表
 	listKey := c.movieListKey(params)
 	valBytes, err := c.redisClient.Get(ctx, listKey).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			logger.Info("movie list not found in redis", applog.String("key", listKey))
+			logger.Info("movie_id list not found in redis", applog.String("key", listKey))
 			return nil, fmt.Errorf("%w: %w", ErrKeyNotFound, err)
 		}
-		logger.Error("failed to get movie list from redis", applog.Error(err))
-		return nil, fmt.Errorf("failed to get movie list from redis: %w", err)
+		logger.Error("failed to get movie_id list from redis", applog.Error(err))
+		return nil, fmt.Errorf("failed to get movie_id list from redis: %w", err)
 	}
 
-	var movies []*movie.Movie
-	if err := json.Unmarshal(valBytes, &movies); err != nil {
-		logger.Error("failed to unmarshal movie list", applog.Error(err))
-		return nil, fmt.Errorf("failed to unmarshal movie list: %w", err)
+	if err := json.Unmarshal(valBytes, &result.AllMovieIDs); err != nil {
+		logger.Error("failed to unmarshal movie_id list", applog.Error(err))
+		return nil, fmt.Errorf("failed to unmarshal movie_id list: %w", err)
 	}
 
-	// 更新访问信息
-	setKey := c.movieSetKey(params)
-	if exists, _ := c.redisClient.Exists(ctx, setKey).Result(); exists == 1 {
-		// 如果集合存在，确保反向索引完整
-		pipe := c.redisClient.Pipeline()
-		for _, m := range movies {
-			indexKey := c.movieIndexKey(m.ID)
-			pipe.SAdd(ctx, indexKey, setKey)
+	if len(result.AllMovieIDs) == 0 {
+		logger.Info("empty movie_id list in redis", applog.String("key", listKey))
+		return result, nil
+	}
+
+	// 批量获取电影详情
+	pipe := c.redisClient.Pipeline()
+	movieCmds := make([]*redis.StringCmd, len(result.AllMovieIDs))
+	for i, id := range result.AllMovieIDs {
+		movieCmds[i] = pipe.Get(ctx, c.movieKey(id))
+	}
+
+	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
+		logger.Error("failed to get movies from redis", applog.Error(err))
+		return nil, fmt.Errorf("failed to get movies from redis: %w", err)
+	}
+
+	// 处理结果并记录缺失的电影ID
+	missingIDs := make(map[uint]struct{})
+	for i, cmd := range movieCmds {
+		movieID := result.AllMovieIDs[i]
+		movieBytes, err := cmd.Bytes()
+		if err != nil {
+			logger.Warn("failed to get movie details",
+				applog.Error(err),
+				applog.Uint("movie_id", movieID))
+			missingIDs[movieID] = struct{}{}
+			continue
 		}
-		if _, err := pipe.Exec(ctx); err != nil {
-			logger.Warn("failed to update reverse indices", applog.Error(err))
+
+		var movie movie.Movie
+		if err := json.Unmarshal(movieBytes, &movie); err != nil {
+			logger.Warn("failed to unmarshal movie",
+				applog.Error(err),
+				applog.Uint("movie_id", movieID))
+			missingIDs[movieID] = struct{}{}
+			continue
 		}
+		result.Movies = append(result.Movies, &movie)
+	}
+
+	// 将缺失的ID转换为切片并排序
+	if len(missingIDs) > 0 {
+		result.MissingMovieIDs = make([]uint, 0, len(missingIDs))
+		for id := range missingIDs {
+			result.MissingMovieIDs = append(result.MissingMovieIDs, id)
+		}
+		sort.Slice(result.MissingMovieIDs, func(i, j int) bool {
+			return result.MissingMovieIDs[i] < result.MissingMovieIDs[j]
+		})
 	}
 
 	logger.Info("get movie list successfully",
 		applog.String("list_key", listKey),
-		applog.Int("movies_count", len(movies)))
-	return movies, nil
+		applog.Int("total_ids", len(result.AllMovieIDs)),
+		applog.Int("found_movies", len(result.Movies)),
+		applog.Int("missing_movies", len(result.MissingMovieIDs)))
+
+	return result, nil
 }
