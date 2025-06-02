@@ -7,6 +7,7 @@ type MovieRepository interface {
 	Create(ctx context.Context, movie *Movie) error
 	// 应支持预加载Genres
 	FindByID(ctx context.Context, id uint) (*Movie, error)
+	FindByTitle(ctx context.Context, title string) (*Movie, error)
 	// 分页和过滤，返回总数
 	List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*Movie, int64, error)
 	Update(ctx context.Context, movie *Movie) error
