@@ -13,6 +13,15 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// MovieCache 电影缓存接口
+type MovieCache interface {
+	GetMovie(ctx context.Context, movieID uint) (*movie.Movie, error)
+	SetMovie(ctx context.Context, movie *movie.Movie, expiration time.Duration) error
+	DeleteMovie(ctx context.Context, movieID uint) error
+	GetMovieList(ctx context.Context, params map[string]interface{}) (*MovieListResult, error)
+	SetMovieList(ctx context.Context, movies []*movie.Movie, params map[string]interface{}, expiration time.Duration) error
+}
+
 // MovieListResult 电影列表的查询结果
 type MovieListResult struct {
 	Movies          []*movie.Movie // 成功获取的电影记录
@@ -20,19 +29,21 @@ type MovieListResult struct {
 	MissingMovieIDs []uint         // 缓存中未找到的电影ID
 }
 
+// RedisMovieCache 电影缓存实现
 type RedisMovieCache struct {
 	redisClient       RedisClient
 	logger            applog.Logger
 	defaultExpiration time.Duration
 }
 
+// 电影缓存键前缀
 const (
 	movieKeyPrefix     = "movie:"
 	movieListKeyPrefix = "movies:list:"
 )
 
 // 创建一个RedisMovieCache实例
-func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) *RedisMovieCache {
+func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) MovieCache {
 	return &RedisMovieCache{
 		redisClient:       redisClient,
 		logger:            logger.With(applog.String("Component", "RedisMovieCache")),

@@ -13,25 +13,37 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-const (
-	showtimeKeyPrefix     = "showtime:"
-	showtimeListKeyPrefix = "showtimes:list:"
-)
+// ShowtimeCache 放映缓存接口
+type ShowtimeCache interface {
+	GetShowtime(ctx context.Context, showtimeID uint) (*movie.Showtime, error)
+	SetShowtime(ctx context.Context, showtime *movie.Showtime, expiration time.Duration) error
+	DeleteShowtime(ctx context.Context, showtimeID uint) error
+	GetShowtimeList(ctx context.Context, params map[string]interface{}) (*ShowtimeListResult, error)
+	SetShowtimeList(ctx context.Context, showtimes []*movie.Showtime, params map[string]interface{}, expiration time.Duration) error
+}
 
+// ShowtimeListResult 放映列表的查询结果
 type ShowtimeListResult struct {
 	Showtimes          []*movie.Showtime // 成功获取的放映记录
 	AllShowtimeIDs     []uint            // 列表中所有的放映ID
 	MissingShowtimeIDs []uint            // 缓存中未找到的放映ID
 }
 
+// RedisShowtimeCache 放映缓存实现
 type RedisShowtimeCache struct {
 	redisClient       RedisClient
 	logger            applog.Logger
 	defaultExpiration time.Duration
 }
 
+// 放映缓存键前缀
+const (
+	showtimeKeyPrefix     = "showtime:"
+	showtimeListKeyPrefix = "showtimes:list:"
+)
+
 // 创建一个RedisShowtimeCache实例
-func NewRedisShowtimeCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) *RedisShowtimeCache {
+func NewRedisShowtimeCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) ShowtimeCache {
 	return &RedisShowtimeCache{
 		redisClient:       redisClient,
 		logger:            logger.With(applog.String("Component", "RedisShowtimeCache")),
