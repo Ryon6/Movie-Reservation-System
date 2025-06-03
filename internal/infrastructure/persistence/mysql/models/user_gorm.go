@@ -1,6 +1,8 @@
 package models
 
 import (
+	"mrs/internal/domain/shared/vo"
+	"mrs/internal/domain/user"
 	"time"
 
 	"gorm.io/gorm"
@@ -16,4 +18,24 @@ type UserGorm struct {
 
 	RoleID uint     `gorm:"not null"`           // 关联的角色ID
 	Role   RoleGorm `gorm:"foreignKey:RoleID "` // 通常会隐式推断，这里显式定义防止出错
+}
+
+func (u *UserGorm) ToDomain() *user.User {
+	return &user.User{
+		ID:           vo.UserID(u.ID),
+		Username:     u.Username,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		Role:         u.Role.ToDomain(),
+	}
+}
+
+func UserGormFromDomain(u *user.User) *UserGorm {
+	return &UserGorm{
+		Model:        gorm.Model{ID: uint(u.ID)},
+		Username:     u.Username,
+		Email:        u.Email,
+		PasswordHash: u.PasswordHash,
+		Role:         *RoleGormFromDomain(u.Role),
+	}
 }
