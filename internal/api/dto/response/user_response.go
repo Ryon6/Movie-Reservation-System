@@ -1,7 +1,6 @@
 package response
 
 import (
-	"mrs/internal/app"
 	"time"
 )
 
@@ -13,15 +12,4 @@ type UserResponse struct {
 	CreateAt time.Time `json:"create_at"`
 	UpdateAt time.Time `json:"update_at"`
 	// IsActive bool      `json:"is_active"`
-}
-
-func ToUserResponse(rst *app.AuthResult) UserResponse {
-	return UserResponse{
-		ID:       rst.UserID,
-		Username: rst.Username,
-		Email:    rst.Email,
-		RoleName: rst.RoleName,
-		CreateAt: rst.CreateAt,
-		UpdateAt: rst.UpdateAt,
-	}
 }

@@ -57,10 +57,19 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	}
 
 	// 发送响应报文
+
+	userResp := response.UserResponse{
+		ID:       loginResult.UserID,
+		Username: loginResult.Username,
+		Email:    loginResult.Email,
+		RoleName: loginResult.RoleName,
+		CreateAt: loginResult.CreateAt,
+		UpdateAt: loginResult.UpdateAt,
+	}
 	loginResp := response.LoginResponse{
 		Token:     loginResult.Token,
 		ExpiresAt: time.Now().Add(time.Hour),
-		User:      response.ToUserResponse(loginResult),
+		User:      userResp,
 	}
 	logger.Info("User logged in successfully", applog.String("username", req.Username))
 	ctx.JSON(http.StatusOK, loginResp)
