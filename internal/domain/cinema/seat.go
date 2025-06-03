@@ -14,8 +14,8 @@ const (
 type Seat struct {
 	ID vo.SeatID
 	// 对 CinemaHallID 单独建立索引: 应对高频查询影厅全部座位的需求
-	CinemaHallID vo.CinemaHallID
-	Row          string
-	RowNumber    string
-	Type         SeatType
+	CinemaHall *CinemaHall
+	Row        string
+	RowNumber  string
+	Type       SeatType
 }
