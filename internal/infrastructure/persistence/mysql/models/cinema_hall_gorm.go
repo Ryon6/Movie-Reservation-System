@@ -1,6 +1,12 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"mrs/internal/domain/cinema"
+	"mrs/internal/domain/shared/vo"
+	"mrs/internal/domain/showtime"
+
+	"gorm.io/gorm"
+)
 
 type CinemaHallGrom struct {
 	gorm.Model
@@ -11,4 +17,46 @@ type CinemaHallGrom struct {
 
 	Seats     []SeatGrom     `gorm:"foreignKey:CinemaHallID;OnDelete:RESTRICT"`
 	Showtimes []ShowtimeGrom `gorm:"foreignKey:CinemaHallID;OnDelete:RESTRICT"`
+}
+
+// ToDomain 将CinemaHallGorm转换为CinemaHall（开销过大，需要在业务层处理）
+func (c *CinemaHallGrom) ToDomain() *cinema.CinemaHall {
+	seats := make([]*cinema.Seat, len(c.Seats))
+	for i, seat := range c.Seats {
+		seats[i] = seat.ToDomain()
+	}
+	showtimes := make([]*showtime.Showtime, len(c.Showtimes))
+	for i, showtime := range c.Showtimes {
+		showtimes[i] = showtime.ToDomain()
+	}
+	return &cinema.CinemaHall{
+		ID:          vo.CinemaHallID(c.ID),
+		Name:        c.Name,
+		ScreenType:  c.ScreenType,
+		SoundSystem: c.SoundSystem,
+		Capacity:    c.Capacity,
+		Seats:       seats,
+		Showtimes:   showtimes,
+	}
+}
+
+// CinemaHallGromFromDomain 将CinemaHall转换为CinemaHallGorm（开销过大，需要在业务层处理）
+func CinemaHallGromFromDomain(c *cinema.CinemaHall) *CinemaHallGrom {
+	seats := make([]SeatGrom, len(c.Seats))
+	for i, seat := range c.Seats {
+		seats[i] = *SeatGromFromDomain(seat)
+	}
+	showtimes := make([]ShowtimeGrom, len(c.Showtimes))
+	for i, showtime := range c.Showtimes {
+		showtimes[i] = *ShowtimeGromFromDomain(showtime)
+	}
+	return &CinemaHallGrom{
+		Model:       gorm.Model{ID: uint(c.ID)},
+		Name:        c.Name,
+		ScreenType:  c.ScreenType,
+		SoundSystem: c.SoundSystem,
+		Capacity:    c.Capacity,
+		Seats:       seats,
+		Showtimes:   showtimes,
+	}
 }
