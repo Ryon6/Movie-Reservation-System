@@ -1,6 +1,8 @@
 package models
 
 import (
+	"mrs/internal/domain/shared/vo"
+	"mrs/internal/domain/showtime"
 	"time"
 
 	"gorm.io/gorm"
@@ -23,4 +25,26 @@ type ShowtimeGrom struct {
 	EndTime time.Time `gorm:"not null"`
 	// 该场次的票价 (可以更复杂，比如不同座位类型不同价格)
 	Price float64 `gorm:"not null"`
+}
+
+func (s *ShowtimeGrom) ToDomain() *showtime.Showtime {
+	return &showtime.Showtime{
+		ID:           vo.ShowtimeID(s.ID),
+		MovieID:      vo.MovieID(s.MovieID),
+		CinemaHallID: vo.CinemaHallID(s.CinemaHallID),
+		StartTime:    s.StartTime,
+		EndTime:      s.EndTime,
+		Price:        s.Price,
+	}
+}
+
+func ShowtimeGromFromDomain(s *showtime.Showtime) *ShowtimeGrom {
+	return &ShowtimeGrom{
+		Model:        gorm.Model{ID: uint(s.ID)},
+		MovieID:      uint(s.MovieID),
+		CinemaHallID: uint(s.CinemaHallID),
+		StartTime:    s.StartTime,
+		EndTime:      s.EndTime,
+		Price:        s.Price,
+	}
 }
