@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"mrs/internal/domain/shared/vo"
 	"mrs/internal/utils"
-	"time"
 )
 
 // 用户
@@ -13,10 +12,7 @@ type User struct {
 	Username     string
 	PasswordHash string
 	Email        string
-	RoleID       vo.RoleID
-	Role         Role
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	Role         *Role // 聚合内部可以直接持有同一聚合内其他实体的引用
 }
 
 // 接收明文密码并使用bcrypt哈希化存储
