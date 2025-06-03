@@ -41,21 +41,10 @@ func (s *MovieService) getGenres(ctx context.Context, genreNames []string) ([]*m
 	logger := s.logger.With(applog.String("Method", "getGenres"))
 	genres := make([]*movie.Genre, 0, len(genreNames))
 	for _, genreName := range genreNames {
-		genre, err := s.genreRepo.FindByName(ctx, genreName)
+		genre, err := s.genreRepo.FindOrCreateByName(ctx, genreName)
 		if err != nil {
-			if errors.Is(err, movie.ErrGenreNotFound) {
-				logger.Info("genre not found, creating genre", applog.String("genre_name", genreName))
-				genre = &movie.Genre{
-					Name: genreName,
-				}
-				if err := s.genreRepo.Create(ctx, genre); err != nil {
-					logger.Error("failed to create genre", applog.Error(err))
-					return nil, fmt.Errorf("failed to create genre: %w", err)
-				}
-			} else {
-				logger.Error("failed to get genre", applog.Error(err))
-				return nil, err
-			}
+			logger.Error("failed to get genre", applog.Error(err))
+			return nil, err
 		}
 		genres = append(genres, genre)
 	}
@@ -63,14 +52,15 @@ func (s *MovieService) getGenres(ctx context.Context, genreNames []string) ([]*m
 }
 
 // 创建电影
-func (s *MovieService) CreateMovie(ctx context.Context, req *request.CreateMovieRequest) error {
+func (s *MovieService) CreateMovie(ctx context.Context,
+	req *request.CreateMovieRequest) (*response.MovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateMovie"))
 
 	// 检查并创建电影类型
 	genres, err := s.getGenres(ctx, req.GenreNames)
 	if err != nil {
 		logger.Error("failed to get genres", applog.Error(err))
-		return fmt.Errorf("failed to get genres: %w", err)
+		return nil, fmt.Errorf("failed to get genres: %w", err)
 	}
 
 	mv := &movie.Movie{
@@ -85,16 +75,18 @@ func (s *MovieService) CreateMovie(ctx context.Context, req *request.CreateMovie
 		Cast:            req.Cast,
 	}
 
+	// 开启事务
+
 	if err := s.movieRepo.Create(ctx, mv); err != nil {
 		logger.Error("failed to create movie", applog.Error(err))
-		return fmt.Errorf("failed to create movie: %w", err)
+		return nil, fmt.Errorf("failed to create movie: %w", err)
 	}
 
 	logger.Info("create movie successfully", applog.Uint("movie_id", mv.ID))
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
-	return nil
+	return response.ToMovieResponse(mv), nil
 }
 
 // 更新电影
