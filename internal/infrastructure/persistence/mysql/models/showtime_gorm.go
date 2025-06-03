@@ -1,4 +1,4 @@
-package movie
+package models
 
 import (
 	"time"
@@ -6,16 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type Showtime struct {
+type ShowtimeGrom struct {
 	gorm.Model
 	// 关联的电影ID 已在Movie中定义外键 电影ID，联合索引1
 	MovieID uint `gorm:"not null;index;index:idx_movie_start_time,priority:1"`
 	// 关联的电影实体
-	Movie Movie `gorm:"foreignKey:MovieID"`
+	Movie MovieGrom `gorm:"foreignKey:MovieID"`
 	// 关联的影厅ID 已在CinemaHall中定义外键 影厅ID，联合索引2
 	CinemaHallID uint `gorm:"not null;index;index:idx_hall_start_time,priority:1"`
 	// 关联的影厅实体
-	CinemaHall CinemaHall `gorm:"foreignKey:CinemaHallID"`
+	CinemaHall CinemaHallGrom `gorm:"foreignKey:CinemaHallID"`
 
 	// 放映开始时间 (包含日期和时间) 放映开始时间，联合索引1和2
 	StartTime time.Time `gorm:"not null;index;index:idx_movie_start_time,priority:2;index:idx_hall_start_time,priority:2"`
