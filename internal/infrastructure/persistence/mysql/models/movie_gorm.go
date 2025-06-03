@@ -1,6 +1,9 @@
 package models
 
 import (
+	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared/vo"
+	"mrs/internal/domain/showtime"
 	"time"
 
 	"gorm.io/gorm"
@@ -22,4 +25,46 @@ type MovieGrom struct {
 	Rating      float32   // 评分
 	AgeRating   string    `gorm:"type:varchar(50)"` // 年龄分级 (例如 PG-13)
 	Cast        string    `gorm:"type:text"`        // 主要演员 (简单起见用文本，复杂系统可设计为关联表)
+}
+
+func (m *MovieGrom) ToDomain() *movie.Movie {
+	genres := make([]*movie.Genre, len(m.Genres))
+	for i, genre := range m.Genres {
+		genres[i] = genre.ToDomain()
+	}
+	showtimes := make([]*showtime.Showtime, len(m.Showtimes))
+	for i, showtime := range m.Showtimes {
+		showtimes[i] = showtime.ToDomain()
+	}
+	return &movie.Movie{
+		ID:              vo.MovieID(m.ID),
+		Title:           m.Title,
+		Description:     m.Description,
+		PosterURL:       m.PosterURL,
+		DurationMinutes: m.DurationMinutes,
+		Genres:          genres,
+		ReleaseDate:     m.ReleaseDate,
+		Rating:          m.Rating,
+		AgeRating:       m.AgeRating,
+		Cast:            m.Cast,
+	}
+}
+
+func MovieGromFromDomain(m *movie.Movie) *MovieGrom {
+	genres := make([]*GenreGrom, len(m.Genres))
+	for i, genre := range m.Genres {
+		genres[i] = GenreGromFromDomain(genre)
+	}
+	return &MovieGrom{
+		Model:           gorm.Model{ID: uint(m.ID)},
+		Title:           m.Title,
+		Description:     m.Description,
+		PosterURL:       m.PosterURL,
+		DurationMinutes: m.DurationMinutes,
+		Genres:          genres,
+		ReleaseDate:     m.ReleaseDate,
+		Rating:          m.Rating,
+		AgeRating:       m.AgeRating,
+		Cast:            m.Cast,
+	}
 }
