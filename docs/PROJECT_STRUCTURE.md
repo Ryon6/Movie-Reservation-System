@@ -19,6 +19,117 @@ mrs/
 └── README.md                   # 项目主 README
 ```
 
+## 领域层目录结构
+
+```
+internal/
+└── domain/
+    ├── user/
+    │   ├── user.go                 // User 聚合根 (Aggregate Root) 实体定义
+    │   ├── role.go                 // Role 聚合根实体定义 (考虑到其可能独立管理和扩展)
+    │   ├── user_repository.go      // UserRepository 接口定义
+    │   └── role_repository.go      // RoleRepository 接口定义
+    │
+    ├── movie/
+    │   ├── movie.go                // Movie 聚合根实体定义
+    │   ├── genre.go                // Genre 聚合根实体定义 (独立管理电影类型)
+    │   ├── movie_repository.go     // MovieRepository 接口定义
+    │   └── genre_repository.go     // GenreRepository 接口定义
+    │
+    ├── cinema/
+    │   ├── cinema_hall.go          // CinemaHall 聚合根实体定义
+    │   ├── seat.go                 // Seat 实体定义 (作为 CinemaHall 聚合的一部分)
+    │   └── cinema_hall_repository.go // CinemaHallRepository 接口定义
+    │
+    ├── showtime/
+    │   ├── showtime.go             // Showtime 聚合根实体定义
+    │   └── showtime_repository.go  // ShowtimeRepository 接口定义
+    │
+    ├── booking/
+    │   ├── booking.go              // Booking 聚合根实体定义
+    │   ├── booked_seat.go          // BookedSeat 实体定义 (作为 Booking 聚合的一部分)
+    │   ├── booking_repository.go   // BookingRepository 接口定义
+    │   └── booking_service.go      // 可选: Booking领域服务 (处理复杂预订逻辑)
+    │
+    └── shared/                     // 跨领域共享的元素
+        ├── aggregate/              // 可选: 聚合根的通用接口或基类
+        │   └── root.go
+        ├── entity/                 // 可选: 实体的通用接口或基类
+        │   └── entity.go
+        ├── vo/                     // (Value Objects) 通用值对象
+        │   ├── money.go            // 例如: Money 类型
+        │   ├── time_period.go      // 例如: 时间段类型
+        │   └── identifier.go       // 各种ID类型定义 (e.g., UserID, MovieID)
+        └── error.go                // 通用领域错误定义 (e.g., ErrNotFound, ErrInvalidArgument)
+```
+
+## 基础设施层目录结构
+
+```
+internal/
+└── infrastructure/
+    ├── config/                 // 配置加载与管理
+    │   ├── loader.go           // 配置加载器接口和具体实现 (e.g., Viper)
+    │   └── model.go            // 配置结构体定义 (与 configs/app.yaml 对应)
+    │
+    ├── persistence/            // 数据持久化 (数据库相关)
+    │   ├── mysql/              // 针对 MySQL 的具体实现
+    │   │   ├── db_client.go    // MySQL 数据库连接初始化和管理 (e.g., GORM client)
+    │   │   ├── user_repository.go // UserRepository 接口的 GORM 实现
+    │   │   ├── movie_repository.go // MovieRepository 接口的 GORM 实现
+    │   │   ├── role_repository.go
+    │   │   ├── genre_repository.go
+    │   │   ├── cinema_hall_repository.go
+    │   │   ├── showtime_repository.go
+    │   │   ├── booking_repository.go
+    │   │   └── models/           // (可选) GORM 持久化模型定义 (e.g., user_gorm.go, movie_gorm.go)
+    │   │       ├── user_gorm.go
+    │   │       └── ...
+    │   ├── postgresql/         // (未来) 针对 PostgreSQL 的实现 (如果需要切换或支持多种DB)
+    │   │   └── ...
+    │   ├── migrations/         // 数据库迁移脚本或代码
+    │   │   ├── 001_create_users_table.up.sql
+    │   │   └── 001_create_users_table.down.sql
+    │   └── sharding/           // (未来规划) 分库分表逻辑
+    │       ├── manager.go
+    │       └── rule.go
+    │
+    ├── cache/                  // 缓存服务实现
+    │   ├── redis/              // 针对 Redis 的具体实现
+    │   │   ├── redis_client.go // Redis 客户端初始化和连接管理
+    │   │   ├── movie_cache.go  // 电影相关缓存操作 (实现领域层定义的 Cache 接口)
+    │   │   ├── user_cache.go   // 用户相关缓存操作
+    │   │   └── distributed_lock.go // (可选) 基于 Redis 的分布式锁实现
+    │   └── memcached/          // (未来) 针对 Memcached 的实现
+    │       └── ...
+    │
+    ├── messagequeue/           // (未来规划) 消息队列的生产者和消费者实现
+    │   ├── kafka/
+    │   │   ├── producer.go
+    │   │   └── consumer.go
+    │   └── nats/
+    │       └── ...
+    │
+    ├── externalapi/            // (未来规划) 与第三方外部 API 交互的客户端
+    │   ├── paymentgateway/     // 例如支付网关客户端
+    │   │   ├── client.go
+    │   │   └── dto.go          // 第三方 API 的请求/响应结构
+    │   └── notification/       // 例如邮件或短信服务客户端
+    │       └── ...
+    │
+    ├── discovery/              // (未来规划) 服务发现客户端实现
+    │   └── consul/
+    │       └── client.go
+    │
+    ├── monitoring/             // (未来规划) 监控和度量相关 (e.g., Prometheus exporter)
+    │   └── prometheus_exporter.go
+    │
+    └── email/                  // (未来规划) 邮件发送服务实现
+        └── smtp_client.go      // 实现邮件发送接口
+```
+
+
+
 ## `cmd/` - 命令入口
 
 此目录存放项目所有可执行应用的 `main` 包。
