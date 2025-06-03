@@ -1,4 +1,4 @@
-package movie
+package cinema
 
 import "gorm.io/gorm"
 
