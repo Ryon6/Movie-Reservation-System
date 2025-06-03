@@ -1,9 +1,12 @@
 package movie
 
-import "gorm.io/gorm"
+import "mrs/internal/domain/shared/vo"
 
+// 电影类型
 type Genre struct {
-	gorm.Model
-	Name   string   `gorm:"type:varchar(100);uniqueIndex;not null"`              // 类型名称：科幻...
-	Movies []*Movie `gorm:"many2many:movie_genres;constraint:OnDelete:RESTRICT"` // 该类型下的电影 (可选，如果需要反向查询)
+	ID   vo.GenreID // 类型ID
+	Name string     // 类型名称
+
+	// 多对多关系
+	MoviesIDs []vo.MovieID
 }
