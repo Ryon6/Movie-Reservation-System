@@ -11,6 +11,8 @@ import (
 	"mrs/internal/domain/movie"
 	"mrs/internal/infrastructure/cache"
 	applog "mrs/pkg/log"
+
+	"gorm.io/gorm"
 )
 
 type MovieService struct {
@@ -71,7 +73,7 @@ func (s *MovieService) CreateMovie(ctx context.Context, req *request.CreateMovie
 		return fmt.Errorf("failed to get genres: %w", err)
 	}
 
-	movie := &movie.Movie{
+	mv := &movie.Movie{
 		Title:           req.Title,
 		Genres:          genres,
 		Description:     req.Description,
@@ -83,13 +85,13 @@ func (s *MovieService) CreateMovie(ctx context.Context, req *request.CreateMovie
 		Cast:            req.Cast,
 	}
 
-	if err := s.movieRepo.Create(ctx, movie); err != nil {
+	if err := s.movieRepo.Create(ctx, mv); err != nil {
 		logger.Error("failed to create movie", applog.Error(err))
 		return fmt.Errorf("failed to create movie: %w", err)
 	}
 
-	logger.Info("create movie successfully", applog.Uint("movie_id", movie.ID))
-	if err := s.movieCache.SetMovie(ctx, movie, 0); err != nil {
+	logger.Info("create movie successfully", applog.Uint("movie_id", mv.ID))
+	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 	return nil
@@ -99,38 +101,38 @@ func (s *MovieService) CreateMovie(ctx context.Context, req *request.CreateMovie
 func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error {
 	logger := s.logger.With(applog.String("Method", "UpdateMovie"))
 
-	movie, err := s.movieRepo.FindByTitle(ctx, req.Title)
+	mv, err := s.movieRepo.FindByTitle(ctx, req.Title)
 	if err != nil {
 		logger.Error("failed to get movie", applog.Error(err))
 		return err
 	}
 
 	if req.Description != "" {
-		movie.Description = req.Description
+		mv.Description = req.Description
 	}
 
 	if !req.ReleaseDate.IsZero() {
-		movie.ReleaseDate = req.ReleaseDate
+		mv.ReleaseDate = req.ReleaseDate
 	}
 
 	if req.DurationMinutes != 0 {
-		movie.DurationMinutes = req.DurationMinutes
+		mv.DurationMinutes = req.DurationMinutes
 	}
 
 	if req.Rating != 0 {
-		movie.Rating = float32(req.Rating)
+		mv.Rating = float32(req.Rating)
 	}
 
 	if req.PosterURL != "" {
-		movie.PosterURL = req.PosterURL
+		mv.PosterURL = req.PosterURL
 	}
 
 	if req.AgeRating != "" {
-		movie.AgeRating = req.AgeRating
+		mv.AgeRating = req.AgeRating
 	}
 
 	if req.Cast != "" {
-		movie.Cast = req.Cast
+		mv.Cast = req.Cast
 	}
 
 	if len(req.GenreNames) > 0 {
@@ -141,23 +143,74 @@ func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 		}
 
 		// 替换电影类型
-		if err := s.movieRepo.ReplaceGenresForMovie(ctx, movie, genres); err != nil {
+		if err := s.movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
 			logger.Error("failed to replace genres for movie", applog.Error(err))
 			return fmt.Errorf("failed to replace genres for movie: %w", err)
 		}
-		movie.Genres = genres
+		mv.Genres = genres
 	}
 
-	if err := s.movieRepo.Update(ctx, movie); err != nil {
+	if err := s.movieRepo.Update(ctx, mv); err != nil {
 		logger.Error("failed to update movie", applog.Error(err))
 		return fmt.Errorf("failed to update movie: %w", err)
 	}
 
-	if err := s.movieCache.SetMovie(ctx, movie, 0); err != nil {
+	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
-	logger.Info("update movie successfully", applog.Uint("movie_id", movie.ID))
+	logger.Info("update movie successfully", applog.Uint("movie_id", mv.ID))
+	return nil
+}
+
+// 获取电影详情
+func (s *MovieService) GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error) {
+	logger := s.logger.With(applog.String("Method", "GetMovieByID"), applog.Uint("movie_id", id))
+
+	mv, err := s.movieCache.GetMovie(ctx, id)
+	if err == nil {
+		logger.Info("get movie from cache successfully")
+		return response.ToMovieResponse(mv), nil
+	}
+
+	mv, err = s.movieRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, movie.ErrMovieNotFound) {
+			logger.Info("movie not found")
+			// 构造一个空的movie并设置到缓存中,防止缓存穿透
+			emptyMovie := &movie.Movie{Model: gorm.Model{ID: id}}
+			if err := s.movieCache.SetMovie(ctx, emptyMovie, 0); err != nil {
+				logger.Error("failed to set empty movie to cache", applog.Error(err))
+			}
+			logger.Info("set empty movie to cache successfully")
+			return nil, fmt.Errorf("%w: %w", movie.ErrMovieNotFound, err)
+		}
+		logger.Error("failed to get movie", applog.Error(err))
+		return nil, fmt.Errorf("failed to get movie: %w", err)
+	}
+
+	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
+		logger.Error("failed to set movie to cache", applog.Error(err))
+	}
+
+	logger.Info("get movie by id successfully")
+	return response.ToMovieResponse(mv), nil
+}
+
+// 删除电影
+func (s *MovieService) DeleteMovie(ctx context.Context, id uint) error {
+	logger := s.logger.With(applog.String("Method", "DeleteMovie"), applog.Uint("movie_id", id))
+
+	if err := s.movieRepo.Delete(ctx, id); err != nil {
+		logger.Error("failed to delete movie", applog.Error(err))
+		return fmt.Errorf("failed to delete movie: %w", err)
+	}
+
+	if err := s.movieCache.DeleteMovie(ctx, id); err != nil {
+		logger.Error("failed to delete movie from cache", applog.Error(err))
+	}
+
+	logger.Info("delete movie successfully")
 	return nil
 }
 
