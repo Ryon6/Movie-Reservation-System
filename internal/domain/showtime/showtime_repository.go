@@ -1,10 +1,11 @@
-package movie
+package showtime
 
 import (
 	"context"
 	"time"
 )
 
+// 场次仓库接口
 type ShowtimeRepository interface {
 	Create(ctx context.Context, showtime *Showtime) error
 	// 预加载 Movie 和 CinemaHall
