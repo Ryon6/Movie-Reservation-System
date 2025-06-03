@@ -8,5 +8,5 @@ type Genre struct {
 	Name string     // 类型名称
 
 	// 多对多关系
-	MoviesIDs []vo.MovieID
+	Movies []*Movie
 }
