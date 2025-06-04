@@ -4,7 +4,7 @@ import "context"
 
 // MovieRepository 定义了电影实体的持久化操作接口。
 type MovieRepository interface {
-	Create(ctx context.Context, movie *Movie) error
+	Create(ctx context.Context, movie *Movie) (*Movie, error)
 	// 应支持预加载Genres
 	FindByID(ctx context.Context, id uint) (*Movie, error)
 	FindByTitle(ctx context.Context, title string) (*Movie, error)

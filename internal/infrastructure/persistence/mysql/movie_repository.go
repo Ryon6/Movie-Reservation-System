@@ -24,21 +24,21 @@ func NewGormMovieRepository(db *gorm.DB, logger applog.Logger) movie.MovieReposi
 	}
 }
 
-func (r *gormMovieRepository) Create(ctx context.Context, mv *movie.Movie) error {
+func (r *gormMovieRepository) Create(ctx context.Context, mv *movie.Movie) (*movie.Movie, error) {
 	logger := r.logger.With(applog.String("Method", "Create"),
 		applog.Uint("movie_id", uint(mv.ID)), applog.String("title", mv.Title))
 	movieGorm := models.MovieGromFromDomain(mv)
 	if err := r.db.WithContext(ctx).Create(movieGorm).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			logger.Warn("movie already eixsts", applog.Error(err))
-			return fmt.Errorf("%w: %w", movie.ErrMovieAlreadyExists, err)
+			return nil, fmt.Errorf("%w: %w", movie.ErrMovieAlreadyExists, err)
 		}
 		logger.Error("failed to create movie", applog.Error(err))
-		return fmt.Errorf("failed to create movie: %w", err)
+		return nil, fmt.Errorf("failed to create movie: %w", err)
 
 	}
 	logger.Info("create movie successfully")
-	return nil
+	return movieGorm.ToDomain(), nil
 }
 
 // 应支持预加载Genres
