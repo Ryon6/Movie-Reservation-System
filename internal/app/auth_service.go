@@ -3,12 +3,12 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"mrs/internal/domain/shared"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type AuthService interface {
@@ -16,6 +16,7 @@ type AuthService interface {
 }
 
 type authService struct {
+	uow        shared.UnitOfWork
 	userRepo   user.UserRepository
 	hasher     utils.PasswordHasher
 	jwtManager utils.JWTManager
@@ -30,30 +31,37 @@ type AuthResult struct {
 }
 
 func NewAuthService(
+	uow shared.UnitOfWork,
 	userRepo user.UserRepository,
 	hasher utils.PasswordHasher,
 	jwtManager utils.JWTManager,
 	logger applog.Logger,
 ) AuthService {
 	return &authService{
+		uow:        uow,
 		userRepo:   userRepo,
 		hasher:     hasher,
 		jwtManager: jwtManager,
-		logger:     logger,
+		logger:     logger.With(applog.String("Service", "AuthService")),
 	}
 }
 
 func (s *authService) Login(ctx context.Context, username string, password string) (*AuthResult, error) {
-	logger := s.logger.With(applog.String("Method", "authService.Login"))
+	logger := s.logger.With(applog.String("Method", "Login"), applog.String("username", username))
 
 	// 查询用户
 	usr, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, user.ErrUserAlreadyExists) {
-			logger.Warn("user not Found", applog.String("username", username))
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user not found")
+			return nil, user.ErrUserNotFound
+		}
+		if errors.Is(err, user.ErrUserAlreadyExists) {
+			logger.Warn("user already exists")
 			return nil, user.ErrUserAlreadyExists
 		}
 		logger.Error("failed to find user by name", applog.String("username", username), applog.Error(err))
+		return nil, fmt.Errorf("authService.Login: %w", err)
 	}
 
 	// 密码校验
