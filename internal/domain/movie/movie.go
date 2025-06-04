@@ -14,8 +14,7 @@ type Movie struct {
 	DurationMinutes int
 
 	// 多对多关系
-	Genres       []*Genre        // 聚合内部可以直接持有同一聚合内其他实体的引用
-	ShowtimesIDs []vo.ShowtimeID // 跨聚合关系优先使用ID
+	Genres []*Genre // 聚合内部可以直接持有同一聚合内其他实体的引用
 
 	// 可选
 	ReleaseDate time.Time // 上映日期（可空）
