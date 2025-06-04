@@ -147,19 +147,49 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-// FindOrCreateByName 查找指定名称的类型，如果不存在则创建它。
-func (r *gormGenreRepository) FindOrCreateByName(ctx context.Context, name string) (*movie.Genre, error) {
-	logger := r.logger.With(applog.String("method", "FindOrCreateByName"), applog.String("genre_name", name))
-	var genreGorm models.GenreGrom
+// FindOrCreateByNames 查找指定名称的类型，如果不存在则创建它。
+func (r *gormGenreRepository) FindOrCreateByNames(ctx context.Context, names []string) ([]*movie.Genre, error) {
+	logger := r.logger.With(applog.String("method", "FindOrCreateByNames"), applog.Any("genre_names", names))
 
-	// GORM 的 FirstOrCreate 会原子地执行此操作（如果数据库支持）
-	// 它首先尝试查找，如果未找到，则使用提供的属性创建。
-	if err := r.db.WithContext(ctx).FirstOrCreate(&genreGorm, models.GenreGrom{Name: name}).Error; err != nil {
-		logger.Error("failed to find or create genre by name", applog.Error(err))
-		return nil, err
+	var genreGorms []*models.GenreGrom
+	// 先尝试查找所有已存在的类型
+	if err := r.db.WithContext(ctx).Where("name IN ?", names).Find(&genreGorms).Error; err != nil {
+		logger.Error("failed to find genres by names", applog.Error(err))
+		return nil, fmt.Errorf("failed to find genres by names: %w", err)
 	}
-	// RowsAffected 可以用来判断是找到还是创建，但这依赖于GORM的具体行为和版本
-	// 通常可以直接返回 genre 实例
-	logger.Info("find or create genre successfully", applog.Uint("genre_id", uint(genreGorm.ID)))
-	return genreGorm.ToDomain(), nil
+
+	// 找出需要创建的类型名称
+	existingNames := make(map[string]bool)
+	for _, g := range genreGorms {
+		existingNames[g.Name] = true
+	}
+
+	var newNames []string
+	for _, name := range names {
+		if !existingNames[name] {
+			newNames = append(newNames, name)
+		}
+	}
+
+	// 批量创建不存在的类型
+	if len(newNames) > 0 {
+		newGenres := make([]*models.GenreGrom, len(newNames))
+		for i, name := range newNames {
+			newGenres[i] = &models.GenreGrom{Name: name}
+		}
+		if err := r.db.WithContext(ctx).Create(&newGenres).Error; err != nil {
+			logger.Error("failed to create new genres", applog.Error(err))
+			return nil, fmt.Errorf("failed to create new genres: %w", err)
+		}
+		genreGorms = append(genreGorms, newGenres...)
+	}
+
+	// 转换为领域模型
+	genres := make([]*movie.Genre, len(genreGorms))
+	for i, g := range genreGorms {
+		genres[i] = g.ToDomain()
+	}
+
+	logger.Info("find or create genres successfully", applog.Int("total_count", len(genres)))
+	return genres, nil
 }
