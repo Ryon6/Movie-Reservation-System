@@ -105,10 +105,11 @@ func main() {
 	// 基础设施层
 	userRepo := appmysql.NewGormUserRepository(db, logger)
 	roleRepo := appmysql.NewGormRoleRepository(db, logger)
+	uow := appmysql.NewGormUnitOfWork(db, logger)
 
 	// 应用层
-	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, userRepo, roleRepo, hasher, logger)
-	authService := app.NewAuthService(userRepo, hasher, jwtManager, logger)
+	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, uow, userRepo, roleRepo, hasher, logger)
+	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)

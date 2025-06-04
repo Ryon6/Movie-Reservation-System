@@ -55,7 +55,7 @@ type gormUnitOfWork struct {
 	logger applog.Logger
 }
 
-func NewUnitOfWork(tx *gorm.DB, logger applog.Logger) shared.UnitOfWork {
+func NewGormUnitOfWork(tx *gorm.DB, logger applog.Logger) shared.UnitOfWork {
 	return &gormUnitOfWork{
 		tx:     tx,
 		logger: logger.With(applog.String("Component", "gormUnitOfWork")),
