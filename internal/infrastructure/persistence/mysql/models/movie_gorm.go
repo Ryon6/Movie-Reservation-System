@@ -10,9 +10,9 @@ import (
 
 type MovieGrom struct {
 	gorm.Model
-	Title           string `gorm:"type:varchar(255);not null;"` //  电影标题
-	Description     string `gorm:"type:text"`                   // 电影剧情简介或描述（可空）
-	PosterURL       string `gorm:"type:varchar(500)"`           // 电影海报图片的URL地址（可空）
+	Title           string `gorm:"type:varchar(255);not null;uniqueIndex"` //  电影标题
+	Description     string `gorm:"type:text"`                              // 电影剧情简介或描述（可空）
+	PosterURL       string `gorm:"type:varchar(500)"`                      // 电影海报图片的URL地址（可空）
 	DurationMinutes int    // 电影时长，单位为分钟
 
 	// 关系
