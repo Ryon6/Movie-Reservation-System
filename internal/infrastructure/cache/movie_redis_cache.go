@@ -78,10 +78,10 @@ func (c *RedisMovieCache) movieListKey(params map[string]interface{}) string {
 }
 
 // SetMovie 设置单个电影的缓存
-func (c *RedisMovieCache) SetMovie(ctx context.Context, movie *movie.Movie, expiration time.Duration) error {
-	logger := c.logger.With(applog.String("Method", "SetMovie"), applog.Uint("movie_id", movie.ID))
-	key := c.movieKey(movie.ID)
-	data, err := json.Marshal(movie)
+func (c *RedisMovieCache) SetMovie(ctx context.Context, mv *movie.Movie, expiration time.Duration) error {
+	logger := c.logger.With(applog.String("Method", "SetMovie"), applog.Uint("movie_id", uint(mv.ID)))
+	key := c.movieKey(uint(mv.ID))
+	data, err := json.Marshal(mv)
 
 	if err != nil {
 		logger.Error("failed to marshal movie", applog.Error(err))
@@ -163,7 +163,7 @@ func (c *RedisMovieCache) SetMovies(ctx context.Context, movies []*movie.Movie, 
 			logger.Error("failed to marshal movie", applog.Error(err))
 			continue
 		}
-		pipe.Set(ctx, c.movieKey(movie.ID), data, expiration)
+		pipe.Set(ctx, c.movieKey(uint(movie.ID)), data, expiration)
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -189,7 +189,7 @@ func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movi
 	// 提取电影ID列表
 	movieIDs := make([]uint, len(movies))
 	for i, m := range movies {
-		movieIDs[i] = m.ID
+		movieIDs[i] = uint(m.ID)
 	}
 
 	// 序列化ID列表
