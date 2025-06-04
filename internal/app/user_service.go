@@ -97,7 +97,7 @@ func (s *userService) GetUserByID(ctx context.Context, userID uint) (*user.User,
 	logger := s.logger.With(applog.String("Method", "GetUserByID"), applog.Uint("user_id", userID))
 	usr, err := s.userRepo.FindByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found")
 			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
 		}
