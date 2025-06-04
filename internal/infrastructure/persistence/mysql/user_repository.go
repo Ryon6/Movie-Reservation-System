@@ -31,7 +31,7 @@ func (r *gormUserRepository) Create(ctx context.Context, usr *user.User) error {
 		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrDuplicatedKey) || errors.Is(err, gorm.ErrRegistered) {
 			logger.Warn("user already exists", applog.Error(err))
-			return fmt.Errorf("%w: %w", user.ErrUserExists, err)
+			return fmt.Errorf("%w: %w", user.ErrUserAlreadyExists, err)
 		}
 		logger.Error("failed to create user", applog.Error(err))
 		return err

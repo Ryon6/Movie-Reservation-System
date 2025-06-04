@@ -4,8 +4,8 @@ import "errors"
 
 var (
 	// 用户存在性错误
-	ErrUserExists   = errors.New("user already exists")
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrUserNotFound      = errors.New("user not found")
 
 	// 验证错误
 	ErrInvalidUsername = errors.New("invalid username format")
