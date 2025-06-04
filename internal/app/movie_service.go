@@ -9,46 +9,32 @@ import (
 	"mrs/internal/api/dto/response"
 
 	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared"
 	"mrs/internal/domain/shared/vo"
-	"mrs/internal/domain/showtime"
 	"mrs/internal/infrastructure/cache"
 	applog "mrs/pkg/log"
 )
 
 type MovieService struct {
-	movieRepo    movie.MovieRepository
-	showtimeRepo showtime.ShowtimeRepository
-	genreRepo    movie.GenreRepository
-	movieCache   cache.MovieCache
-	logger       applog.Logger
+	uow        shared.UnitOfWork
+	movieRepo  movie.MovieRepository
+	genreRepo  movie.GenreRepository
+	movieCache cache.MovieCache
+	logger     applog.Logger
 }
 
-func NewMovieService(movieRepo movie.MovieRepository,
-	showtimeRepo showtime.ShowtimeRepository,
+func NewMovieService(
+	uow shared.UnitOfWork,
+	movieRepo movie.MovieRepository,
 	movieCache cache.MovieCache,
 	logger applog.Logger,
 ) *MovieService {
 	return &MovieService{
-		movieRepo:    movieRepo,
-		showtimeRepo: showtimeRepo,
-		movieCache:   movieCache,
-		logger:       logger.With(applog.String("Component", "MovieService")),
+		uow:        uow,
+		movieRepo:  movieRepo,
+		movieCache: movieCache,
+		logger:     logger.With(applog.String("Component", "MovieService")),
 	}
-}
-
-// 获取电影类型
-func (s *MovieService) getGenres(ctx context.Context, genreNames []string) ([]*movie.Genre, error) {
-	logger := s.logger.With(applog.String("Method", "getGenres"))
-	genres := make([]*movie.Genre, 0, len(genreNames))
-	for _, genreName := range genreNames {
-		genre, err := s.genreRepo.FindOrCreateByName(ctx, genreName)
-		if err != nil {
-			logger.Error("failed to get genre", applog.Error(err))
-			return nil, err
-		}
-		genres = append(genres, genre)
-	}
-	return genres, nil
 }
 
 // 创建电影
@@ -56,36 +42,43 @@ func (s *MovieService) CreateMovie(ctx context.Context,
 	req *request.CreateMovieRequest) (*response.MovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateMovie"))
 
-	// 检查并创建电影类型
-	genres, err := s.getGenres(ctx, req.GenreNames)
-	if err != nil {
-		logger.Error("failed to get genres", applog.Error(err))
-		return nil, fmt.Errorf("failed to get genres: %w", err)
-	}
-
-	mv := &movie.Movie{
-		Title:           req.Title,
-		Genres:          genres,
-		Description:     req.Description,
-		ReleaseDate:     req.ReleaseDate,
-		DurationMinutes: req.DurationMinutes,
-		Rating:          float32(req.Rating),
-		PosterURL:       req.PosterURL,
-		AgeRating:       req.AgeRating,
-		Cast:            req.Cast,
-	}
+	mv := req.ToMovie()
 
 	// 开启事务
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		// 检查并创建电影类型
+		genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
+		if err != nil {
+			logger.Error("failed to get genres", applog.Error(err))
+			return fmt.Errorf("failed to get or create genres: %w", err)
+		}
 
-	if err := s.movieRepo.Create(ctx, mv); err != nil {
+		// 创建电影
+		movieRepo := provider.GetMovieRepository()
+		mv, err = movieRepo.Create(ctx, mv)
+		if err != nil {
+			logger.Error("failed to create movie", applog.Error(err))
+			return fmt.Errorf("failed to create movie: %w", err)
+		}
+
+		// 电影创建时并不会自动关联类型，需要手动替换
+		if err := movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
+			logger.Error("failed to replace genres for movie", applog.Error(err))
+			return fmt.Errorf("failed to replace genres for movie: %w", err)
+		}
+		return nil
+	})
+
+	if err != nil {
 		logger.Error("failed to create movie", applog.Error(err))
 		return nil, fmt.Errorf("failed to create movie: %w", err)
 	}
 
-	logger.Info("create movie successfully", applog.Uint("movie_id", uint(mv.ID)))
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
+
+	logger.Info("create movie successfully", applog.Uint("movie_id", uint(mv.ID)))
 	return response.ToMovieResponse(mv), nil
 }
 
@@ -94,6 +87,7 @@ func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 	logger := s.logger.With(applog.String("Method", "UpdateMovie"))
 
 	mv, err := s.movieRepo.FindByTitle(ctx, req.Title)
+	tag := false
 	if err != nil {
 		logger.Error("failed to get movie", applog.Error(err))
 		return err
@@ -101,50 +95,64 @@ func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 
 	if req.Description != "" {
 		mv.Description = req.Description
+		tag = true
 	}
 
 	if !req.ReleaseDate.IsZero() {
 		mv.ReleaseDate = req.ReleaseDate
+		tag = true
 	}
 
 	if req.DurationMinutes != 0 {
 		mv.DurationMinutes = req.DurationMinutes
+		tag = true
 	}
 
 	if req.Rating != 0 {
 		mv.Rating = float32(req.Rating)
+		tag = true
 	}
 
 	if req.PosterURL != "" {
 		mv.PosterURL = req.PosterURL
+		tag = true
 	}
 
 	if req.AgeRating != "" {
 		mv.AgeRating = req.AgeRating
+		tag = true
 	}
 
 	if req.Cast != "" {
 		mv.Cast = req.Cast
+		tag = true
 	}
 
 	if len(req.GenreNames) > 0 {
-		genres, err := s.getGenres(ctx, req.GenreNames)
+		err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+			genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
+			if err != nil {
+				logger.Error("failed to get genres", applog.Error(err))
+				return fmt.Errorf("failed to get genres: %w", err)
+			}
+			if err := provider.GetMovieRepository().ReplaceGenresForMovie(ctx, mv, genres); err != nil {
+				logger.Error("failed to replace genres for movie", applog.Error(err))
+				return fmt.Errorf("failed to replace genres for movie: %w", err)
+			}
+			return nil
+		})
 		if err != nil {
 			logger.Error("failed to get genres", applog.Error(err))
 			return fmt.Errorf("failed to get genres: %w", err)
 		}
-
-		// 替换电影类型
-		if err := s.movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
-			logger.Error("failed to replace genres for movie", applog.Error(err))
-			return fmt.Errorf("failed to replace genres for movie: %w", err)
-		}
-		mv.Genres = genres
 	}
 
-	if err := s.movieRepo.Update(ctx, mv); err != nil {
-		logger.Error("failed to update movie", applog.Error(err))
-		return fmt.Errorf("failed to update movie: %w", err)
+	if tag {
+		// 更新单条记录且不涉及多表，无需事务
+		if err := s.movieRepo.Update(ctx, mv); err != nil {
+			logger.Error("failed to update movie", applog.Error(err))
+			return fmt.Errorf("failed to update movie: %w", err)
+		}
 	}
 
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
