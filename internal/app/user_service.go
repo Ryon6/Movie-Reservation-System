@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mrs/internal/domain/shared"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
@@ -18,6 +19,7 @@ type UserService interface {
 
 type userService struct {
 	defaultRoleName string // 注入配置依赖：默认角色
+	uow             shared.UnitOfWork
 	userRepo        user.UserRepository
 	roleRepo        user.RoleRepository
 	hasher          utils.PasswordHasher
@@ -26,6 +28,7 @@ type userService struct {
 
 func NewUserService(
 	defaultRoleName string,
+	uow shared.UnitOfWork,
 	userRepo user.UserRepository,
 	roleRepo user.RoleRepository,
 	hasher utils.PasswordHasher,
@@ -33,6 +36,7 @@ func NewUserService(
 ) UserService {
 	return &userService{
 		defaultRoleName: defaultRoleName,
+		uow:             uow,
 		userRepo:        userRepo,
 		roleRepo:        roleRepo,
 		hasher:          hasher,
@@ -44,28 +48,9 @@ func (s *userService) RegisterUser(ctx context.Context, username, email, plainPa
 	logger := s.logger.With(applog.String("Method", "RegisterUser"),
 		applog.String("username", username),
 		applog.String("email", email))
-	// 验证用户名是否存在
-	_, err := s.userRepo.FindByUsername(ctx, username)
-	if err == nil {
-		// 如果err为nil说明用户名已存在
-		logger.Warn("username already exists")
-		return nil, fmt.Errorf("%w: %w", user.ErrUserAlreadyExists, err)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Error("failed to check username existence", applog.Error(err))
-		return nil, fmt.Errorf("userService.RegisterUser: %w", err)
-	}
+	// 数据库底层存在用户名和邮箱的唯一性约束，因此不需要再验证
 
-	// 验证邮箱是否存在
-	_, err = s.userRepo.FindByEmail(ctx, email)
-	if err == nil {
-		logger.Warn("email already exists")
-		return nil, fmt.Errorf("%w: %w", user.ErrUserAlreadyExists, err)
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Error("failed to check email existence", applog.Error(err))
-		return nil, fmt.Errorf("userService.RegisterUser: %w", err)
-	}
-
-	// 查找默认角色
+	// 查找默认角色，无需事务，因为角色不会被修改
 	if defaultRoleName == "" {
 		defaultRoleName = s.defaultRoleName
 	}
@@ -91,12 +76,19 @@ func (s *userService) RegisterUser(ctx context.Context, username, email, plainPa
 		return nil, fmt.Errorf("%w: %w", user.ErrInvalidPassword, err)
 	}
 
-	// 保存用户
-	if err = s.userRepo.Create(ctx, &newUser); err != nil {
-		logger.Error("failed to create user in repository", applog.Error(err))
-		// 可能需要处理数据库唯一约束错误，并将其转换为领域错误
+	// 开启事务
+	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		if err := provider.GetUserRepository().Create(ctx, &newUser); err != nil {
+			logger.Error("failed to create user in repository", applog.Error(err))
+			return fmt.Errorf("userService.RegisterUser: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Error("failed to execute transaction", applog.Error(err))
 		return nil, fmt.Errorf("userService.RegisterUser: %w", err)
 	}
+
 	logger.Info("create user successful")
 	return &newUser, nil
 }
