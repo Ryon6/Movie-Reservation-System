@@ -8,7 +8,6 @@ import (
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,7 +39,7 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	loginResult, err := h.authService.Login(ctx, req.Username, req.Password)
 	if err != nil {
 		// 用户不存在
-		if errors.Is(err, user.ErrUserExists) {
+		if errors.Is(err, user.ErrUserAlreadyExists) {
 			logger.Warn("user cannot found", applog.String("username", req.Username))
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
@@ -57,18 +56,15 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	}
 
 	// 发送响应报文
-
 	userResp := response.UserResponse{
-		ID:       loginResult.UserID,
-		Username: loginResult.Username,
-		Email:    loginResult.Email,
-		RoleName: loginResult.RoleName,
-		CreateAt: loginResult.CreateAt,
-		UpdateAt: loginResult.UpdateAt,
+		ID:       uint(loginResult.User.ID),
+		Username: loginResult.User.Username,
+		Email:    loginResult.User.Email,
+		RoleName: loginResult.User.Role.Name,
 	}
 	loginResp := response.LoginResponse{
 		Token:     loginResult.Token,
-		ExpiresAt: time.Now().Add(time.Hour),
+		ExpiresAt: loginResult.ExpiresAt,
 		User:      userResp,
 	}
 	logger.Info("User logged in successfully", applog.String("username", req.Username))
