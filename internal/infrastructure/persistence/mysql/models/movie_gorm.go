@@ -3,7 +3,6 @@ package models
 import (
 	"mrs/internal/domain/movie"
 	"mrs/internal/domain/shared/vo"
-	"mrs/internal/domain/showtime"
 	"time"
 
 	"gorm.io/gorm"
@@ -32,10 +31,6 @@ func (m *MovieGrom) ToDomain() *movie.Movie {
 	for i, genre := range m.Genres {
 		genres[i] = genre.ToDomain()
 	}
-	showtimes := make([]*showtime.Showtime, len(m.Showtimes))
-	for i, showtime := range m.Showtimes {
-		showtimes[i] = showtime.ToDomain()
-	}
 	return &movie.Movie{
 		ID:              vo.MovieID(m.ID),
 		Title:           m.Title,
@@ -50,18 +45,15 @@ func (m *MovieGrom) ToDomain() *movie.Movie {
 	}
 }
 
+// 通常在创建时使用，不需要预加载关联数据
+// 添加电影类型需要额外调用ReplaceGenresForMovie
 func MovieGromFromDomain(m *movie.Movie) *MovieGrom {
-	genres := make([]*GenreGrom, len(m.Genres))
-	for i, genre := range m.Genres {
-		genres[i] = GenreGromFromDomain(genre)
-	}
 	return &MovieGrom{
 		Model:           gorm.Model{ID: uint(m.ID)},
 		Title:           m.Title,
 		Description:     m.Description,
 		PosterURL:       m.PosterURL,
 		DurationMinutes: m.DurationMinutes,
-		Genres:          genres,
 		ReleaseDate:     m.ReleaseDate,
 		Rating:          m.Rating,
 		AgeRating:       m.AgeRating,
