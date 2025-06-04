@@ -26,14 +26,16 @@ type MovieService struct {
 func NewMovieService(
 	uow shared.UnitOfWork,
 	movieRepo movie.MovieRepository,
+	genreRepo movie.GenreRepository,
 	movieCache cache.MovieCache,
 	logger applog.Logger,
 ) *MovieService {
 	return &MovieService{
 		uow:        uow,
 		movieRepo:  movieRepo,
+		genreRepo:  genreRepo,
 		movieCache: movieCache,
-		logger:     logger.With(applog.String("Component", "MovieService")),
+		logger:     logger.With(applog.String("Service", "MovieService")),
 	}
 }
 
