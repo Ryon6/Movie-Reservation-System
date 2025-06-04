@@ -4,7 +4,6 @@ package dbsetup
 import (
 	"errors"
 	"fmt"
-	"mrs/internal/domain/role" // 你的 Role 实体定义
 	"mrs/internal/domain/user" // 你的 User 实体定义
 	"mrs/internal/infrastructure/config"
 
@@ -24,7 +23,7 @@ func InitializeDatabase(db *gorm.DB, admCfg config.AdminConfig, logger applog.Lo
 	// 确保你的 User 和 Role 结构体定义中的 GORM 标签是正确的 (例如 `gorm:"foreignKey:RoleID"`)
 	// 以便正确创建外键。
 	logger.Info("Running auto-migration for Role and User tables...")
-	err := db.AutoMigrate(&role.Role{})
+	err := db.AutoMigrate(&user.Role{})
 	if err != nil {
 		logger.Error("Failed to auto-migrate role tables", applog.Error(err))
 		return fmt.Errorf("failed to auto-migrate role tables: %w", err)
@@ -38,12 +37,12 @@ func InitializeDatabase(db *gorm.DB, admCfg config.AdminConfig, logger applog.Lo
 
 	// 2. 植入角色数据
 
-	adminRole, err := seedRole(db, logger, role.AdminRoleName, "Administrator with full access")
+	adminRole, err := seedRole(db, logger, user.AdminRoleName, "Administrator with full access")
 	if err != nil {
 		return fmt.Errorf("failed to seed admin role: %w", err)
 	}
 
-	_, err = seedRole(db, logger, role.UserRoleName, "Standard user with basic access")
+	_, err = seedRole(db, logger, user.UserRoleName, "Standard user with basic access")
 	if err != nil {
 		return fmt.Errorf("failed to seed user role: %w", err)
 	}
@@ -60,9 +59,9 @@ func InitializeDatabase(db *gorm.DB, admCfg config.AdminConfig, logger applog.Lo
 }
 
 // seedRole 植入一个角色，如果它尚不存在。
-func seedRole(db *gorm.DB, logger applog.Logger, name, description string) (*role.Role, error) {
+func seedRole(db *gorm.DB, logger applog.Logger, name, description string) (*user.Role, error) {
 	log := logger.With(applog.String("role_name", name))
-	var existingRole role.Role
+	var existingRole user.Role
 
 	// 检查角色是否已存在
 	// GORM 的 FirstOrCreate 也可以用于此目的:
@@ -84,7 +83,7 @@ func seedRole(db *gorm.DB, logger applog.Logger, name, description string) (*rol
 	}
 
 	// 角色不存在，创建它
-	newRole := role.Role{
+	newRole := user.Role{
 		Name:        name, // [2]
 		Description: description,
 	}
@@ -92,12 +91,12 @@ func seedRole(db *gorm.DB, logger applog.Logger, name, description string) (*rol
 		log.Error("Failed to create role", applog.Error(err))
 		return nil, err
 	}
-	log.Info("Role created successfully.", applog.Uint("role_id", newRole.ID))
+	log.Info("Role created successfully.", applog.Uint("role_id", uint(newRole.ID)))
 	return &newRole, nil
 }
 
 // seedAdminUser 植入管理员账户，如果它尚不存在。
-func seedAdminUser(db *gorm.DB, logger applog.Logger, username, email, password string, adminRole *role.Role) error {
+func seedAdminUser(db *gorm.DB, logger applog.Logger, username, email, password string, adminRole *user.Role) error {
 	log := logger.With(applog.String("admin_username", username), applog.String("admin_email", email))
 	var existingUser user.User
 
@@ -125,13 +124,11 @@ func seedAdminUser(db *gorm.DB, logger applog.Logger, username, email, password 
 	}
 	hashedPassword := string(hashedPasswordBytes)
 
-	adminUser := user.User{ // [1]
-		Username:     username,       // [1]
-		Email:        email,          // [1]
-		PasswordHash: hashedPassword, // [1]
-		RoleID:       adminRole.ID,   // [1]
-		Role:         *adminRole,     // [1]
-		// IsActive:     true, // 如果你的 User 实体有这个字段
+	adminUser := user.User{
+		Username:     username,
+		Email:        email,
+		PasswordHash: hashedPassword,
+		Role:         adminRole,
 	}
 
 	if err := db.Create(&adminUser).Error; err != nil {
@@ -139,6 +136,6 @@ func seedAdminUser(db *gorm.DB, logger applog.Logger, username, email, password 
 		return err
 	}
 
-	log.Info("Admin user created successfully.", applog.Uint("user_id", adminUser.ID))
+	log.Info("Admin user created successfully.", applog.Uint("user_id", uint(adminUser.ID)))
 	return nil
 }
