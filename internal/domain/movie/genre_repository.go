@@ -4,7 +4,7 @@ import "context"
 
 // GenreRepository 定义了类型实体的持久化操作接口。
 type GenreRepository interface {
-	Create(ctx context.Context, genre *Genre) error
+	Create(ctx context.Context, genre *Genre) (*Genre, error)
 	FindByID(ctx context.Context, id uint) (*Genre, error)
 	FindByName(ctx context.Context, name string) (*Genre, error)
 	ListAll(ctx context.Context) ([]*Genre, error)

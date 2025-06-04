@@ -24,20 +24,20 @@ func NewGormGenreRepository(db *gorm.DB, logger applog.Logger) movie.GenreReposi
 	}
 }
 
-func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) error {
+func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) (*movie.Genre, error) {
 	logger := r.logger.With(applog.String("Method", "Create"),
 		applog.Uint("genre_id", uint(genre.ID)), applog.String("name", genre.Name))
 	genreGorm := models.GenreGromFromDomain(genre)
 	if err := r.db.WithContext(ctx).Create(genreGorm).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			logger.Warn("genre name already exists", applog.String("name", genre.Name), applog.Error(err))
-			return fmt.Errorf("%w: %w", movie.ErrGenreAlreadyExists, err)
+			return nil, fmt.Errorf("%w: %w", movie.ErrGenreAlreadyExists, err)
 		}
 		logger.Error("failed to create genre", applog.Uint("genre_id", uint(genre.ID)), applog.Error(err))
-		return fmt.Errorf("failed to create genre: %w", err)
+		return nil, fmt.Errorf("failed to create genre: %w", err)
 	}
 	logger.Info("create genre successfully", applog.Uint("genre_id", uint(genre.ID)))
-	return nil
+	return genreGorm.ToDomain(), nil
 }
 
 func (r *gormGenreRepository) FindByID(ctx context.Context, id uint) (*movie.Genre, error) {
