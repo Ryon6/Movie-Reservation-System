@@ -36,10 +36,10 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	}
 
 	// 在service层判断DefaultRole是否为空
-	usrPrf, err := h.userService.RegisterUser(ctx, req.Username, req.Email, req.Password, req.DefaultRole)
+	usr, err := h.userService.RegisterUser(ctx, req.Username, req.Email, req.Password, req.DefaultRole)
 	if err != nil {
 		// 用户可能已存在
-		if errors.Is(err, user.ErrUserExists) {
+		if errors.Is(err, user.ErrUserAlreadyExists) {
 			logger.Warn("User registration conflict", applog.Error(err))
 			ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
@@ -50,14 +50,12 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	}
 
 	userResp := response.UserResponse{
-		ID:       usrPrf.ID,
-		Username: usrPrf.Username,
-		Email:    usrPrf.Email,
-		RoleName: usrPrf.RoleName,
-		CreateAt: usrPrf.CreateAt,
-		UpdateAt: usrPrf.UpdateAt,
+		ID:       uint(usr.ID),
+		Username: usr.Username,
+		Email:    usr.Email,
+		RoleName: usr.Role.Name,
 	}
-	logger.Info("User profile retrieved successfully", applog.Uint("user_id", usrPrf.ID))
+	logger.Info("User profile retrieved successfully", applog.Uint("user_id", uint(usr.ID)))
 	ctx.JSON(http.StatusOK, userResp)
 }
 
@@ -77,7 +75,7 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	userProfile, err := h.userService.GetUserByID(ctx, id)
+	usr, err := h.userService.GetUserByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user profile not found", applog.Uint("user_id", id))
@@ -90,13 +88,11 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 	}
 
 	resp := response.UserResponse{
-		ID:       userProfile.ID,
-		Username: userProfile.Username,
-		Email:    userProfile.Email,
-		RoleName: userProfile.RoleName,
-		CreateAt: userProfile.CreateAt,
-		UpdateAt: userProfile.UpdateAt,
+		ID:       uint(usr.ID),
+		Username: usr.Username,
+		Email:    usr.Email,
+		RoleName: usr.Role.Name,
 	}
-	logger.Info("user profile retrieved successfully", applog.Uint("user_id", userProfile.ID))
+	logger.Info("user profile retrieved successfully", applog.Uint("user_id", uint(usr.ID)))
 	ctx.JSON(http.StatusOK, resp)
 }
