@@ -9,22 +9,22 @@ import (
 	"mrs/internal/api/dto/response"
 
 	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared/vo"
+	"mrs/internal/domain/showtime"
 	"mrs/internal/infrastructure/cache"
 	applog "mrs/pkg/log"
-
-	"gorm.io/gorm"
 )
 
 type MovieService struct {
 	movieRepo    movie.MovieRepository
-	showtimeRepo movie.ShowtimeRepository
+	showtimeRepo showtime.ShowtimeRepository
 	genreRepo    movie.GenreRepository
 	movieCache   cache.MovieCache
 	logger       applog.Logger
 }
 
 func NewMovieService(movieRepo movie.MovieRepository,
-	showtimeRepo movie.ShowtimeRepository,
+	showtimeRepo showtime.ShowtimeRepository,
 	movieCache cache.MovieCache,
 	logger applog.Logger,
 ) *MovieService {
@@ -82,7 +82,7 @@ func (s *MovieService) CreateMovie(ctx context.Context,
 		return nil, fmt.Errorf("failed to create movie: %w", err)
 	}
 
-	logger.Info("create movie successfully", applog.Uint("movie_id", mv.ID))
+	logger.Info("create movie successfully", applog.Uint("movie_id", uint(mv.ID)))
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
@@ -151,7 +151,7 @@ func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
-	logger.Info("update movie successfully", applog.Uint("movie_id", mv.ID))
+	logger.Info("update movie successfully", applog.Uint("movie_id", uint(mv.ID)))
 	return nil
 }
 
@@ -170,7 +170,7 @@ func (s *MovieService) GetMovieByID(ctx context.Context, id uint) (*response.Mov
 		if errors.Is(err, movie.ErrMovieNotFound) {
 			logger.Info("movie not found")
 			// 构造一个空的movie并设置到缓存中,防止缓存穿透
-			emptyMovie := &movie.Movie{Model: gorm.Model{ID: id}}
+			emptyMovie := &movie.Movie{ID: vo.MovieID(id)}
 			if err := s.movieCache.SetMovie(ctx, emptyMovie, 0); err != nil {
 				logger.Error("failed to set empty movie to cache", applog.Error(err))
 			}
@@ -246,15 +246,13 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 			genreNames = append(genreNames, genre.Name)
 		}
 		simpleMovies = append(simpleMovies, &response.MovieSimpleResponse{
-			ID:          movie.ID,
+			ID:          uint(movie.ID),
 			Title:       movie.Title,
 			ReleaseDate: movie.ReleaseDate,
 			Rating:      float64(movie.Rating),
 			PosterURL:   movie.PosterURL,
 			AgeRating:   movie.AgeRating,
 			GenreNames:  genreNames,
-			CreatedAt:   movie.CreatedAt,
-			UpdatedAt:   movie.UpdatedAt,
 		})
 	}
 
