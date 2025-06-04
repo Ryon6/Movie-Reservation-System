@@ -59,3 +59,22 @@ type PaginatedMovieResponse struct {
 	Pagination PaginationResponse     `json:"pagination"`
 	Movies     []*MovieSimpleResponse `json:"movies"`
 }
+
+type GenreResponse struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	// CreatedAt time.Time `json:"created_at"`
+	// UpdatedAt time.Time `json:"updated_at"`
+}
+
+func ToGenreResponse(genre *movie.Genre) *GenreResponse {
+	return &GenreResponse{
+		ID:   uint(genre.ID),
+		Name: genre.Name,
+	}
+}
+
+type PaginatedGenreResponse struct {
+	Pagination PaginationResponse `json:"pagination"`
+	Genres     []*GenreResponse   `json:"genres"`
+}
