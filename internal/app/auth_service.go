@@ -24,14 +24,9 @@ type authService struct {
 
 // AuthResult 定义认证服务返回的统一数据结构
 type AuthResult struct {
-	Token     string    `json:"token"`
-	UserID    uint      `json:"user_id"`
-	Username  string    `json:"username"`
-	RoleName  string    `json:"role_name"`
-	Email     string    `json:"email"`
-	ExpiresAt time.Time `json:"expires_at"`
-	CreateAt  time.Time `json:"create_at"`
-	UpdateAt  time.Time `json:"update_at"`
+	Token     string
+	User      *user.User
+	ExpiresAt time.Time
 }
 
 func NewAuthService(
@@ -54,9 +49,9 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	// 查询用户
 	usr, err := s.userRepo.FindByUsername(ctx, username)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, user.ErrUserExists) {
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, user.ErrUserAlreadyExists) {
 			logger.Warn("user not Found", applog.String("username", username))
-			return nil, user.ErrUserExists
+			return nil, user.ErrUserAlreadyExists
 		}
 		logger.Error("failed to find user by name", applog.String("username", username), applog.Error(err))
 	}
@@ -74,7 +69,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	}
 
 	// 生成JWT
-	token, err := s.jwtManager.GenerateToken(usr.ID, usr.Username, usr.Role.Name)
+	token, err := s.jwtManager.GenerateToken(uint(usr.ID), usr.Username, usr.Role.Name)
 	if err != nil {
 		logger.Error("failed to generater JWT", applog.String("username", username), applog.Error(err))
 		return nil, errors.New("failed to generate authentication token")
@@ -87,13 +82,8 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	}
 
 	return &AuthResult{
-		UserID:    usr.ID,
-		Username:  usr.Username,
-		Email:     usr.Email,
-		RoleName:  usr.Role.Name,
 		Token:     token,
+		User:      usr,
 		ExpiresAt: claims.ExpiresAt.Time,
-		CreateAt:  usr.CreatedAt,
-		UpdateAt:  usr.UpdatedAt,
 	}, nil
 }
