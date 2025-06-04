@@ -198,15 +198,15 @@ func (s *MovieService) GetMovieByID(ctx context.Context, id uint) (*response.Mov
 }
 
 // 删除电影
-func (s *MovieService) DeleteMovie(ctx context.Context, id uint) error {
-	logger := s.logger.With(applog.String("Method", "DeleteMovie"), applog.Uint("movie_id", id))
+func (s *MovieService) DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error {
+	logger := s.logger.With(applog.String("Method", "DeleteMovie"), applog.Uint("movie_id", req.ID))
 
-	if err := s.movieRepo.Delete(ctx, id); err != nil {
+	if err := s.movieRepo.Delete(ctx, req.ID); err != nil {
 		logger.Error("failed to delete movie", applog.Error(err))
 		return fmt.Errorf("failed to delete movie: %w", err)
 	}
 
-	if err := s.movieCache.DeleteMovie(ctx, id); err != nil {
+	if err := s.movieCache.DeleteMovie(ctx, req.ID); err != nil {
 		logger.Error("failed to delete movie from cache", applog.Error(err))
 	}
 
