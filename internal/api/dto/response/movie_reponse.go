@@ -17,20 +17,20 @@ type MovieResponse struct {
 	AgeRating       string           `json:"age_rating"`
 	Cast            string           `json:"cast"`
 	Genres          []*GenreResponse `json:"genres"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
+	// CreatedAt       time.Time        `json:"created_at"`
+	// UpdatedAt       time.Time        `json:"updated_at"`
 }
 
 func ToMovieResponse(movie *movie.Movie) *MovieResponse {
 	genres := make([]*GenreResponse, 0, len(movie.Genres))
 	for _, genre := range movie.Genres {
 		genres = append(genres, &GenreResponse{
-			ID:   genre.ID,
+			ID:   uint(genre.ID),
 			Name: genre.Name,
 		})
 	}
 	return &MovieResponse{
-		ID:              movie.ID,
+		ID:              uint(movie.ID),
 		Title:           movie.Title,
 		Description:     movie.Description,
 		ReleaseDate:     movie.ReleaseDate,
@@ -51,8 +51,8 @@ type MovieSimpleResponse struct {
 	PosterURL   string    `json:"poster_url"`
 	AgeRating   string    `json:"age_rating"`
 	GenreNames  []string  `json:"genre_names"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	// CreatedAt   time.Time `json:"created_at"`
+	// UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type PaginatedMovieResponse struct {
