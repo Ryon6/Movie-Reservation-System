@@ -286,3 +286,108 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 		Movies:     simpleMovies,
 	}, nil
 }
+
+// 创建类型
+func (s *MovieService) CreateGenre(ctx context.Context, req *request.CreateGenreRequest) (*response.GenreResponse, error) {
+	logger := s.logger.With(applog.String("Method", "CreateGenre"))
+
+	genre := &movie.Genre{
+		Name: req.Name,
+	}
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		var err error
+		genre, err = provider.GetGenreRepository().Create(ctx, genre)
+		if err != nil {
+			logger.Error("failed to create genre", applog.Error(err))
+			return fmt.Errorf("failed to create genre: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Error("failed to create genre", applog.Error(err))
+		return nil, fmt.Errorf("failed to create genre: %w", err)
+	}
+
+	logger.Info("create genre successfully", applog.Uint("genre_id", uint(genre.ID)))
+	return response.ToGenreResponse(genre), nil
+}
+
+// 更新类型
+func (s *MovieService) UpdateGenre(ctx context.Context, req *request.UpdateGenreRequest) (*response.GenreResponse, error) {
+	logger := s.logger.With(applog.String("Method", "UpdateGenre"))
+
+	genre, err := s.genreRepo.FindByID(ctx, req.ID)
+	if err != nil {
+		logger.Error("failed to get genre", applog.Error(err))
+		return nil, fmt.Errorf("failed to get genre: %w", err)
+	}
+
+	if req.Name == "" || req.Name == genre.Name {
+		logger.Info("genre name is the same as the original name")
+		return response.ToGenreResponse(genre), nil
+	}
+
+	if err := s.genreRepo.Update(ctx, genre); err != nil {
+		logger.Error("failed to update genre", applog.Error(err))
+		return nil, fmt.Errorf("failed to update genre: %w", err)
+	}
+
+	logger.Info("update genre successfully", applog.Uint("genre_id", uint(genre.ID)))
+	return response.ToGenreResponse(genre), nil
+}
+
+// 删除类型
+func (s *MovieService) DeleteGenre(ctx context.Context, req *request.DeleteGenreRequest) error {
+	logger := s.logger.With(applog.String("Method", "DeleteGenre"), applog.Uint("genre_id", req.ID))
+
+	if err := s.genreRepo.Delete(ctx, req.ID); err != nil {
+		if errors.Is(err, movie.ErrGenreReferenced) {
+			logger.Warn("genre is referenced by movie", applog.Uint("genre_id", req.ID))
+			return fmt.Errorf("genre is referenced by movie: %w", err)
+		}
+		logger.Error("failed to delete genre", applog.Error(err))
+		return fmt.Errorf("failed to delete genre: %w", err)
+	}
+
+	logger.Info("delete genre successfully", applog.Uint("genre_id", req.ID))
+	return nil
+}
+
+// 获取类型列表
+func (s *MovieService) ListGenres(ctx context.Context, req *request.ListGenreRequest) (*response.PaginatedGenreResponse, error) {
+	logger := s.logger.With(applog.String("Method", "ListGenres"))
+
+	genres, err := s.genreRepo.ListAll(ctx)
+	if err != nil {
+		logger.Error("failed to list genres", applog.Error(err))
+		return nil, fmt.Errorf("failed to list genres: %w", err)
+	}
+
+	total := len(genres)
+	start := req.Page * req.PageSize
+	end := int(math.Min(float64((req.Page+1)*req.PageSize), float64(len(genres))))
+	genres = genres[start:end]
+
+	genreResponses := make([]*response.GenreResponse, 0, len(genres))
+	for _, genre := range genres {
+		genreResponses = append(genreResponses, response.ToGenreResponse(genre))
+	}
+
+	pagination := response.PaginationResponse{
+		Page:       req.Page,
+		PageSize:   req.PageSize,
+		TotalCount: int(total),
+		TotalPages: int(math.Ceil(float64(total) / float64(req.PageSize))),
+	}
+
+	logger.Info("list genres successfully",
+		applog.Int("total", int(total)),
+		applog.Int("page", req.Page),
+		applog.Int("page_size", req.PageSize),
+	)
+
+	return &response.PaginatedGenreResponse{
+		Pagination: pagination,
+		Genres:     genreResponses,
+	}, nil
+}
