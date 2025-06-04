@@ -1,6 +1,9 @@
 package request
 
-import "time"
+import (
+	"mrs/internal/domain/movie"
+	"time"
+)
 
 // CreateMovieRequest 定义了创建电影请求的结构体。
 type CreateMovieRequest struct {
@@ -13,6 +16,20 @@ type CreateMovieRequest struct {
 	PosterURL       string    `json:"poster_url" binding:"omitempty,url"`
 	AgeRating       string    `json:"age_rating" binding:"omitempty,min=1,max=50"`
 	Cast            string    `json:"cast" binding:"omitempty,min=1,max=1000"`
+}
+
+// Genre 需要应用层自行处理
+func (r *CreateMovieRequest) ToMovie() *movie.Movie {
+	return &movie.Movie{
+		Title:           r.Title,
+		Description:     r.Description,
+		ReleaseDate:     r.ReleaseDate,
+		DurationMinutes: r.DurationMinutes,
+		Rating:          float32(r.Rating),
+		PosterURL:       r.PosterURL,
+		AgeRating:       r.AgeRating,
+		Cast:            r.Cast,
+	}
 }
 
 // UpdateMovieRequest 定义了更新电影请求的结构体。
