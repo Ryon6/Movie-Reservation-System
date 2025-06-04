@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mrs/internal/domain/movie"
+	"mrs/internal/domain/showtime"
 	applog "mrs/pkg/log"
 	"sort"
 	"strings"
@@ -15,18 +15,18 @@ import (
 
 // ShowtimeCache 放映缓存接口
 type ShowtimeCache interface {
-	GetShowtime(ctx context.Context, showtimeID uint) (*movie.Showtime, error)
-	SetShowtime(ctx context.Context, showtime *movie.Showtime, expiration time.Duration) error
+	GetShowtime(ctx context.Context, showtimeID uint) (*showtime.Showtime, error)
+	SetShowtime(ctx context.Context, showtime *showtime.Showtime, expiration time.Duration) error
 	DeleteShowtime(ctx context.Context, showtimeID uint) error
 	GetShowtimeList(ctx context.Context, params map[string]interface{}) (*ShowtimeListResult, error)
-	SetShowtimeList(ctx context.Context, showtimes []*movie.Showtime, params map[string]interface{}, expiration time.Duration) error
+	SetShowtimeList(ctx context.Context, showtimes []*showtime.Showtime, params map[string]interface{}, expiration time.Duration) error
 }
 
 // ShowtimeListResult 放映列表的查询结果
 type ShowtimeListResult struct {
-	Showtimes          []*movie.Showtime // 成功获取的放映记录
-	AllShowtimeIDs     []uint            // 列表中所有的放映ID
-	MissingShowtimeIDs []uint            // 缓存中未找到的放映ID
+	Showtimes          []*showtime.Showtime // 成功获取的放映记录
+	AllShowtimeIDs     []uint               // 列表中所有的放映ID
+	MissingShowtimeIDs []uint               // 缓存中未找到的放映ID
 }
 
 // RedisShowtimeCache 放映缓存实现
@@ -76,8 +76,8 @@ func (c *RedisShowtimeCache) showtimeListKey(params map[string]interface{}) stri
 }
 
 // SetShowtime 设置单个放映的缓存
-func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, showtime *movie.Showtime, expiration time.Duration) error {
-	logger := c.logger.With(applog.String("Method", "SetShowtime"), applog.Uint("showtime_id", showtime.ID))
+func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, showtime *showtime.Showtime, expiration time.Duration) error {
+	logger := c.logger.With(applog.String("Method", "SetShowtime"), applog.Uint("showtime_id", uint(showtime.ID)))
 
 	if expiration == 0 {
 		expiration = c.defaultExpiration
@@ -89,7 +89,7 @@ func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, showtime *movie.Sh
 		return fmt.Errorf("failed to marshal showtime: %w", err)
 	}
 
-	key := c.showtimeKey(showtime.ID)
+	key := c.showtimeKey(uint(showtime.ID))
 	if err := c.redisClient.Set(ctx, key, data, expiration).Err(); err != nil {
 		logger.Error("failed to set showtime", applog.Error(err))
 		return fmt.Errorf("failed to set showtime: %w", err)
@@ -100,7 +100,7 @@ func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, showtime *movie.Sh
 }
 
 // GetShowtime 获取单个放映的缓存
-func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID uint) (*movie.Showtime, error) {
+func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID uint) (*showtime.Showtime, error) {
 	logger := c.logger.With(applog.String("Method", "GetShowtime"), applog.Uint("showtime_id", showtimeID))
 	key := c.showtimeKey(showtimeID)
 
@@ -114,7 +114,7 @@ func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID uint) (
 		return nil, fmt.Errorf("failed to get showtime from redis: %w", err)
 	}
 
-	var showtime movie.Showtime
+	var showtime showtime.Showtime
 	if err := json.Unmarshal(valBytes, &showtime); err != nil {
 		logger.Error("failed to unmarshal showtime", applog.Error(err))
 		return nil, fmt.Errorf("failed to unmarshal showtime: %w", err)
@@ -141,7 +141,7 @@ func (c *RedisShowtimeCache) DeleteShowtime(ctx context.Context, showtimeID uint
 }
 
 // SetShowtimes 批量设置多个放映的缓存
-func (c *RedisShowtimeCache) SetShowtimes(ctx context.Context, showtimes []*movie.Showtime, expiration time.Duration) error {
+func (c *RedisShowtimeCache) SetShowtimes(ctx context.Context, showtimes []*showtime.Showtime, expiration time.Duration) error {
 	logger := c.logger.With(applog.String("Method", "SetShowtimes"), applog.Int("showtimes_count", len(showtimes)))
 
 	if expiration == 0 {
@@ -155,7 +155,7 @@ func (c *RedisShowtimeCache) SetShowtimes(ctx context.Context, showtimes []*movi
 			logger.Error("failed to marshal showtime", applog.Error(err))
 			continue
 		}
-		pipe.Set(ctx, c.showtimeKey(showtime.ID), data, expiration)
+		pipe.Set(ctx, c.showtimeKey(uint(showtime.ID)), data, expiration)
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -168,7 +168,7 @@ func (c *RedisShowtimeCache) SetShowtimes(ctx context.Context, showtimes []*movi
 }
 
 // SetShowtimeList 设置放映列表的缓存
-func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*movie.Showtime,
+func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*showtime.Showtime,
 	params map[string]interface{}, expiration time.Duration) error {
 	logger := c.logger.With(applog.String("Method", "SetShowtimeList"), applog.Any("params", params))
 
@@ -179,7 +179,7 @@ func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*m
 	// 提取电影ID列表
 	showtimeIDs := make([]uint, len(showtimes))
 	for i, s := range showtimes {
-		showtimeIDs[i] = s.ID
+		showtimeIDs[i] = uint(s.ID)
 	}
 
 	// 序列化ID列表
@@ -216,7 +216,7 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, params map[str
 	)
 
 	result := &ShowtimeListResult{
-		Showtimes: make([]*movie.Showtime, 0),
+		Showtimes: make([]*showtime.Showtime, 0),
 	}
 
 	// 获取ID列表
@@ -266,7 +266,7 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, params map[str
 			continue
 		}
 
-		var showtime movie.Showtime
+		var showtime showtime.Showtime
 		if err := json.Unmarshal(showtimeBytes, &showtime); err != nil {
 			logger.Warn("failed to unmarshal showtime",
 				applog.Error(err),
