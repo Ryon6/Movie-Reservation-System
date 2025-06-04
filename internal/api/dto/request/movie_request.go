@@ -45,6 +45,11 @@ type UpdateMovieRequest struct {
 	Cast            string    `json:"cast" binding:"omitempty,min=1,max=1000"`
 }
 
+// 删除电影
+type DeleteMovieRequest struct {
+	ID uint `json:"id" binding:"required,min=1"`
+}
+
 type ListMovieRequest struct {
 	PaginationRequest
 	Title       string `json:"title" binding:"omitempty,min=1,max=255"`
@@ -52,4 +57,25 @@ type ListMovieRequest struct {
 	ReleaseYear int    `json:"release_year" binding:"omitempty,min=1900,max=2100"`                           // 按上映年份过滤
 	SortBy      string `json:"sort_by" binding:"omitempty,oneof=title release_date rating duration_minutes"` // 排序字段
 	SortOrder   string `json:"sort_order" binding:"omitempty,oneof=asc desc"`                                // 排序顺序
+}
+
+// 创建类型
+type CreateGenreRequest struct {
+	Name string `json:"name" binding:"required,min=1,max=255"`
+}
+
+// 更新类型
+type UpdateGenreRequest struct {
+	ID   uint   `json:"id" binding:"required,min=1"`
+	Name string `json:"name" binding:"required,min=1,max=255"`
+}
+
+// 删除类型
+type DeleteGenreRequest struct {
+	ID uint `json:"id" binding:"required,min=1"`
+}
+
+// 分页查询
+type ListGenreRequest struct {
+	PaginationRequest
 }
