@@ -24,7 +24,7 @@ func NewGormSeatRepository(db *gorm.DB, logger applog.Logger) cinema.SeatReposit
 	}
 }
 
-func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Seat) error {
+func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Seat) ([]*cinema.Seat, error) {
 	logger := r.logger.With(applog.String("Method", "CreateBatch"), applog.Int("seat count", len(seats)))
 
 	seatGorms := make([]*models.SeatGrom, len(seats))
@@ -33,11 +33,15 @@ func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Se
 	}
 	if err := r.db.WithContext(ctx).Create(&seatGorms).Error; err != nil {
 		logger.Error("failed to create seats", applog.Error(err))
-		return err
+		return nil, err
 	}
 
 	logger.Info("create seats successfully")
-	return nil
+	domainSeats := make([]*cinema.Seat, len(seatGorms))
+	for i, seatGorm := range seatGorms {
+		domainSeats[i] = seatGorm.ToDomain()
+	}
+	return domainSeats, nil
 }
 
 func (r *gormSeatRepository) FindByID(ctx context.Context, id uint) (*cinema.Seat, error) {
@@ -99,7 +103,7 @@ func (r *gormSeatRepository) GetSeatsByIDs(ctx context.Context, seatIDs []uint) 
 
 func (r *gormSeatRepository) Update(ctx context.Context, seat *cinema.Seat) error {
 	logger := r.logger.With(applog.String("Method", "Update"),
-		applog.Uint("seat_id", uint(seat.ID)), applog.Uint("hall_id", uint(seat.CinemaHall.ID)))
+		applog.Uint("seat_id", uint(seat.ID)), applog.Uint("hall_id", uint(seat.CinemaHallID)))
 
 	seatGorm := models.SeatGromFromDomain(seat)
 	if err := r.db.WithContext(ctx).First(&models.SeatGrom{}, seatGorm.ID).Error; err != nil {

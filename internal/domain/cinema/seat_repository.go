@@ -3,7 +3,7 @@ package cinema
 import "context"
 
 type SeatRepository interface {
-	CreateBatch(ctx context.Context, seats []*Seat) error
+	CreateBatch(ctx context.Context, seats []*Seat) ([]*Seat, error)
 
 	FindByID(ctx context.Context, id uint) (*Seat, error)
 	FindByHallID(ctx context.Context, hallID uint) ([]*Seat, error)
