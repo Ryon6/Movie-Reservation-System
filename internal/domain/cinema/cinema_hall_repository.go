@@ -5,7 +5,7 @@ import (
 )
 
 type CinemaHallRepository interface {
-	Create(ctx context.Context, hall *CinemaHall) error
+	Create(ctx context.Context, hall *CinemaHall) (*CinemaHall, error)
 	FindByID(ctx context.Context, id uint) (*CinemaHall, error)
 	FindByName(ctx context.Context, name string) (*CinemaHall, error)
 	ListAll(ctx context.Context) ([]*CinemaHall, error)

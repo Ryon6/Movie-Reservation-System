@@ -24,7 +24,7 @@ func NewGormCinemaHallRepository(db *gorm.DB, logger applog.Logger) cinema.Cinem
 	}
 }
 
-func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.CinemaHall) error {
+func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.CinemaHall) (*cinema.CinemaHall, error) {
 	logger := r.logger.With(applog.String("Method", "Create"),
 		applog.Uint("hall_id", uint(hall.ID)), applog.String("name", hall.Name))
 
@@ -32,14 +32,14 @@ func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.Cine
 	if err := r.db.WithContext(ctx).Create(cinemaHallGorm).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			logger.Warn("cinema hall already eixsts", applog.Error(err))
-			return fmt.Errorf("%w: %w", cinema.ErrCinemaHallAlreadyExists, err)
+			return nil, fmt.Errorf("%w: %w", cinema.ErrCinemaHallAlreadyExists, err)
 		}
 		logger.Error("failed to create cinema hall", applog.Error(err))
-		return fmt.Errorf("failed to create cinema hall: %w", err)
+		return nil, fmt.Errorf("failed to create cinema hall: %w", err)
 	}
 
 	logger.Info("create cinema hall successfully")
-	return nil
+	return cinemaHallGorm.ToDomain(), nil
 }
 
 func (r *gormCinemaHallRepository) FindByID(ctx context.Context, id uint) (*cinema.CinemaHall, error) {
