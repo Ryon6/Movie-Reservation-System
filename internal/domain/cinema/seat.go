@@ -14,7 +14,7 @@ const (
 type Seat struct {
 	ID vo.SeatID
 	// 对 CinemaHallID 单独建立索引: 应对高频查询影厅全部座位的需求
-	CinemaHall    *CinemaHall
+	CinemaHallID  vo.CinemaHallID
 	RowIdentifier string // 座位所在排的标识,如 A、B、C
 	SeatNumber    string // 座位在该排中的编号,如 1、2、3
 	Type          SeatType

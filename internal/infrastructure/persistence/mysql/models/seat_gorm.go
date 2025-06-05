@@ -20,7 +20,7 @@ type SeatGrom struct {
 func (s *SeatGrom) ToDomain() *cinema.Seat {
 	return &cinema.Seat{
 		ID:            vo.SeatID(s.ID),
-		CinemaHall:    s.CinemaHall.ToDomain(),
+		CinemaHallID:  vo.CinemaHallID(s.CinemaHallID),
 		RowIdentifier: s.RowIdentifier,
 		SeatNumber:    s.SeatNumber,
 		Type:          cinema.SeatType(s.Type),
@@ -30,8 +30,7 @@ func (s *SeatGrom) ToDomain() *cinema.Seat {
 func SeatGromFromDomain(s *cinema.Seat) *SeatGrom {
 	return &SeatGrom{
 		Model:         gorm.Model{ID: uint(s.ID)},
-		CinemaHallID:  uint(s.CinemaHall.ID),
-		CinemaHall:    *CinemaHallGromFromDomain(s.CinemaHall),
+		CinemaHallID:  uint(s.CinemaHallID),
 		RowIdentifier: s.RowIdentifier,
 		SeatNumber:    s.SeatNumber,
 		Type:          string(s.Type),
