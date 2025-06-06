@@ -256,13 +256,13 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 			genreNames = append(genreNames, genre.Name)
 		}
 		simpleMovies = append(simpleMovies, &response.MovieSimpleResponse{
-			ID:          uint(movie.ID),
-			Title:       movie.Title,
-			ReleaseDate: movie.ReleaseDate,
-			Rating:      float64(movie.Rating),
-			PosterURL:   movie.PosterURL,
-			AgeRating:   movie.AgeRating,
-			GenreNames:  genreNames,
+			ID:    uint(movie.ID),
+			Title: movie.Title,
+			// ReleaseDate: movie.ReleaseDate,
+			// Rating:      float64(movie.Rating),
+			// PosterURL:   movie.PosterURL,
+			// AgeRating:   movie.AgeRating,
+			GenreNames: genreNames,
 		})
 	}
 

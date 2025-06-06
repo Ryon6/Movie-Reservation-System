@@ -44,13 +44,13 @@ func ToMovieResponse(movie *movie.Movie) *MovieResponse {
 }
 
 type MovieSimpleResponse struct {
-	ID          uint      `json:"id"`
-	Title       string    `json:"title"`
-	ReleaseDate time.Time `json:"release_date"`
-	Rating      float64   `json:"rating"`
-	PosterURL   string    `json:"poster_url"`
-	AgeRating   string    `json:"age_rating"`
-	GenreNames  []string  `json:"genre_names"`
+	ID         uint     `json:"id"`
+	Title      string   `json:"title"`
+	GenreNames []string `json:"genre_names"`
+	// ReleaseDate time.Time `json:"release_date"`
+	// Rating      float64   `json:"rating"`
+	// PosterURL   string    `json:"poster_url"`
+	// AgeRating   string    `json:"age_rating"`
 	// CreatedAt   time.Time `json:"created_at"`
 	// UpdatedAt   time.Time `json:"updated_at"`
 }
