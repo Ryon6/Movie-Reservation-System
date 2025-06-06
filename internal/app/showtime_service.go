@@ -15,6 +15,9 @@ import (
 type ShowtimeService interface {
 	CreateShowtime(ctx context.Context, req *request.CreateShowtimeRequest) (*response.ShowtimeResponse, error)
 	GetShowtime(ctx context.Context, req *request.GetShowtimeRequest) (*response.ShowtimeResponse, error)
+	UpdateShowtime(ctx context.Context, req *request.UpdateShowtimeRequest) (*response.ShowtimeResponse, error)
+	DeleteShowtime(ctx context.Context, req *request.DeleteShowtimeRequest) error
+	ListShowtimes(ctx context.Context, req *request.ListShowtimesRequest) (*response.PaginatedShowtimeResponse, error)
 }
 
 type showtimeService struct {
