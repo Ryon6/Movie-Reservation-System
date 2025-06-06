@@ -15,7 +15,15 @@ import (
 	applog "mrs/pkg/log"
 )
 
-type MovieService struct {
+type MovieService interface {
+	CreateMovie(ctx context.Context, req *request.CreateMovieRequest) (*response.MovieResponse, error)
+	UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error
+	GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error)
+	DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error
+	ListMovies(ctx context.Context, req *request.ListMovieRequest) (*response.PaginatedMovieResponse, error)
+}
+
+type movieService struct {
 	uow        shared.UnitOfWork
 	movieRepo  movie.MovieRepository
 	genreRepo  movie.GenreRepository
@@ -29,8 +37,8 @@ func NewMovieService(
 	genreRepo movie.GenreRepository,
 	movieCache cache.MovieCache,
 	logger applog.Logger,
-) *MovieService {
-	return &MovieService{
+) MovieService {
+	return &movieService{
 		uow:        uow,
 		movieRepo:  movieRepo,
 		genreRepo:  genreRepo,
@@ -40,7 +48,7 @@ func NewMovieService(
 }
 
 // 创建电影
-func (s *MovieService) CreateMovie(ctx context.Context,
+func (s *movieService) CreateMovie(ctx context.Context,
 	req *request.CreateMovieRequest) (*response.MovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateMovie"))
 
@@ -85,7 +93,7 @@ func (s *MovieService) CreateMovie(ctx context.Context,
 }
 
 // 更新电影
-func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error {
+func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error {
 	logger := s.logger.With(applog.String("Method", "UpdateMovie"))
 
 	mv, err := s.movieRepo.FindByTitle(ctx, req.Title)
@@ -166,7 +174,7 @@ func (s *MovieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 }
 
 // 获取电影详情
-func (s *MovieService) GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error) {
+func (s *movieService) GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetMovieByID"), applog.Uint("movie_id", id))
 
 	mv, err := s.movieCache.GetMovie(ctx, id)
@@ -200,7 +208,7 @@ func (s *MovieService) GetMovieByID(ctx context.Context, id uint) (*response.Mov
 }
 
 // 删除电影
-func (s *MovieService) DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error {
+func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteMovie"), applog.Uint("movie_id", req.ID))
 
 	if err := s.movieRepo.Delete(ctx, req.ID); err != nil {
@@ -217,7 +225,7 @@ func (s *MovieService) DeleteMovie(ctx context.Context, req *request.DeleteMovie
 }
 
 // 获取电影列表
-func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieRequest) (*response.PaginatedMovieResponse, error) {
+func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieRequest) (*response.PaginatedMovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "ListMovies"))
 
 	filters := make(map[string]interface{})
@@ -305,7 +313,7 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 }
 
 // 创建类型
-func (s *MovieService) CreateGenre(ctx context.Context, req *request.CreateGenreRequest) (*response.GenreResponse, error) {
+func (s *movieService) CreateGenre(ctx context.Context, req *request.CreateGenreRequest) (*response.GenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateGenre"))
 
 	genre := &movie.Genre{
@@ -330,7 +338,7 @@ func (s *MovieService) CreateGenre(ctx context.Context, req *request.CreateGenre
 }
 
 // 更新类型
-func (s *MovieService) UpdateGenre(ctx context.Context, req *request.UpdateGenreRequest) (*response.GenreResponse, error) {
+func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenreRequest) (*response.GenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateGenre"))
 
 	genre, err := s.genreRepo.FindByID(ctx, req.ID)
@@ -354,7 +362,7 @@ func (s *MovieService) UpdateGenre(ctx context.Context, req *request.UpdateGenre
 }
 
 // 删除类型
-func (s *MovieService) DeleteGenre(ctx context.Context, req *request.DeleteGenreRequest) error {
+func (s *movieService) DeleteGenre(ctx context.Context, req *request.DeleteGenreRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteGenre"), applog.Uint("genre_id", req.ID))
 
 	if err := s.genreRepo.Delete(ctx, req.ID); err != nil {
@@ -371,7 +379,7 @@ func (s *MovieService) DeleteGenre(ctx context.Context, req *request.DeleteGenre
 }
 
 // 获取类型列表
-func (s *MovieService) ListGenres(ctx context.Context, req *request.ListGenreRequest) (*response.PaginatedGenreResponse, error) {
+func (s *movieService) ListGenres(ctx context.Context, req *request.ListGenreRequest) (*response.PaginatedGenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "ListGenres"))
 
 	genres, err := s.genreRepo.ListAll(ctx)
