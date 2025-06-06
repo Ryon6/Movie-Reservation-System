@@ -236,6 +236,7 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, params map[str
 		return nil, fmt.Errorf("failed to unmarshal showtime_id list: %w", err)
 	}
 
+	// 查询成功，但ID列表为空，说明列表缓存存在，但无数据符合条件
 	if len(result.AllShowtimeIDs) == 0 {
 		logger.Info("empty showtime_id list in redis", applog.String("key", listKey))
 		return result, nil
