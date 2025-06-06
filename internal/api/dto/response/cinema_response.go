@@ -21,6 +21,23 @@ func ToCinemaHallResponse(hall *cinema.CinemaHall) *CinemaHallResponse {
 	}
 }
 
+// 影厅简易信息
+type CinemaHallSimpleResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	ScreenType  string `json:"screen_type"`
+	SoundSystem string `json:"sound_system"`
+}
+
+func ToCinemaHallSimpleResponse(hall *cinema.CinemaHall) *CinemaHallSimpleResponse {
+	return &CinemaHallSimpleResponse{
+		ID:          uint(hall.ID),
+		Name:        hall.Name,
+		ScreenType:  hall.ScreenType,
+		SoundSystem: hall.SoundSystem,
+	}
+}
+
 // 座位
 type SeatResponse struct {
 	ID            uint   `json:"id"`
