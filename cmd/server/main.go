@@ -1,3 +1,5 @@
+// TODO: 应用层统一定义接口 movie_service.go
+// TODO: 修改应用层的返回值，直接采用DTO返回 user_handler.go
 package main
 
 import (
