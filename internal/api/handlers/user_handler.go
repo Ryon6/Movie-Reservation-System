@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"mrs/internal/api/dto/request"
-	"mrs/internal/api/dto/response"
 	"mrs/internal/api/middleware"
 	"mrs/internal/app"
 	"mrs/internal/domain/user"
@@ -36,7 +35,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	}
 
 	// 在service层判断DefaultRole是否为空
-	usr, err := h.userService.RegisterUser(ctx, req.Username, req.Email, req.Password, req.DefaultRole)
+	userResp, err := h.userService.RegisterUser(ctx, &req)
 	if err != nil {
 		// 用户可能已存在
 		if errors.Is(err, user.ErrUserAlreadyExists) {
@@ -49,13 +48,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 		return
 	}
 
-	userResp := response.UserResponse{
-		ID:       uint(usr.ID),
-		Username: usr.Username,
-		Email:    usr.Email,
-		RoleName: usr.Role.Name,
-	}
-	logger.Info("user registered successfully", applog.Uint("user_id", uint(usr.ID)))
+	logger.Info("user registered successfully", applog.Uint("user_id", uint(userResp.ID)))
 	ctx.JSON(http.StatusOK, userResp)
 }
 
@@ -75,7 +68,7 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	usr, err := h.userService.GetUserByID(ctx, id)
+	userResp, err := h.userService.GetUserByID(ctx, &request.GetUserRequest{ID: id})
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user profile not found", applog.Uint("user_id", id))
@@ -87,12 +80,6 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	resp := response.UserResponse{
-		ID:       uint(usr.ID),
-		Username: usr.Username,
-		Email:    usr.Email,
-		RoleName: usr.Role.Name,
-	}
-	logger.Info("user profile retrieved successfully", applog.Uint("user_id", uint(usr.ID)))
-	ctx.JSON(http.StatusOK, resp)
+	logger.Info("user profile retrieved successfully", applog.Uint("user_id", uint(userResp.ID)))
+	ctx.JSON(http.StatusOK, userResp)
 }
