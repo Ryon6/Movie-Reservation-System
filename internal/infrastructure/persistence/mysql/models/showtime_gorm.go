@@ -32,6 +32,8 @@ func (s *ShowtimeGrom) ToDomain() *showtime.Showtime {
 		ID:           vo.ShowtimeID(s.ID),
 		MovieID:      vo.MovieID(s.MovieID),
 		CinemaHallID: vo.CinemaHallID(s.CinemaHallID),
+		Movie:        s.Movie.ToDomain(),
+		CinemaHall:   s.CinemaHall.ToDomain(),
 		StartTime:    s.StartTime,
 		EndTime:      s.EndTime,
 		Price:        s.Price,
