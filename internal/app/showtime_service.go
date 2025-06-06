@@ -159,8 +159,9 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 	var showtimes []*showtime.Showtime
 	var fn = func(showtimes []*showtime.Showtime) *response.PaginatedShowtimeResponse {
 		responseShowtimes := make([]*response.ShowtimeSimpleResponse, 0, len(showtimes))
+		total := len(showtimes)
 		startIndex := (req.Page - 1) * req.PageSize
-		endIndex := min(startIndex+req.PageSize, len(showtimes))
+		endIndex := min(startIndex+req.PageSize, total)
 		showtimes = showtimes[startIndex:endIndex]
 		for _, showtime := range showtimes {
 			responseShowtimes = append(responseShowtimes, response.ToShowtimeSimpleResponse(showtime))
@@ -169,8 +170,8 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 			Pagination: response.PaginationResponse{
 				Page:       req.Page,
 				PageSize:   req.PageSize,
-				TotalPages: int(math.Ceil(float64(len(showtimes)) / float64(req.PageSize))),
-				TotalCount: int(len(showtimes)),
+				TotalPages: int(math.Ceil(float64(total) / float64(req.PageSize))),
+				TotalCount: int(total),
 			},
 			Showtimes: responseShowtimes,
 		}
@@ -212,6 +213,8 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 
 	logger.Info("list showtimes successfully", applog.Int("total", int(len(showtimes))))
 
-	s.showCache.SetShowtimeList(ctx, showtimes, filters, 0)
+	if err := s.showCache.SetShowtimeList(ctx, showtimes, filters, 0); err != nil {
+		logger.Error("failed to set showtime list to cache", applog.Error(err))
+	}
 	return fn(showtimes), nil
 }
