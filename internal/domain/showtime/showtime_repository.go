@@ -7,9 +7,9 @@ import (
 
 // 场次仓库接口
 type ShowtimeRepository interface {
-	Create(ctx context.Context, showtime *Showtime) error
-	// 预加载 Movie 和 CinemaHall
+	Create(ctx context.Context, showtime *Showtime) (*Showtime, error)
 	FindByID(ctx context.Context, id uint) (*Showtime, error)
+	FindByIDs(ctx context.Context, ids []uint) ([]*Showtime, error)
 	// 分页查询支持过滤条件（如电影ID/影厅ID/日期范围）
 	List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*Showtime, int64, error)
 	Update(ctx context.Context, showtime *Showtime) error

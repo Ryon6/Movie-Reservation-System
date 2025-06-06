@@ -25,7 +25,7 @@ func NewGormShowtimeRepository(db *gorm.DB, logger applog.Logger) showtime.Showt
 	}
 }
 
-func (r *gormShowtimeRepository) Create(ctx context.Context, st *showtime.Showtime) error {
+func (r *gormShowtimeRepository) Create(ctx context.Context, st *showtime.Showtime) (*showtime.Showtime, error) {
 	logger := r.logger.With(
 		applog.String("Method", "Create"),
 		applog.Uint("showtime_id", uint(st.ID)),
@@ -35,10 +35,10 @@ func (r *gormShowtimeRepository) Create(ctx context.Context, st *showtime.Showti
 	showtimeGorm := models.ShowtimeGromFromDomain(st)
 	if err := r.db.WithContext(ctx).Create(showtimeGorm).Error; err != nil {
 		logger.Error("failed to create showtime", applog.Error(err))
-		return fmt.Errorf("failed to create showtime: %w", err)
+		return nil, fmt.Errorf("failed to create showtime: %w", err)
 	}
 	logger.Info("create showtime successfully")
-	return nil
+	return showtimeGorm.ToDomain(), nil
 }
 
 // 预加载 Movie 和 CinemaHall
@@ -61,6 +61,27 @@ func (r *gormShowtimeRepository) FindByID(ctx context.Context, id uint) (*showti
 
 	logger.Info("find showtime by id successfully")
 	return showtimeGorm.ToDomain(), nil
+}
+
+func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []uint) ([]*showtime.Showtime, error) {
+	logger := r.logger.With(
+		applog.String("method", "FindByIDs"),
+		applog.Int("count", len(ids)),
+	)
+	var showtimesGorms []*models.ShowtimeGrom
+	if err := r.db.WithContext(ctx).Where("id IN (?)", ids).
+		Preload("Movie").
+		Preload("CinemaHall").
+		Find(&showtimesGorms).Error; err != nil {
+		logger.Error("failed to find showtimes by ids", applog.Error(err))
+		return nil, err
+	}
+	logger.Info("find showtimes by ids successfully", applog.Int("count", len(showtimesGorms)))
+	showtimes := make([]*showtime.Showtime, len(showtimesGorms))
+	for i, showtimeGorm := range showtimesGorms {
+		showtimes[i] = showtimeGorm.ToDomain()
+	}
+	return showtimes, nil
 }
 
 // 分页查询支持过滤条件（如电影ID/影厅ID/日期范围）
