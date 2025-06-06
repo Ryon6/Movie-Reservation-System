@@ -57,6 +57,21 @@ func (r *gormMovieRepository) FindByID(ctx context.Context, id uint) (*movie.Mov
 	return mvGorm.ToDomain(), nil
 }
 
+func (r *gormMovieRepository) FindByIDs(ctx context.Context, ids []uint) ([]*movie.Movie, error) {
+	logger := r.logger.With(applog.String("Method", "FindByIDs"), applog.Int("count", len(ids)))
+	var mvGorms []*models.MovieGrom
+	if err := r.db.WithContext(ctx).Preload("Genres").Where("id IN (?)", ids).Find(&mvGorms).Error; err != nil {
+		logger.Error("failed to find movies by ids", applog.Error(err))
+		return nil, fmt.Errorf("failed to find movies by ids: %w", err)
+	}
+	movies := make([]*movie.Movie, len(mvGorms))
+	for i, mvGorm := range mvGorms {
+		movies[i] = mvGorm.ToDomain()
+	}
+	logger.Info("find movies by ids successfully")
+	return movies, nil
+}
+
 // 应支持预加载Genres
 func (r *gormMovieRepository) FindByTitle(ctx context.Context, title string) (*movie.Movie, error) {
 	logger := r.logger.With(applog.String("Method", "FindByTitle"), applog.String("title", title))
