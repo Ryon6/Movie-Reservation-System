@@ -7,3 +7,7 @@ type RegisterUserRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	DefaultRole string `json:"default_role" binding:"omitempty,alphanum"` // 可选，如果允许客户端指定
 }
+
+type GetUserRequest struct {
+	ID uint `json:"id" binding:"required,min=1"`
+}
