@@ -224,57 +224,84 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 	if req.Title != "" {
 		filters["title"] = req.Title
 	}
-
 	if req.GenreName != "" {
 		filters["genre_name"] = req.GenreName
 	}
-
 	if req.ReleaseYear != 0 {
 		filters["release_year"] = req.ReleaseYear
 	}
-
 	if req.SortBy != "" {
 		filters["sort_by"] = req.SortBy
 	}
-
 	if req.SortOrder != "" {
 		filters["sort_order"] = req.SortOrder
 	}
 
-	movies, total, err := s.movieRepo.List(ctx, req.Page, req.PageSize, filters)
+	var movies []*movie.Movie
+	// 分页函数，用于处理缓存命中和未命中两种情况
+	var fn = func(movies []*movie.Movie) *response.PaginatedMovieResponse {
+		moviesResponse := make([]*response.MovieSimpleResponse, 0, len(movies))
+		for _, movie := range movies {
+			moviesResponse = append(moviesResponse, response.ToMovieSimpleResponse(movie))
+		}
+		total := len(movies)
+		startIndex := (req.Page - 1) * req.PageSize
+		endIndex := min(startIndex+req.PageSize, total)
+		movies = movies[startIndex:endIndex]
+		for _, movie := range movies {
+			moviesResponse = append(moviesResponse, response.ToMovieSimpleResponse(movie))
+		}
+		return &response.PaginatedMovieResponse{
+			Pagination: response.PaginationResponse{
+				Page:       req.Page,
+				PageSize:   req.PageSize,
+				TotalCount: int(total),
+				TotalPages: int(math.Ceil(float64(total) / float64(req.PageSize))),
+			},
+			Movies: moviesResponse,
+		}
+	}
+
+	// 列表缓存命中(err == nil)有三种情况：
+	// 1. 列表缓存为空（即无数据对应过滤条件） -> 直接返回空列表
+	// 2. 列表缓存中存在数据，但部分movie记录缺失（即movie_id列表中存在但缓存中不存在） -> 进一步查询数据库
+	// 3. 列表缓存中存在数据，且所有movie记录都存在（即movie_id列表中所有movie记录都存在） -> 直接返回缓存数据
+	// 而列表缓存未命中，则需要进一步查询数据库
+	cacheResult, err := s.movieCache.GetMovieList(ctx, filters)
 	if err != nil {
-		logger.Error("failed to list movies", applog.Error(err))
-		return nil, fmt.Errorf("failed to list movies: %w", err)
+		logger.Warn("failed to get movie list from cache", applog.Error(err))
+	} else {
+		logger.Info("get movie list from cache successfully")
+		if len(cacheResult.MissingMovieIDs) == 0 {
+			logger.Info("all movies found in cache", applog.Int("total", len(cacheResult.Movies)))
+			return fn(cacheResult.Movies), nil
+		} else {
+			logger.Info("some movies not found in cache", applog.Int("missing", len(cacheResult.MissingMovieIDs)))
+			movies = cacheResult.Movies
+		}
 	}
 
-	logger.Info("list movies successfully", applog.Int("total", int(total)))
-
-	moviesResponse := make([]*response.MovieSimpleResponse, 0, len(movies))
-	for _, movie := range movies {
-		moviesResponse = append(moviesResponse, response.ToMovieSimpleResponse(movie))
+	if len(movies) != 0 {
+		missingMovies, err := s.movieRepo.FindByIDs(ctx, cacheResult.MissingMovieIDs)
+		if err != nil {
+			logger.Error("failed to find missing movies", applog.Error(err))
+			return nil, err
+		}
+		movies = append(movies, missingMovies...)
+	} else {
+		movies, _, err = s.movieRepo.List(ctx, req.Page, req.PageSize, filters)
+		if err != nil {
+			logger.Error("failed to list movies", applog.Error(err))
+			return nil, err
+		}
 	}
 
-	pagination := response.PaginationResponse{
-		Page:       req.Page,
-		PageSize:   req.PageSize,
-		TotalCount: int(total),
-		TotalPages: int(math.Ceil(float64(total) / float64(req.PageSize))),
-	}
-
-	logger.Info("list movies successfully",
-		applog.Int("total", int(total)),
-		applog.Int("page", req.Page),
-		applog.Int("page_size", req.PageSize),
-	)
+	logger.Info("list movies successfully", applog.Int("total", len(movies)))
 
 	if err := s.movieCache.SetMovieList(ctx, movies, filters, 0); err != nil {
 		logger.Error("failed to set movie list to cache", applog.Error(err))
 	}
-
-	return &response.PaginatedMovieResponse{
-		Pagination: pagination,
-		Movies:     moviesResponse,
-	}, nil
+	return fn(movies), nil
 }
 
 // 创建类型
