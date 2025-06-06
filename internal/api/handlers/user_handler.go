@@ -21,13 +21,13 @@ type UserHandler struct {
 func NewUserHandler(userService app.UserService, logger applog.Logger) *UserHandler {
 	return &UserHandler{
 		userService: userService,
-		logger:      logger,
+		logger:      logger.With(applog.String("Handler", "UserHandler")),
 	}
 }
 
 // 处理注册请求
 func (h *UserHandler) RegisterUser(ctx *gin.Context) {
-	logger := h.logger.With(applog.String("handler", "UserHandler.RegisterUser"))
+	logger := h.logger.With(applog.String("Method", "RegisterUser"))
 	var req request.RegisterUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		logger.Warn("failed to bind register request", applog.Error(err))
@@ -55,12 +55,12 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 		Email:    usr.Email,
 		RoleName: usr.Role.Name,
 	}
-	logger.Info("User profile retrieved successfully", applog.Uint("user_id", uint(usr.ID)))
+	logger.Info("user registered successfully", applog.Uint("user_id", uint(usr.ID)))
 	ctx.JSON(http.StatusOK, userResp)
 }
 
 func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
-	logger := h.logger.With(applog.String("handler", "UserHandler.GetUserProfile"))
+	logger := h.logger.With(applog.String("Method", "GetUserProfile"))
 	userID, exists := ctx.Get(middleware.UserIDKey)
 	if !exists {
 		logger.Error("userID not found in context, auth middleware might not have run or failed")
@@ -70,7 +70,7 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 
 	id, ok := userID.(uint)
 	if !ok {
-		logger.Error("UserID in context is not of type uint", applog.Any("userID_type", userID))
+		logger.Error("user_id in context is not of type uint", applog.Any("user_id_type", userID))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: User ID format issue"})
 		return
 	}

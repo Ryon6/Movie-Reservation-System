@@ -21,13 +21,14 @@ func NewHealthHandler(db *gorm.DB, rdb *redis.Client, logger applog.Logger) *Hea
 	return &HealthHandler{
 		db:     db,
 		rdb:    rdb,
-		logger: logger,
+		logger: logger.With(applog.String("Handler", "HealthHandler")),
 	}
 }
 
 // CheckHealth 处理 /health API 请求。
 func (h *HealthHandler) CheckHealth(c *gin.Context) {
-	h.logger.Info("Health check requested")
+	logger := h.logger.With(applog.String("Method", "CheckHealth"))
+	logger.Info("Health check requested")
 
 	// 基本的健康响应
 	resp := response.HealthResponse{
@@ -75,5 +76,6 @@ func (h *HealthHandler) CheckHealth(c *gin.Context) {
 	// httpStatus = http.StatusServiceUnavailable
 	// }
 
+	logger.Info("Health check completed", applog.String("OverallStatus", resp.OverallStatus))
 	c.JSON(httpStatus, resp)
 }

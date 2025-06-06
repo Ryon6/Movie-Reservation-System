@@ -20,13 +20,13 @@ type AuthHandler struct {
 func NewAuthHandler(authService app.AuthService, logger applog.Logger) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
-		logger:      logger,
+		logger:      logger.With(applog.String("Handler", "AuthHandler")),
 	}
 }
 
 // Login 处理用户登录请求。
 func (h *AuthHandler) Login(ctx *gin.Context) {
-	logger := h.logger.With(applog.String("handler", "AuthHandler.Login"))
+	logger := h.logger.With(applog.String("Method", "Login"))
 	// 绑定登录请求
 	var req request.LoginRequest
 	if err := ctx.BindJSON(&req); err != nil {
