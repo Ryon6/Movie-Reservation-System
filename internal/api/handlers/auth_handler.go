@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"mrs/internal/api/dto/request"
-	"mrs/internal/api/dto/response"
 	"mrs/internal/app"
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
@@ -36,7 +35,7 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	}
 
 	// 验证登录信息
-	loginResult, err := h.authService.Login(ctx, req.Username, req.Password)
+	loginResp, err := h.authService.Login(ctx, &req)
 	if err != nil {
 		// 用户不存在
 		if errors.Is(err, user.ErrUserAlreadyExists) {
@@ -56,17 +55,6 @@ func (h *AuthHandler) Login(ctx *gin.Context) {
 	}
 
 	// 发送响应报文
-	userResp := response.UserResponse{
-		ID:       uint(loginResult.User.ID),
-		Username: loginResult.User.Username,
-		Email:    loginResult.User.Email,
-		RoleName: loginResult.User.Role.Name,
-	}
-	loginResp := response.LoginResponse{
-		Token:     loginResult.Token,
-		ExpiresAt: loginResult.ExpiresAt,
-		User:      userResp,
-	}
 	logger.Info("User logged in successfully", applog.String("username", req.Username))
 	ctx.JSON(http.StatusOK, loginResp)
 }
