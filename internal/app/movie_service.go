@@ -249,21 +249,9 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 
 	logger.Info("list movies successfully", applog.Int("total", int(total)))
 
-	simpleMovies := make([]*response.MovieSimpleResponse, 0, len(movies))
+	moviesResponse := make([]*response.MovieSimpleResponse, 0, len(movies))
 	for _, movie := range movies {
-		genreNames := make([]string, 0, len(movie.Genres))
-		for _, genre := range movie.Genres {
-			genreNames = append(genreNames, genre.Name)
-		}
-		simpleMovies = append(simpleMovies, &response.MovieSimpleResponse{
-			ID:    uint(movie.ID),
-			Title: movie.Title,
-			// ReleaseDate: movie.ReleaseDate,
-			// Rating:      float64(movie.Rating),
-			// PosterURL:   movie.PosterURL,
-			// AgeRating:   movie.AgeRating,
-			GenreNames: genreNames,
-		})
+		moviesResponse = append(moviesResponse, response.ToMovieSimpleResponse(movie))
 	}
 
 	pagination := response.PaginationResponse{
@@ -285,7 +273,7 @@ func (s *MovieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 
 	return &response.PaginatedMovieResponse{
 		Pagination: pagination,
-		Movies:     simpleMovies,
+		Movies:     moviesResponse,
 	}, nil
 }
 
