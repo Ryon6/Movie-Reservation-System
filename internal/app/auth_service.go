@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mrs/internal/api/dto/request"
+	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/shared"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
-	"time"
 )
 
 type AuthService interface {
-	Login(ctx context.Context, username string, password string) (*AuthResult, error)
+	Login(ctx context.Context, req *request.LoginRequest) (*response.LoginResponse, error)
 }
 
 type authService struct {
@@ -21,13 +22,6 @@ type authService struct {
 	hasher     utils.PasswordHasher
 	jwtManager utils.JWTManager
 	logger     applog.Logger
-}
-
-// AuthResult 定义认证服务返回的统一数据结构
-type AuthResult struct {
-	Token     string
-	User      *user.User
-	ExpiresAt time.Time
 }
 
 func NewAuthService(
@@ -46,11 +40,11 @@ func NewAuthService(
 	}
 }
 
-func (s *authService) Login(ctx context.Context, username string, password string) (*AuthResult, error) {
-	logger := s.logger.With(applog.String("Method", "Login"), applog.String("username", username))
+func (s *authService) Login(ctx context.Context, req *request.LoginRequest) (*response.LoginResponse, error) {
+	logger := s.logger.With(applog.String("Method", "Login"), applog.String("username", req.Username))
 
 	// 查询用户
-	usr, err := s.userRepo.FindByUsername(ctx, username)
+	usr, err := s.userRepo.FindByUsername(ctx, req.Username)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found")
@@ -60,14 +54,14 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 			logger.Warn("user already exists")
 			return nil, user.ErrUserAlreadyExists
 		}
-		logger.Error("failed to find user by name", applog.String("username", username), applog.Error(err))
+		logger.Error("failed to find user by name", applog.String("username", req.Username), applog.Error(err))
 		return nil, fmt.Errorf("authService.Login: %w", err)
 	}
 
 	// 密码校验
-	match, err := s.hasher.Check(usr.PasswordHash, password)
+	match, err := s.hasher.Check(usr.PasswordHash, req.Password)
 	if err != nil {
-		logger.Error("password check failed with an internal error", applog.String("username", username), applog.Error(err))
+		logger.Error("password check failed with an internal error", applog.String("username", req.Username), applog.Error(err))
 		return nil, errors.New("authentication failed due to an internal error")
 	}
 
@@ -79,7 +73,7 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 	// 生成JWT
 	token, err := s.jwtManager.GenerateToken(uint(usr.ID), usr.Username, usr.Role.Name)
 	if err != nil {
-		logger.Error("failed to generater JWT", applog.String("username", username), applog.Error(err))
+		logger.Error("failed to generater JWT", applog.String("username", req.Username), applog.Error(err))
 		return nil, errors.New("failed to generate authentication token")
 	}
 
@@ -89,9 +83,5 @@ func (s *authService) Login(ctx context.Context, username string, password strin
 		return nil, errors.New(("failed to get authentication token metadata"))
 	}
 
-	return &AuthResult{
-		Token:     token,
-		User:      usr,
-		ExpiresAt: claims.ExpiresAt.Time,
-	}, nil
+	return response.ToLoginResponse(token, claims.ExpiresAt.Time, usr), nil
 }
