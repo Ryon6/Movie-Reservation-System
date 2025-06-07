@@ -24,7 +24,7 @@ func NewMovieHandler(movieService app.MovieService, logger applog.Logger) *Movie
 	}
 }
 
-// 创建电影
+// 创建电影 POST /api/v1/admin/movies
 func (h *MovieHandler) CreateMovie(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "CreateMovie"))
 	var req request.CreateMovieRequest
@@ -50,7 +50,7 @@ func (h *MovieHandler) CreateMovie(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, movieResp)
 }
 
-// 获取电影
+// 获取电影 GET /api/v1/movies/{movieId}
 func (h *MovieHandler) GetMovie(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "GetMovie"))
 	movieId := ctx.Param("id")
@@ -72,15 +72,24 @@ func (h *MovieHandler) GetMovie(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, movieResp)
 }
 
-// 更新电影
+// 更新电影 PUT /api/v1/admin/movies/{movieId}
 func (h *MovieHandler) UpdateMovie(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "UpdateMovie"))
+	movieId := ctx.Param("id")
+	movieID, err := strconv.ParseUint(movieId, 10, 32)
+	if err != nil {
+		logger.Warn("failed to parse movie id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	var req request.UpdateMovieRequest
 	if err := ctx.ShouldBindBodyWithJSON(&req); err != nil {
 		logger.Warn("failed to bind update movie request", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	req.ID = uint(movieID)
 
 	if err := h.movieService.UpdateMovie(ctx, &req); err != nil {
 		logger.Error("failed to update movie", applog.Error(err))
@@ -92,7 +101,7 @@ func (h *MovieHandler) UpdateMovie(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "movie updated successfully"})
 }
 
-// 删除电影
+// 删除电影 DELETE /api/v1/admin/movies/{movieId}
 func (h *MovieHandler) DeleteMovie(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "DeleteMovie"))
 	movieId := ctx.Param("id")
@@ -113,7 +122,7 @@ func (h *MovieHandler) DeleteMovie(ctx *gin.Context) {
 	ctx.JSON(http.StatusNoContent, nil)
 }
 
-// 获取电影列表
+// 获取电影列表 GET /api/v1/movies
 func (h *MovieHandler) ListMovies(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListMovies"))
 	var req request.ListMovieRequest
@@ -134,7 +143,7 @@ func (h *MovieHandler) ListMovies(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, movieResp)
 }
 
-// 创建类型
+// 创建类型 POST /api/v1/admin/genres
 func (h *MovieHandler) CreateGenre(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "CreateGenre"))
 	var req request.CreateGenreRequest
@@ -155,7 +164,7 @@ func (h *MovieHandler) CreateGenre(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, genreResp)
 }
 
-// 更新类型(根据ID更新Name)
+// 更新类型(根据ID更新Name) PUT /api/v1/admin/genres/{genreId}
 func (h *MovieHandler) UpdateGenre(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "UpdateGenre"))
 	genreId := ctx.Param("id")
@@ -206,7 +215,7 @@ func (h *MovieHandler) DeleteGenre(ctx *gin.Context) {
 	ctx.JSON(http.StatusNoContent, nil)
 }
 
-// 获取所有类型
+// 获取所有类型 GET /api/v1/genres
 func (h *MovieHandler) ListAllGenres(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListGenres"))
 	genreResp, err := h.movieService.ListAllGenres(ctx)
