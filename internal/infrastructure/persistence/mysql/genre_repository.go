@@ -27,7 +27,7 @@ func NewGormGenreRepository(db *gorm.DB, logger applog.Logger) movie.GenreReposi
 func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) (*movie.Genre, error) {
 	logger := r.logger.With(applog.String("Method", "Create"),
 		applog.Uint("genre_id", uint(genre.ID)), applog.String("name", genre.Name))
-	genreGorm := models.GenreGromFromDomain(genre)
+	genreGorm := models.GenreGormFromDomain(genre)
 	if err := r.db.WithContext(ctx).Create(genreGorm).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			logger.Warn("genre name already exists", applog.String("name", genre.Name), applog.Error(err))
@@ -42,7 +42,7 @@ func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) (*
 
 func (r *gormGenreRepository) FindByID(ctx context.Context, id uint) (*movie.Genre, error) {
 	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("genre_id", id))
-	var genreGorm models.GenreGrom
+	var genreGorm models.GenreGorm
 	if err := r.db.WithContext(ctx).First(&genreGorm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("genre id not found", applog.Error(err))
@@ -58,7 +58,7 @@ func (r *gormGenreRepository) FindByID(ctx context.Context, id uint) (*movie.Gen
 func (r *gormGenreRepository) FindByName(ctx context.Context, name string) (*movie.Genre, error) {
 	logger := r.logger.With(applog.String("Method", "FindByName"),
 		applog.String("name", name))
-	var genreGorm models.GenreGrom
+	var genreGorm models.GenreGorm
 	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&genreGorm).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("genre name not found", applog.Error(err))
@@ -73,7 +73,7 @@ func (r *gormGenreRepository) FindByName(ctx context.Context, name string) (*mov
 
 func (r *gormGenreRepository) ListAll(ctx context.Context) ([]*movie.Genre, error) {
 	logger := r.logger.With(applog.String("Method", "ListAll"))
-	var genresGorms []*models.GenreGrom
+	var genresGorms []*models.GenreGorm
 	if err := r.db.WithContext(ctx).Find(&genresGorms).Error; err != nil {
 		logger.Error("failed to list all genres", applog.Error(err))
 		return nil, fmt.Errorf("failed to list all genres: %w", err)
@@ -91,7 +91,7 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 		applog.Uint("genre_id", uint(genre.ID)), applog.String("name", genre.Name))
 
 	// 检查存在性
-	genreGorm := models.GenreGromFromDomain(genre)
+	genreGorm := models.GenreGormFromDomain(genre)
 	if _, err := r.FindByID(ctx, genreGorm.ID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("genre id not found", applog.Error(err))
@@ -101,7 +101,7 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 	}
 
 	// 使用Updates只更新非零值字段
-	result := r.db.WithContext(ctx).Model(&models.GenreGrom{}).
+	result := r.db.WithContext(ctx).Model(&models.GenreGorm{}).
 		Where("id = ?", genreGorm.ID).
 		Updates(genreGorm)
 
@@ -122,7 +122,7 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("genre_id", id))
 
-	result := r.db.WithContext(ctx).Delete(&models.GenreGrom{}, id)
+	result := r.db.WithContext(ctx).Delete(&models.GenreGorm{}, id)
 
 	if err := result.Error; err != nil {
 		// 是否为外键约束错误，是则返回哨兵错误，有服务层进一步处理
@@ -151,7 +151,7 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 func (r *gormGenreRepository) FindOrCreateByNames(ctx context.Context, names []string) ([]*movie.Genre, error) {
 	logger := r.logger.With(applog.String("method", "FindOrCreateByNames"), applog.Any("genre_names", names))
 
-	var genreGorms []*models.GenreGrom
+	var genreGorms []*models.GenreGorm
 	// 先尝试查找所有已存在的类型
 	if err := r.db.WithContext(ctx).Where("name IN ?", names).Find(&genreGorms).Error; err != nil {
 		logger.Error("failed to find genres by names", applog.Error(err))
@@ -173,9 +173,9 @@ func (r *gormGenreRepository) FindOrCreateByNames(ctx context.Context, names []s
 
 	// 批量创建不存在的类型
 	if len(newNames) > 0 {
-		newGenres := make([]*models.GenreGrom, len(newNames))
+		newGenres := make([]*models.GenreGorm, len(newNames))
 		for i, name := range newNames {
-			newGenres[i] = &models.GenreGrom{Name: name}
+			newGenres[i] = &models.GenreGorm{Name: name}
 		}
 		if err := r.db.WithContext(ctx).Create(&newGenres).Error; err != nil {
 			logger.Error("failed to create new genres", applog.Error(err))
