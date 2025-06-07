@@ -28,7 +28,7 @@ func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.Cine
 	logger := r.logger.With(applog.String("Method", "Create"),
 		applog.Uint("hall_id", uint(hall.ID)), applog.String("name", hall.Name))
 
-	cinemaHallGorm := models.CinemaHallGromFromDomain(hall)
+	cinemaHallGorm := models.CinemaHallGormFromDomain(hall)
 	if err := r.db.WithContext(ctx).Create(cinemaHallGorm).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			logger.Warn("cinema hall already eixsts", applog.Error(err))
@@ -44,7 +44,7 @@ func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.Cine
 
 func (r *gormCinemaHallRepository) FindByID(ctx context.Context, id uint) (*cinema.CinemaHall, error) {
 	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("hall_id", id))
-	var hallGorm models.CinemaHallGrom
+	var hallGorm models.CinemaHallGorm
 	if err := r.db.WithContext(ctx).
 		Preload("Seats").
 		First(&hallGorm, id).Error; err != nil {
@@ -62,7 +62,7 @@ func (r *gormCinemaHallRepository) FindByID(ctx context.Context, id uint) (*cine
 
 func (r *gormCinemaHallRepository) FindByName(ctx context.Context, name string) (*cinema.CinemaHall, error) {
 	logger := r.logger.With(applog.String("Method", "FindByName"), applog.String("name", name))
-	var hallGorm models.CinemaHallGrom
+	var hallGorm models.CinemaHallGorm
 	if err := r.db.WithContext(ctx).
 		Preload("Seats").
 		Where("name = ?", name).
@@ -81,7 +81,7 @@ func (r *gormCinemaHallRepository) FindByName(ctx context.Context, name string) 
 
 func (r *gormCinemaHallRepository) ListAll(ctx context.Context) ([]*cinema.CinemaHall, error) {
 	logger := r.logger.With(applog.String("Method", "ListAll"))
-	var hallsGorms []*models.CinemaHallGrom
+	var hallsGorms []*models.CinemaHallGorm
 	if err := r.db.WithContext(ctx).
 		Preload("Seats").
 		Find(&hallsGorms).Error; err != nil {
@@ -100,8 +100,8 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 	logger := r.logger.With(applog.String("Method", "Update"),
 		applog.Uint("hall_id", uint(hall.ID)), applog.String("name", hall.Name))
 
-	cinemaHallGorm := models.CinemaHallGromFromDomain(hall)
-	if err := r.db.WithContext(ctx).First(&models.CinemaHallGrom{}, cinemaHallGorm.ID).Error; err != nil {
+	cinemaHallGorm := models.CinemaHallGormFromDomain(hall)
+	if err := r.db.WithContext(ctx).First(&models.CinemaHallGorm{}, cinemaHallGorm.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("cinema hall not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
@@ -111,7 +111,7 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 	}
 
 	result := r.db.WithContext(ctx).
-		Model(&models.CinemaHallGrom{}).
+		Model(&models.CinemaHallGorm{}).
 		Where("id = ?", cinemaHallGorm.ID).
 		Updates(cinemaHallGorm)
 	if err := result.Error; err != nil {
@@ -131,7 +131,7 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 func (r *gormCinemaHallRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("hall_id", id))
 
-	result := r.db.WithContext(ctx).Delete(&models.CinemaHallGrom{}, id)
+	result := r.db.WithContext(ctx).Delete(&models.CinemaHallGorm{}, id)
 	if err := result.Error; err != nil {
 		// 是否为外键约束错误，是则返回哨兵错误，有服务层进一步处理
 		if isForeignKeyConstraintError(err) {
