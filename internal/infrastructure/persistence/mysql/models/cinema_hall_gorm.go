@@ -7,17 +7,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type CinemaHallGrom struct {
+type CinemaHallGorm struct {
 	gorm.Model
 	Name        string `gorm:"type:varchar(50);uniqueIndex;not null;"` // 影厅名称 (例如: "1号厅", "IMAX厅")。
 	ScreenType  string `gorm:"type:varchar(50)"`                       // 屏幕类型，如 "2D", "3D", "IMAX"
 	SoundSystem string `gorm:"type:varchar(100)"`                      // 音响系统
 
-	Seats []SeatGrom `gorm:"foreignKey:CinemaHallID;OnDelete:CASCADE"`
+	Seats []SeatGorm `gorm:"foreignKey:CinemaHallID;OnDelete:CASCADE"`
 }
 
 // ToDomain 将CinemaHallGorm转换为CinemaHall（开销过大，需要在业务层处理）
-func (c *CinemaHallGrom) ToDomain() *cinema.CinemaHall {
+func (c *CinemaHallGorm) ToDomain() *cinema.CinemaHall {
 	seats := make([]*cinema.Seat, len(c.Seats))
 	if c.Seats != nil {
 		for i, seat := range c.Seats {
@@ -33,9 +33,9 @@ func (c *CinemaHallGrom) ToDomain() *cinema.CinemaHall {
 	}
 }
 
-// CinemaHallGromFromDomain 将CinemaHall转换为CinemaHallGorm（开销过大，需要在业务层处理）
-func CinemaHallGromFromDomain(c *cinema.CinemaHall) *CinemaHallGrom {
-	return &CinemaHallGrom{
+// CinemaHallGormFromDomain 将CinemaHall转换为CinemaHallGorm（开销过大，需要在业务层处理）
+func CinemaHallGormFromDomain(c *cinema.CinemaHall) *CinemaHallGorm {
+	return &CinemaHallGorm{
 		Model:       gorm.Model{ID: uint(c.ID)},
 		Name:        c.Name,
 		ScreenType:  c.ScreenType,
