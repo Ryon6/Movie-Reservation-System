@@ -1,3 +1,4 @@
+// TODO: 添加排序功能. 修改movie字段
 package app
 
 import (
@@ -18,9 +19,13 @@ import (
 type MovieService interface {
 	CreateMovie(ctx context.Context, req *request.CreateMovieRequest) (*response.MovieResponse, error)
 	UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error
-	GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error)
+	GetMovie(ctx context.Context, req *request.GetMovieRequest) (*response.MovieResponse, error)
 	DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error
 	ListMovies(ctx context.Context, req *request.ListMovieRequest) (*response.PaginatedMovieResponse, error)
+	CreateGenre(ctx context.Context, req *request.CreateGenreRequest) (*response.GenreResponse, error)
+	ListAllGenres(ctx context.Context) (*response.ListAllGenresResponse, error)
+	UpdateGenre(ctx context.Context, req *request.UpdateGenreRequest) (*response.GenreResponse, error)
+	DeleteGenre(ctx context.Context, req *request.DeleteGenreRequest) error
 }
 
 type movieService struct {
@@ -96,73 +101,61 @@ func (s *movieService) CreateMovie(ctx context.Context,
 func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error {
 	logger := s.logger.With(applog.String("Method", "UpdateMovie"))
 
-	mv, err := s.movieRepo.FindByTitle(ctx, req.Title)
-	tag := false
-	if err != nil {
-		logger.Error("failed to get movie", applog.Error(err))
-		return err
+	// 转换为领域对象, gorm.Updates时只更新非空字段
+	mv := req.ToDomain()
+	// 是否需要更新其他字段
+	hasOtherUpdate := req.Title == "" &&
+		req.Description == "" &&
+		req.ReleaseDate.IsZero() &&
+		req.DurationMinutes == 0 &&
+		req.Rating == 0 &&
+		req.PosterURL == "" &&
+		req.AgeRating == "" &&
+		req.Cast == ""
+
+	// 根据请求内容，存在是否更新类型字段与是否更新其他字段等四种情况
+	if !hasOtherUpdate && len(req.GenreNames) == 0 {
+		logger.Info("no update")
+		return nil
 	}
 
-	if req.Description != "" {
-		mv.Description = req.Description
-		tag = true
-	}
+	// 如果有类型字段更新,先更新类型
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		movieRepo := provider.GetMovieRepository()
 
-	if !req.ReleaseDate.IsZero() {
-		mv.ReleaseDate = req.ReleaseDate
-		tag = true
-	}
-
-	if req.DurationMinutes != 0 {
-		mv.DurationMinutes = req.DurationMinutes
-		tag = true
-	}
-
-	if req.Rating != 0 {
-		mv.Rating = float32(req.Rating)
-		tag = true
-	}
-
-	if req.PosterURL != "" {
-		mv.PosterURL = req.PosterURL
-		tag = true
-	}
-
-	if req.AgeRating != "" {
-		mv.AgeRating = req.AgeRating
-		tag = true
-	}
-
-	if req.Cast != "" {
-		mv.Cast = req.Cast
-		tag = true
-	}
-
-	if len(req.GenreNames) > 0 {
-		err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		// 如果有类型更新
+		if len(req.GenreNames) > 0 {
+			// 检查并创建电影类型
 			genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
 			if err != nil {
-				logger.Error("failed to get genres", applog.Error(err))
-				return fmt.Errorf("failed to get genres: %w", err)
+				logger.Error("failed to get or create genres", applog.Error(err))
+				return fmt.Errorf("failed to get or create genres: %w", err)
 			}
-			if err := provider.GetMovieRepository().ReplaceGenresForMovie(ctx, mv, genres); err != nil {
+
+			// 更新电影类型关联
+			if err := movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
 				logger.Error("failed to replace genres for movie", applog.Error(err))
 				return fmt.Errorf("failed to replace genres for movie: %w", err)
 			}
-			return nil
-		})
-		if err != nil {
-			logger.Error("failed to get genres", applog.Error(err))
-			return fmt.Errorf("failed to get genres: %w", err)
-		}
-	}
 
-	if tag {
-		// 更新单条记录且不涉及多表，无需事务
-		if err := s.movieRepo.Update(ctx, mv); err != nil {
+			// 如果只更新类型,则直接返回
+			if !hasOtherUpdate {
+				return nil
+			}
+		}
+
+		// 更新电影其他字段
+		if err := movieRepo.Update(ctx, mv); err != nil {
 			logger.Error("failed to update movie", applog.Error(err))
 			return fmt.Errorf("failed to update movie: %w", err)
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		logger.Error("failed to update movie", applog.Error(err))
+		return fmt.Errorf("failed to update movie: %w", err)
 	}
 
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
@@ -174,21 +167,21 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 }
 
 // 获取电影详情
-func (s *movieService) GetMovieByID(ctx context.Context, id uint) (*response.MovieResponse, error) {
-	logger := s.logger.With(applog.String("Method", "GetMovieByID"), applog.Uint("movie_id", id))
+func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieRequest) (*response.MovieResponse, error) {
+	logger := s.logger.With(applog.String("Method", "GetMovie"), applog.Uint("movie_id", req.ID))
 
-	mv, err := s.movieCache.GetMovie(ctx, id)
+	mv, err := s.movieCache.GetMovie(ctx, req.ID)
 	if err == nil {
 		logger.Info("get movie from cache successfully")
 		return response.ToMovieResponse(mv), nil
 	}
 
-	mv, err = s.movieRepo.FindByID(ctx, id)
+	mv, err = s.movieRepo.FindByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, movie.ErrMovieNotFound) {
 			logger.Info("movie not found")
 			// 构造一个空的movie并设置到缓存中,防止缓存穿透
-			emptyMovie := &movie.Movie{ID: vo.MovieID(id)}
+			emptyMovie := &movie.Movie{ID: vo.MovieID(req.ID)}
 			if err := s.movieCache.SetMovie(ctx, emptyMovie, 0); err != nil {
 				logger.Error("failed to set empty movie to cache", applog.Error(err))
 			}
@@ -237,12 +230,6 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 	}
 	if req.ReleaseYear != 0 {
 		filters["release_year"] = req.ReleaseYear
-	}
-	if req.SortBy != "" {
-		filters["sort_by"] = req.SortBy
-	}
-	if req.SortOrder != "" {
-		filters["sort_order"] = req.SortOrder
 	}
 
 	var movies []*movie.Movie
@@ -379,7 +366,7 @@ func (s *movieService) DeleteGenre(ctx context.Context, req *request.DeleteGenre
 }
 
 // 获取类型列表
-func (s *movieService) ListGenres(ctx context.Context, req *request.ListGenreRequest) (*response.PaginatedGenreResponse, error) {
+func (s *movieService) ListAllGenres(ctx context.Context) (*response.ListAllGenresResponse, error) {
 	logger := s.logger.With(applog.String("Method", "ListGenres"))
 
 	genres, err := s.genreRepo.ListAll(ctx)
@@ -388,31 +375,6 @@ func (s *movieService) ListGenres(ctx context.Context, req *request.ListGenreReq
 		return nil, fmt.Errorf("failed to list genres: %w", err)
 	}
 
-	total := len(genres)
-	start := req.Page * req.PageSize
-	end := int(math.Min(float64((req.Page+1)*req.PageSize), float64(len(genres))))
-	genres = genres[start:end]
-
-	genreResponses := make([]*response.GenreResponse, 0, len(genres))
-	for _, genre := range genres {
-		genreResponses = append(genreResponses, response.ToGenreResponse(genre))
-	}
-
-	pagination := response.PaginationResponse{
-		Page:       req.Page,
-		PageSize:   req.PageSize,
-		TotalCount: int(total),
-		TotalPages: int(math.Ceil(float64(total) / float64(req.PageSize))),
-	}
-
-	logger.Info("list genres successfully",
-		applog.Int("total", int(total)),
-		applog.Int("page", req.Page),
-		applog.Int("page_size", req.PageSize),
-	)
-
-	return &response.PaginatedGenreResponse{
-		Pagination: pagination,
-		Genres:     genreResponses,
-	}, nil
+	logger.Info("list genres successfully", applog.Int("total", len(genres)))
+	return response.ToListAllGenresResponse(genres), nil
 }
