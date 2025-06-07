@@ -134,6 +134,27 @@ func (h *MovieHandler) ListMovies(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, movieResp)
 }
 
+// 创建类型
+func (h *MovieHandler) CreateGenre(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "CreateGenre"))
+	var req request.CreateGenreRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind create genre request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	genreResp, err := h.movieService.CreateGenre(ctx, &req)
+	if err != nil {
+		logger.Error("failed to create genre", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("genre created successfully", applog.String("genre_name", genreResp.Name))
+	ctx.JSON(http.StatusOK, genreResp)
+}
+
 // 获取所有类型
 func (h *MovieHandler) ListAllGenres(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListGenres"))
