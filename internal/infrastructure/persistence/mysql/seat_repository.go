@@ -27,9 +27,9 @@ func NewGormSeatRepository(db *gorm.DB, logger applog.Logger) cinema.SeatReposit
 func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Seat) ([]*cinema.Seat, error) {
 	logger := r.logger.With(applog.String("Method", "CreateBatch"), applog.Int("seat count", len(seats)))
 
-	seatGorms := make([]*models.SeatGrom, len(seats))
+	seatGorms := make([]*models.SeatGorm, len(seats))
 	for i, seat := range seats {
-		seatGorms[i] = models.SeatGromFromDomain(seat)
+		seatGorms[i] = models.SeatGormFromDomain(seat)
 	}
 	if err := r.db.WithContext(ctx).Create(&seatGorms).Error; err != nil {
 		logger.Error("failed to create seats", applog.Error(err))
@@ -46,7 +46,7 @@ func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Se
 
 func (r *gormSeatRepository) FindByID(ctx context.Context, id uint) (*cinema.Seat, error) {
 	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("seat_id", id))
-	var seatGorm models.SeatGrom
+	var seatGorm models.SeatGorm
 	if err := r.db.WithContext(ctx).First(&seatGorm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("seat id not found", applog.Error(err))
@@ -62,7 +62,7 @@ func (r *gormSeatRepository) FindByID(ctx context.Context, id uint) (*cinema.Sea
 
 func (r *gormSeatRepository) FindByHallID(ctx context.Context, hallID uint) ([]*cinema.Seat, error) {
 	logger := r.logger.With(applog.String("Method", "FindByHallID"), applog.Uint("hall_id", hallID))
-	var seatsGorms []*models.SeatGrom
+	var seatsGorms []*models.SeatGorm
 
 	if err := r.db.WithContext(ctx).Where("cinema_hall_id = ?", hallID).Find(&seatsGorms).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -83,7 +83,7 @@ func (r *gormSeatRepository) FindByHallID(ctx context.Context, hallID uint) ([]*
 
 func (r *gormSeatRepository) GetSeatsByIDs(ctx context.Context, seatIDs []uint) ([]*cinema.Seat, error) {
 	logger := r.logger.With(applog.String("Method", "GetSeatsByIDs"), applog.Int("seat count", len(seatIDs)))
-	var seatsGorms []*models.SeatGrom
+	var seatsGorms []*models.SeatGorm
 	if err := r.db.WithContext(ctx).Where("id IN ?", seatIDs).Find(&seatsGorms).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("seats not found", applog.Error(err))
@@ -105,8 +105,8 @@ func (r *gormSeatRepository) Update(ctx context.Context, seat *cinema.Seat) erro
 	logger := r.logger.With(applog.String("Method", "Update"),
 		applog.Uint("seat_id", uint(seat.ID)), applog.Uint("hall_id", uint(seat.CinemaHallID)))
 
-	seatGorm := models.SeatGromFromDomain(seat)
-	if err := r.db.WithContext(ctx).First(&models.SeatGrom{}, seatGorm.ID).Error; err != nil {
+	seatGorm := models.SeatGormFromDomain(seat)
+	if err := r.db.WithContext(ctx).First(&models.SeatGorm{}, seatGorm.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("seat not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", cinema.ErrSeatNotFound, err)
@@ -133,7 +133,7 @@ func (r *gormSeatRepository) Update(ctx context.Context, seat *cinema.Seat) erro
 func (r *gormSeatRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("seat_id", id))
 
-	result := r.db.WithContext(ctx).Delete(&models.SeatGrom{}, id)
+	result := r.db.WithContext(ctx).Delete(&models.SeatGorm{}, id)
 	if err := result.Error; err != nil {
 		logger.Error("failed to delete seat", applog.Error(err))
 		return fmt.Errorf("failed to delete seat: %w", err)
@@ -151,7 +151,7 @@ func (r *gormSeatRepository) Delete(ctx context.Context, id uint) error {
 func (r *gormSeatRepository) DeleteByHallID(ctx context.Context, hallID uint) error {
 	logger := r.logger.With(applog.String("Method", "DeleteByHallID"), applog.Uint("hall_id", hallID))
 
-	result := r.db.WithContext(ctx).Where("cinema_hall_id = ?", hallID).Delete(&models.SeatGrom{})
+	result := r.db.WithContext(ctx).Where("cinema_hall_id = ?", hallID).Delete(&models.SeatGorm{})
 	if err := result.Error; err != nil {
 		logger.Error("failed to delete seats", applog.Error(err))
 		return fmt.Errorf("failed to delete seats: %w", err)
