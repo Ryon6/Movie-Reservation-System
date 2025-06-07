@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"net/http"
@@ -68,7 +69,7 @@ func AdminMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.Hand
 		inlogger := logger.With(applog.String("middleware", "AdminMiddleware"))
 
 		userRoleName := ctx.GetString(UserRoleNameKey)
-		if userRoleName != "admin" {
+		if userRoleName != user.AdminRoleName {
 			inlogger.Warn("user is not admin", applog.String("role", userRoleName))
 			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "User is not admin"})
 			return
