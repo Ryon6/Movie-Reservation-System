@@ -339,6 +339,7 @@ func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenre
 		return response.ToGenreResponse(genre), nil
 	}
 
+	genre.Name = req.Name
 	if err := s.genreRepo.Update(ctx, genre); err != nil {
 		logger.Error("failed to update genre", applog.Error(err))
 		return nil, fmt.Errorf("failed to update genre: %w", err)
