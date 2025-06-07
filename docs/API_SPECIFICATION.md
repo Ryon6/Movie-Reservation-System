@@ -119,67 +119,54 @@
 
 ---
 
-## 3. MovieService (电影与类型服务)
+## 3. MovieService (电影与类型服务)(Completed)
 
 ### 公开端点:
 
 *   **`GET /api/v1/movies`**
-    *   **描述**: 列出已发布的电影 (分页)。
-    *   **查询参数**: `page`, `pageSize`, `genreId` (类型ID), `status` (状态, 例如: `now_playing` 热映中, `upcoming` 即将上映), `search` (标题搜索)
+    *   **描述**: 列出电影 (分页)。
+    *   **查询参数**: `page`, `page_size`, `genre_name` (类型名称), `release_year`发行年份
     *   **响应体**: `分页响应包装器<电影响应>`
-    *   **调用服务**: `MovieService.ListPublishedMovies(params)`
-
+    *   **调用服务**: `MovieService.ListMovies(ListMovieRequest)`
 *   **`GET /api/v1/movies/{movieId}`**
-    *   **描述**: 获取已发布的电影详情。
+    *   **描述**: 获取电影详情。
     *   **响应体**: `电影响应` (包含类型信息)
-    *   **调用服务**: `MovieService.GetPublishedMovieByID(movieId)`
-
+    *   **调用服务**: `MovieService.GetMovie(GetMovieRequest)`
 *   **`GET /api/v1/genres`**
     *   **描述**: 列出所有电影类型。
     *   **响应体**: `类型响应列表`
-    *   **调用服务**: `MovieService.ListGenres()`
+    *   **调用服务**: `MovieService.ListAllGenres()`
 
 ### 管理员端点:
 
 *   **`POST /api/v1/admin/movies`**
     *   **描述**: 创建一部新电影。
-    *   **请求体**: `创建电影请求` (标题, 描述, 上映日期, 时长, 类型ID列表等)
+    *   **请求体**: `创建电影请求` (标题, 描述, 上映日期, 时长, 类型名称列表等)
     *   **响应体**: `电影响应`
-    *   **调用服务**: `MovieService.CreateMovie(params)`
-
+    *   **调用服务**: `MovieService.CreateMovie(CreateMovieRequest)`
 *   **`PUT /api/v1/admin/movies/{movieId}`**
     *   **描述**: 更新一部电影。
     *   **请求体**: `更新电影请求`
-    *   **响应体**: `电影响应`
-    *   **调用服务**: `MovieService.UpdateMovie(movieId, params)`
-
+    *   **响应体**: `成功消息`
+    *   **调用服务**: `MovieService.UpdateMovie(UpdateMovieRequest)`
 *   **`DELETE /api/v1/admin/movies/{movieId}`**
     *   **描述**: 删除一部电影。
     *   **响应**: `204 No Content`
-    *   **调用服务**: `MovieService.DeleteMovie(movieId)`
-
-*   **`GET /api/v1/admin/movies`**
-    *   **描述**: 管理员列出所有电影 (包括未发布的, 分页)。
-    *   **查询参数**: `page`, `pageSize`, `status` (all 全部, published 已发布, unpublished 未发布), `search` (标题搜索)
-    *   **响应体**: `分页响应包装器<电影响应>`
-    *   **调用服务**: `MovieService.ListMoviesForAdmin(params)`
-
+    *   **调用服务**: `MovieService.DeleteMovie(DeleteMovieRequest)`
 *   **`POST /api/v1/admin/genres`**
     *   **描述**: 创建一个新的电影类型。
     *   **请求体**: `创建类型请求` (名称, 描述)
     *   **响应体**: `类型响应`
-    *   **调用服务**: `MovieService.CreateGenre(params)`
-
+    *   **调用服务**: `MovieService.CreateGenre(CreateGenreRequest)`
 *   **`PUT /api/v1/admin/genres/{genreId}`**
     *   **描述**: 更新一个电影类型。
     *   **请求体**: `更新类型请求`
     *   **响应体**: `类型响应`
-    *   **调用服务**: `MovieService.UpdateGenre(genreId, params)`
-
+    *   **调用服务**: `MovieService.UpdateGenre(UpdateGenreRequest)`
 *   **`DELETE /api/v1/admin/genres/{genreId}`**
     *   **描述**: 删除一个电影类型。
     *   **响应**: `204 No Content`
-    *   **调用服务**: `MovieService.DeleteGenre(genreId)`
+    *   **调用服务**: `MovieService.DeleteGenre(DeleteGenreRequest)`
 
 ---
 
