@@ -83,7 +83,14 @@ func ToGenreResponse(genre *movie.Genre) *GenreResponse {
 	}
 }
 
-type PaginatedGenreResponse struct {
-	Pagination PaginationResponse `json:"pagination"`
-	Genres     []*GenreResponse   `json:"genres"`
+type ListAllGenresResponse struct {
+	Genres []*GenreResponse `json:"genres"`
+}
+
+func ToListAllGenresResponse(genres []*movie.Genre) *ListAllGenresResponse {
+	genreResponses := make([]*GenreResponse, 0, len(genres))
+	for _, genre := range genres {
+		genreResponses = append(genreResponses, ToGenreResponse(genre))
+	}
+	return &ListAllGenresResponse{Genres: genreResponses}
 }
