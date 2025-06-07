@@ -155,6 +155,36 @@ func (h *MovieHandler) CreateGenre(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, genreResp)
 }
 
+// 更新类型(根据ID更新Name)
+func (h *MovieHandler) UpdateGenre(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "UpdateGenre"))
+	genreId := ctx.Param("id")
+	genreID, err := strconv.ParseUint(genreId, 10, 32)
+	if err != nil {
+		logger.Warn("failed to parse genre id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var req request.UpdateGenreRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind update genre request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req.ID = uint(genreID)
+
+	genreResp, err := h.movieService.UpdateGenre(ctx, &req)
+	if err != nil {
+		logger.Error("failed to update genre", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("genre updated successfully", applog.String("genre_name", genreResp.Name))
+	ctx.JSON(http.StatusOK, genreResp)
+}
+
 // 获取所有类型
 func (h *MovieHandler) ListAllGenres(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListGenres"))
