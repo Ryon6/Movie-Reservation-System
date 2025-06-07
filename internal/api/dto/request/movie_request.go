@@ -2,6 +2,7 @@ package request
 
 import (
 	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared/vo"
 	"time"
 )
 
@@ -32,9 +33,15 @@ func (r *CreateMovieRequest) ToMovie() *movie.Movie {
 	}
 }
 
+// GetMovieRequest 定义了获取电影请求的结构体。
+type GetMovieRequest struct {
+	ID uint `json:"id" binding:"required,min=1"`
+}
+
 // UpdateMovieRequest 定义了更新电影请求的结构体。
 type UpdateMovieRequest struct {
-	Title           string    `json:"title" binding:"required,min=1,max=255"`
+	ID              uint      `json:"id" binding:"required,min=1"`
+	Title           string    `json:"title" binding:"omitempty,min=1,max=255"`
 	GenreNames      []string  `json:"genre_names" binding:"omitempty,min=1,max=255"`
 	Description     string    `json:"description" binding:"omitempty,min=1,max=1000"`
 	ReleaseDate     time.Time `json:"release_date" binding:"omitempty,datetime=2006-01-02"`
@@ -43,6 +50,20 @@ type UpdateMovieRequest struct {
 	PosterURL       string    `json:"poster_url" binding:"omitempty,url"`
 	AgeRating       string    `json:"age_rating" binding:"omitempty,min=1,max=50"`
 	Cast            string    `json:"cast" binding:"omitempty,min=1,max=1000"`
+}
+
+func (r *UpdateMovieRequest) ToDomain() *movie.Movie {
+	return &movie.Movie{
+		ID:              vo.MovieID(r.ID),
+		Title:           r.Title,
+		Description:     r.Description,
+		ReleaseDate:     r.ReleaseDate,
+		DurationMinutes: r.DurationMinutes,
+		Rating:          float32(r.Rating),
+		PosterURL:       r.PosterURL,
+		AgeRating:       r.AgeRating,
+		Cast:            r.Cast,
+	}
 }
 
 // 删除电影
@@ -54,9 +75,7 @@ type ListMovieRequest struct {
 	PaginationRequest
 	Title       string `json:"title" binding:"omitempty,min=1,max=255"`
 	GenreName   string `json:"genre_name" binding:"omitempty,min=1,max=255"`
-	ReleaseYear int    `json:"release_year" binding:"omitempty,min=1900,max=2100"`                           // 按上映年份过滤
-	SortBy      string `json:"sort_by" binding:"omitempty,oneof=title release_date rating duration_minutes"` // 排序字段
-	SortOrder   string `json:"sort_order" binding:"omitempty,oneof=asc desc"`                                // 排序顺序
+	ReleaseYear int    `json:"release_year" binding:"omitempty,min=1900,max=2100"` // 按上映年份过滤
 }
 
 // 创建类型
@@ -73,9 +92,4 @@ type UpdateGenreRequest struct {
 // 删除类型
 type DeleteGenreRequest struct {
 	ID uint `json:"id" binding:"required,min=1"`
-}
-
-// 分页查询
-type ListGenreRequest struct {
-	PaginationRequest
 }
