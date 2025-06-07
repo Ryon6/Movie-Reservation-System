@@ -8,16 +8,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type ShowtimeGrom struct {
+type ShowtimeGorm struct {
 	gorm.Model
 	// 关联的电影ID 已在Movie中定义外键 电影ID，联合索引1
 	MovieID uint `gorm:"not null;index;index:idx_movie_start_time,priority:1"`
 	// 关联的电影实体
-	Movie MovieGrom `gorm:"foreignKey:MovieID"`
+	Movie MovieGorm `gorm:"foreignKey:MovieID"`
 	// 关联的影厅ID 已在CinemaHall中定义外键 影厅ID，联合索引2
 	CinemaHallID uint `gorm:"not null;index;index:idx_hall_start_time,priority:1"`
 	// 关联的影厅实体
-	CinemaHall CinemaHallGrom `gorm:"foreignKey:CinemaHallID"`
+	CinemaHall CinemaHallGorm `gorm:"foreignKey:CinemaHallID"`
 
 	// 放映开始时间 (包含日期和时间) 放映开始时间，联合索引1和2
 	StartTime time.Time `gorm:"not null;index;index:idx_movie_start_time,priority:2;index:idx_hall_start_time,priority:2"`
@@ -27,7 +27,7 @@ type ShowtimeGrom struct {
 	Price float64 `gorm:"not null"`
 }
 
-func (s *ShowtimeGrom) ToDomain() *showtime.Showtime {
+func (s *ShowtimeGorm) ToDomain() *showtime.Showtime {
 	return &showtime.Showtime{
 		ID:           vo.ShowtimeID(s.ID),
 		MovieID:      vo.MovieID(s.MovieID),
@@ -40,8 +40,8 @@ func (s *ShowtimeGrom) ToDomain() *showtime.Showtime {
 	}
 }
 
-func ShowtimeGromFromDomain(s *showtime.Showtime) *ShowtimeGrom {
-	return &ShowtimeGrom{
+func ShowtimeGormFromDomain(s *showtime.Showtime) *ShowtimeGorm {
+	return &ShowtimeGorm{
 		Model:        gorm.Model{ID: uint(s.ID)},
 		MovieID:      uint(s.MovieID),
 		CinemaHallID: uint(s.CinemaHallID),
