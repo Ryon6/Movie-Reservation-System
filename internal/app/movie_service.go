@@ -61,20 +61,22 @@ func (s *movieService) CreateMovie(ctx context.Context,
 
 	// 开启事务
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		// 检查并创建电影类型
-		genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
-		if err != nil {
-			logger.Error("failed to get genres", applog.Error(err))
-			return fmt.Errorf("failed to get or create genres: %w", err)
-		}
-
 		// 创建电影
+		var err error
 		movieRepo := provider.GetMovieRepository()
 		mv, err = movieRepo.Create(ctx, mv)
 		if err != nil {
 			logger.Error("failed to create movie", applog.Error(err))
 			return fmt.Errorf("failed to create movie: %w", err)
 		}
+
+		// 检查并创建电影类型
+		genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
+		if err != nil {
+			logger.Error("failed to get genres", applog.Error(err))
+			return fmt.Errorf("failed to get or create genres: %w", err)
+		}
+		mv.Genres = genres
 
 		// 电影创建时并不会自动关联类型，需要手动替换
 		if err := movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
@@ -235,14 +237,11 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 	var movies []*movie.Movie
 	// 分页函数，用于处理缓存命中和未命中两种情况
 	var fn = func(movies []*movie.Movie) *response.PaginatedMovieResponse {
-		moviesResponse := make([]*response.MovieSimpleResponse, 0, len(movies))
-		for _, movie := range movies {
-			moviesResponse = append(moviesResponse, response.ToMovieSimpleResponse(movie))
-		}
 		total := len(movies)
 		startIndex := (req.Page - 1) * req.PageSize
 		endIndex := min(startIndex+req.PageSize, total)
 		movies = movies[startIndex:endIndex]
+		moviesResponse := make([]*response.MovieSimpleResponse, 0, len(movies))
 		for _, movie := range movies {
 			moviesResponse = append(moviesResponse, response.ToMovieSimpleResponse(movie))
 		}
