@@ -32,7 +32,7 @@ func (r *gormShowtimeRepository) Create(ctx context.Context, st *showtime.Showti
 		applog.Uint("movie_id", uint(st.MovieID)),
 		applog.Uint("hall_id", uint(st.CinemaHallID)),
 	)
-	showtimeGorm := models.ShowtimeGromFromDomain(st)
+	showtimeGorm := models.ShowtimeGormFromDomain(st)
 	if err := r.db.WithContext(ctx).Create(showtimeGorm).Error; err != nil {
 		logger.Error("failed to create showtime", applog.Error(err))
 		return nil, fmt.Errorf("failed to create showtime: %w", err)
@@ -46,7 +46,7 @@ func (r *gormShowtimeRepository) FindByID(ctx context.Context, id uint) (*showti
 	logger := r.logger.With(
 		applog.String("Method", "FindByID"),
 		applog.Uint("showtime_id", id))
-	var showtimeGorm models.ShowtimeGrom
+	var showtimeGorm models.ShowtimeGorm
 	if err := r.db.WithContext(ctx).
 		Preload("Movie").
 		Preload("CinemaHall").
@@ -68,7 +68,7 @@ func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []uint) ([]*
 		applog.String("method", "FindByIDs"),
 		applog.Int("count", len(ids)),
 	)
-	var showtimesGorms []*models.ShowtimeGrom
+	var showtimesGorms []*models.ShowtimeGorm
 	if err := r.db.WithContext(ctx).Where("id IN (?)", ids).
 		Preload("Movie").
 		Preload("CinemaHall").
@@ -91,11 +91,11 @@ func (r *gormShowtimeRepository) List(ctx context.Context, page, pageSize int,
 		applog.String("method", "List"),
 		applog.Int("page", page),
 		applog.Int("pageSize", pageSize))
-	var showtimesGorms []*models.ShowtimeGrom
+	var showtimesGorms []*models.ShowtimeGorm
 	var totalCount int64
 
-	query := r.db.WithContext(ctx).Model(&models.ShowtimeGrom{})
-	countQuery := r.db.WithContext(ctx).Model(&models.ShowtimeGrom{})
+	query := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{})
+	countQuery := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{})
 
 	// 应用过滤器
 	if movieID, ok := filters["movie_id"].(uint); ok && movieID > 0 {
@@ -158,7 +158,7 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 		applog.Uint("hall_id", uint(st.CinemaHallID)),
 	)
 
-	if err := r.db.WithContext(ctx).First(&models.ShowtimeGrom{}, st.ID).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&models.ShowtimeGorm{}, st.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("showtime not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", showtime.ErrShowtimeNotFound, err)
@@ -167,7 +167,7 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 		return fmt.Errorf("failed to find showtime by id: %w", err)
 	}
 
-	result := r.db.WithContext(ctx).Model(&models.ShowtimeGrom{}).Where("id = ?", st.ID).Updates(st)
+	result := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Updates(st)
 	if err := result.Error; err != nil {
 		logger.Error("failed to update showtime", applog.Error(err))
 		return fmt.Errorf("failed to update showtime: %w", err)
@@ -188,7 +188,7 @@ func (r *gormShowtimeRepository) Delete(ctx context.Context, id uint) error {
 		applog.Uint("showtime_id", id),
 	)
 
-	result := r.db.WithContext(ctx).Delete(&models.ShowtimeGrom{}, id)
+	result := r.db.WithContext(ctx).Delete(&models.ShowtimeGorm{}, id)
 	if err := result.Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("showtime to delete not found", applog.Error(err))
@@ -222,7 +222,7 @@ func (r *gormShowtimeRepository) CheckOverlap(ctx context.Context, hallID uint,
 	}
 
 	var count int64
-	query := r.db.WithContext(ctx).Model(&models.ShowtimeGrom{}).
+	query := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).
 		Where("cinema_hall_id = ?", hallID).
 		// 核心重叠逻辑:
 		// 新场次的开始时间在新场次结束之前 AND 新场次的结束时间在现有场次开始之后
@@ -257,7 +257,7 @@ func (r *gormShowtimeRepository) FindShowtimesByMovieAndDateRanges(ctx context.C
 		applog.Time("end_date", endDate),
 	)
 
-	var showtimesGorms []*models.ShowtimeGrom
+	var showtimesGorms []*models.ShowtimeGorm
 
 	// 确保 endDate 包含一整天
 	loc := startDate.Location() // 使用 startDate 的时区
@@ -292,7 +292,7 @@ func (r *gormShowtimeRepository) FindShowtimesByHallAndDateRanges(ctx context.Co
 		applog.Time("start_date", startDate),
 		applog.Time("end_date", endDate),
 	)
-	var showtimesGorms []*models.ShowtimeGrom
+	var showtimesGorms []*models.ShowtimeGorm
 
 	err := r.db.WithContext(ctx).
 		Where("cinema_hall_id = ?", hallID).
