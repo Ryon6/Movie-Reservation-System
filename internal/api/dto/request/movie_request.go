@@ -44,7 +44,7 @@ type UpdateMovieRequest struct {
 	Title           string    `json:"title" binding:"omitempty,min=1,max=255"`
 	GenreNames      []string  `json:"genre_names" binding:"omitempty,min=1,max=255"`
 	Description     string    `json:"description" binding:"omitempty,min=1,max=1000"`
-	ReleaseDate     time.Time `json:"release_date" binding:"omitempty,datetime=2006-01-02"`
+	ReleaseDate     time.Time `json:"release_date" binding:"omitempty"`
 	DurationMinutes int       `json:"duration_minutes" binding:"omitempty,min=1"`
 	Rating          float64   `json:"rating" binding:"omitempty,min=0,max=10"`
 	PosterURL       string    `json:"poster_url" binding:"omitempty,url"`
