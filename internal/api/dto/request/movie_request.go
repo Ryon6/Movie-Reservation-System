@@ -11,7 +11,7 @@ type CreateMovieRequest struct {
 	Title           string    `json:"title" binding:"required,min=1,max=255"`
 	GenreNames      []string  `json:"genre_names" binding:"required,min=1,max=255"`
 	Description     string    `json:"description" binding:"omitempty,min=1,max=1000"`
-	ReleaseDate     time.Time `json:"release_date" binding:"omitempty,datetime=2006-01-02"`
+	ReleaseDate     time.Time `json:"release_date" binding:"required"`
 	DurationMinutes int       `json:"duration_minutes" binding:"omitempty,min=1"`
 	Rating          float64   `json:"rating" binding:"omitempty,min=0,max=10"`
 	PosterURL       string    `json:"poster_url" binding:"omitempty,url"`
@@ -35,12 +35,12 @@ func (r *CreateMovieRequest) ToMovie() *movie.Movie {
 
 // GetMovieRequest 定义了获取电影请求的结构体。
 type GetMovieRequest struct {
-	ID uint `json:"id" binding:"required,min=1"`
+	ID uint
 }
 
 // UpdateMovieRequest 定义了更新电影请求的结构体。
 type UpdateMovieRequest struct {
-	ID              uint      `json:"id" binding:"required,min=1"`
+	ID              uint
 	Title           string    `json:"title" binding:"omitempty,min=1,max=255"`
 	GenreNames      []string  `json:"genre_names" binding:"omitempty,min=1,max=255"`
 	Description     string    `json:"description" binding:"omitempty,min=1,max=1000"`
@@ -68,7 +68,7 @@ func (r *UpdateMovieRequest) ToDomain() *movie.Movie {
 
 // 删除电影
 type DeleteMovieRequest struct {
-	ID uint `json:"id" binding:"required,min=1"`
+	ID uint
 }
 
 type ListMovieRequest struct {
@@ -85,11 +85,11 @@ type CreateGenreRequest struct {
 
 // 更新类型
 type UpdateGenreRequest struct {
-	ID   uint   `json:"id" binding:"required,min=1"`
+	ID   uint
 	Name string `json:"name" binding:"required,min=1,max=255"`
 }
 
 // 删除类型
 type DeleteGenreRequest struct {
-	ID uint `json:"id" binding:"required,min=1"`
+	ID uint
 }
