@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type MovieGrom struct {
+type MovieGorm struct {
 	gorm.Model
 	Title           string `gorm:"type:varchar(255);not null;uniqueIndex"` //  电影标题
 	Description     string `gorm:"type:text"`                              // 电影剧情简介或描述（可空）
@@ -16,8 +16,8 @@ type MovieGrom struct {
 	DurationMinutes int    // 电影时长，单位为分钟
 
 	// 关系
-	Genres    []*GenreGrom   `gorm:"many2many:movies_genres;constraint:OnDelete:CASCADE;"` // 多对多：GORM会自动创建名为movie_genres的连接表。
-	Showtimes []ShowtimeGrom `gorm:"foreignKey:MovieID;constraint:OnDelete:CASCADE;"`      // 一对多
+	Genres    []*GenreGorm   `gorm:"many2many:movies_genres;constraint:OnDelete:CASCADE;"` // 多对多：GORM会自动创建名为movie_genres的连接表。
+	Showtimes []ShowtimeGorm `gorm:"foreignKey:MovieID;constraint:OnDelete:CASCADE;"`      // 一对多
 
 	// 可选
 	ReleaseDate time.Time // 上映日期（可空）
@@ -26,7 +26,7 @@ type MovieGrom struct {
 	Cast        string    `gorm:"type:text"`        // 主要演员 (简单起见用文本，复杂系统可设计为关联表)
 }
 
-func (m *MovieGrom) ToDomain() *movie.Movie {
+func (m *MovieGorm) ToDomain() *movie.Movie {
 	genres := make([]*movie.Genre, len(m.Genres))
 	for i, genre := range m.Genres {
 		genres[i] = genre.ToDomain()
@@ -47,8 +47,8 @@ func (m *MovieGrom) ToDomain() *movie.Movie {
 
 // 通常在创建时使用，不需要预加载关联数据
 // 添加电影类型需要额外调用ReplaceGenresForMovie
-func MovieGromFromDomain(m *movie.Movie) *MovieGrom {
-	return &MovieGrom{
+func MovieGormFromDomain(m *movie.Movie) *MovieGorm {
+	return &MovieGorm{
 		Model:           gorm.Model{ID: uint(m.ID)},
 		Title:           m.Title,
 		Description:     m.Description,
