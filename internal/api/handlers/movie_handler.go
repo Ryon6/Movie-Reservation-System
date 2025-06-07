@@ -185,6 +185,27 @@ func (h *MovieHandler) UpdateGenre(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, genreResp)
 }
 
+// 删除类型 DELETE /api/v1/admin/genres/{genreId}
+func (h *MovieHandler) DeleteGenre(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "DeleteGenre"))
+	genreId := ctx.Param("id")
+	genreID, err := strconv.ParseUint(genreId, 10, 32)
+	if err != nil {
+		logger.Warn("failed to parse genre id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.movieService.DeleteGenre(ctx, &request.DeleteGenreRequest{ID: uint(genreID)}); err != nil {
+		logger.Error("failed to delete genre", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("genre deleted successfully", applog.Uint("genre_id", uint(genreID)))
+	ctx.JSON(http.StatusNoContent, nil)
+}
+
 // 获取所有类型
 func (h *MovieHandler) ListAllGenres(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListGenres"))
