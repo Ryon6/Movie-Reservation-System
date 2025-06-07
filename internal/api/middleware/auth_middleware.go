@@ -17,6 +17,7 @@ const (
 	// UsernameKey            = "username" // 如果也需要用户名
 )
 
+// AuthMiddleware 检查用户是否已认证
 func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		inlogger := logger.With(applog.String("middleware", "AuthMiddleware"))
@@ -57,6 +58,23 @@ func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.Handl
 		ctx.Set(UserRoleNameKey, claims.RoleName)
 
 		inlogger.Info("user authenticated successfully", applog.Uint("userID", claims.UserID), applog.String("role", claims.RoleName))
+		ctx.Next()
+	}
+}
+
+// AdminMiddleware 检查用户是否为管理员
+func AdminMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		inlogger := logger.With(applog.String("middleware", "AdminMiddleware"))
+
+		userRoleName := ctx.GetString(UserRoleNameKey)
+		if userRoleName != "admin" {
+			inlogger.Warn("user is not admin", applog.String("role", userRoleName))
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "User is not admin"})
+			return
+		}
+
+		inlogger.Info("user is admin", applog.String("role", userRoleName))
 		ctx.Next()
 	}
 }
