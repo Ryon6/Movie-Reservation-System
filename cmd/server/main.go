@@ -1,5 +1,9 @@
-// TODO: 应用层统一定义接口 movie_service.go
-// TODO: 修改应用层的返回值，直接采用DTO返回 user_handler.go
+// TODO: 判断是否应该重构基础设施层的仓库实现，让其专注于数据访问，而应用层专注于业务逻辑
+// TODO: 修复创建电影时，类型返回为空的问题（即使传入类型存在） 其他请求中同样可能存在相似问题
+// TODO: 修复所有请求中有关时间类型的绑定问题（删除datetime）
+// TODO: 修复日志输出问题
+// TODO: 修复错误反复包装，无法溯源的问题（错误应该将只将Method与err包装在一起）（待定）
+// TODO: 修复当ID在url中给出时，请求报文仍然需要ID字段的问题（所有ID在URL中给出的API都需要修复）
 package main
 
 import (
@@ -15,6 +19,7 @@ import (
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"os"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
@@ -23,7 +28,7 @@ import (
 
 // 使用已实现的 LoadConfig 函数加载配置
 func initConfig() (*config.Config, error) {
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("configs", "app_remote_db", "yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
@@ -107,21 +112,28 @@ func main() {
 	// 基础设施层
 	userRepo := appmysql.NewGormUserRepository(db, logger)
 	roleRepo := appmysql.NewGormRoleRepository(db, logger)
+	movieRepo := appmysql.NewGormMovieRepository(db, logger)
+	genreRepo := appmysql.NewGormGenreRepository(db, logger)
+	movieCache := cache.NewRedisMovieCache(rdb.(*redis.Client), logger, time.Second*30) // 后续可以改为配置中获取
 	uow := appmysql.NewGormUnitOfWork(db, logger)
 
 	// 应用层
 	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, uow, userRepo, roleRepo, hasher, logger)
 	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
+	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	userHandler := handlers.NewUserHandler(userService, logger)
+	movieHandler := handlers.NewMovieHandler(movieService, logger)
 
 	r := api.SetupRouter(healthHandler,
 		authHandler,
 		userHandler,
-		middleware.AuthMiddleware(jwtManager, logger))
+		movieHandler,
+		middleware.AuthMiddleware(jwtManager, logger),
+		middleware.AdminMiddleware(jwtManager, logger))
 
 	// 启动 HTTP 服务器
 	logger.Info("Starting server on port " + port)
