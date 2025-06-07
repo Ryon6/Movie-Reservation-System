@@ -10,13 +10,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-func LoadConfig() (*Config, error) {
+func LoadConfig(configPath string, configName string, configType string) (*Config, error) {
 	var config Config
 
-	// 设置配置文件路径和类型
-	viper.SetConfigName("app") // 配置文件名
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("configs")
+	// 使用调用者提供的配置参数
+	viper.SetConfigName(configName)
+	viper.SetConfigType(configType)
+	viper.AddConfigPath(configPath)
 
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
