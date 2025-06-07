@@ -7,21 +7,21 @@ import (
 	"gorm.io/gorm"
 )
 
-type GenreGrom struct {
+type GenreGorm struct {
 	gorm.Model
 	Name string `gorm:"type:varchar(100);uniqueIndex;not null"` // 类型名称：科幻...
 	// 只需一方显式定义多对多关系，另一方会自动创建连接表
 }
 
-func (g *GenreGrom) ToDomain() *movie.Genre {
+func (g *GenreGorm) ToDomain() *movie.Genre {
 	return &movie.Genre{
 		ID:   vo.GenreID(g.ID),
 		Name: g.Name,
 	}
 }
 
-func GenreGromFromDomain(g *movie.Genre) *GenreGrom {
-	return &GenreGrom{
+func GenreGormFromDomain(g *movie.Genre) *GenreGorm {
+	return &GenreGorm{
 		Model: gorm.Model{ID: uint(g.ID)},
 		Name:  g.Name,
 	}
