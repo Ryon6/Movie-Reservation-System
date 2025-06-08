@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// 影厅表
 type CinemaHallGorm struct {
 	gorm.Model
 	Name        string `gorm:"type:varchar(50);uniqueIndex;not null;"` // 影厅名称 (例如: "1号厅", "IMAX厅")。
@@ -14,6 +15,11 @@ type CinemaHallGorm struct {
 	SoundSystem string `gorm:"type:varchar(100)"`                      // 音响系统
 
 	Seats []SeatGorm `gorm:"foreignKey:CinemaHallID;OnDelete:CASCADE"`
+}
+
+// TableName 指定表名
+func (CinemaHallGorm) TableName() string {
+	return "cinema_halls"
 }
 
 // ToDomain 将CinemaHallGorm转换为CinemaHall（开销过大，需要在业务层处理）

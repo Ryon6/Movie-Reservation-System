@@ -7,10 +7,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// 类型表
 type GenreGorm struct {
 	gorm.Model
 	Name string `gorm:"type:varchar(100);uniqueIndex;not null"` // 类型名称：科幻...
 	// 只需一方显式定义多对多关系，另一方会自动创建连接表
+}
+
+// TableName 指定表名
+func (GenreGorm) TableName() string {
+	return "genres"
 }
 
 func (g *GenreGorm) ToDomain() *movie.Genre {

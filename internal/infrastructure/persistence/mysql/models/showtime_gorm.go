@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// 放映表
 type ShowtimeGorm struct {
 	gorm.Model
 	// 关联的电影ID 已在Movie中定义外键 电影ID，联合索引1
@@ -25,6 +26,11 @@ type ShowtimeGorm struct {
 	EndTime time.Time `gorm:"not null"`
 	// 该场次的票价 (可以更复杂，比如不同座位类型不同价格)
 	Price float64 `gorm:"not null"`
+}
+
+// TableName 指定表名
+func (ShowtimeGorm) TableName() string {
+	return "showtimes"
 }
 
 func (s *ShowtimeGorm) ToDomain() *showtime.Showtime {

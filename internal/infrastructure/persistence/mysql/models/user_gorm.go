@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// 用户表
 type UserGorm struct {
 	gorm.Model
 	Username     string     `gorm:"varchar(100),uniqueIndex,not null"`
@@ -18,6 +19,11 @@ type UserGorm struct {
 
 	RoleID uint     `gorm:"not null"`           // 关联的角色ID
 	Role   RoleGorm `gorm:"foreignKey:RoleID "` // 通常会隐式推断，这里显式定义防止出错
+}
+
+// TableName 指定表名
+func (UserGorm) TableName() string {
+	return "users"
 }
 
 func (u *UserGorm) ToDomain() *user.User {
