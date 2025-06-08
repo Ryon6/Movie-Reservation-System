@@ -76,22 +76,22 @@ func (j *jwtManagerImpl) VerifyToken(tokenString string) (*CustomClaims, error) 
 	if err != nil {
 		// 错误处理，区分是过期、签名无效还是其他格式问题
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, fmt.Errorf("token has expired: %w", err)
+			return nil, fmt.Errorf("%w: %w", ErrTokenExpired, err)
 		}
 		if errors.Is(err, jwt.ErrTokenMalformed) {
-			return nil, fmt.Errorf("token is malformed: %w", err)
+			return nil, fmt.Errorf("%w: %w", ErrTokenMalformed, err)
 		}
 		if errors.Is(err, jwt.ErrSignatureInvalid) {
-			return nil, fmt.Errorf("token signature is invalid: %w", err)
+			return nil, fmt.Errorf("%w: %w", ErrSignatureInvalid, err)
 		}
-		return nil, fmt.Errorf("failed to parse token: %w", err)
+		return nil, fmt.Errorf("jwt parse with claims error: %w", err)
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		return claims, nil
 	}
 
-	return nil, fmt.Errorf("token is invalid")
+	return nil, fmt.Errorf("jwtManagerImpl verify token error: %w", ErrInvalidToken)
 }
 
 // GetMetadata 轻量级解析token元数据（不验证签名）
@@ -99,12 +99,12 @@ func (j *jwtManagerImpl) GetMetadata(tokenString string) (*CustomClaims, error) 
 	// 只解析不验证，性能开销小
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, &CustomClaims{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("jwt parse unverified error: %w", err)
 	}
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token claims")
+	return nil, fmt.Errorf("jwtManagerImpl get metadata error: %w", ErrInvalidTokenClaims)
 }

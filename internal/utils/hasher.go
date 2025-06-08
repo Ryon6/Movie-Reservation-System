@@ -33,7 +33,7 @@ func NewBcryptHasher(cost int) PasswordHasher {
 func (b *bcryptHasher) Hash(password string) (string, error) {
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), b.cost)
 	if err != nil {
-		return "", fmt.Errorf("bcryptHasher.Hash: %w", err)
+		return "", fmt.Errorf("bcryptHasher hash error: %w", err)
 	}
 	return string(hashedBytes), nil
 }
@@ -46,5 +46,5 @@ func (b *bcryptHasher) Check(hashPassword, password string) (bool, error) {
 	if err == bcrypt.ErrMismatchedHashAndPassword {
 		return false, nil
 	}
-	return false, fmt.Errorf("bcryptHasher.Check: %w", err)
+	return false, fmt.Errorf("bcryptHasher check error: %w", err)
 }
