@@ -27,7 +27,7 @@ const (
 )
 
 // 创建一个RedisShowtimeCache实例
-func NewRedisShowtimeCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) ShowtimeCache {
+func NewRedisShowtimeCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) showtime.ShowtimeCache {
 	return &RedisShowtimeCache{
 		redisClient:       redisClient,
 		logger:            logger.With(applog.String("Component", "RedisShowtimeCache")),
@@ -41,21 +41,20 @@ func (c *RedisShowtimeCache) showtimeKey(showtimeID uint) string {
 }
 
 // showtimeListKey 生成放映列表的缓存键
-func (c *RedisShowtimeCache) showtimeListKey(params map[string]interface{}) string {
-	if len(params) == 0 {
+func (c *RedisShowtimeCache) showtimeListKey(options *showtime.ShowtimeQueryOptions) string {
+	if options == nil {
 		return showtimeListKeyPrefix + "all"
 	}
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
 
+	// 规范化参数以确保键的一致性
 	var sb strings.Builder
 	sb.WriteString(showtimeListKeyPrefix)
-	for _, k := range keys {
-		sb.WriteString(fmt.Sprintf("%s=%v:", k, params[k])) // 构建器追加字符串
-	}
+	sb.WriteString(fmt.Sprintf("%s=%v:", "movie_id", options.MovieID))            // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "cinema_hall_id", options.CinemaHallID)) // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "date", options.Date))                   // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "page", options.Page))                   // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "page_size", options.PageSize))          // 构建器追加字符串
+
 	return strings.TrimRight(sb.String(), ":") // 移除字符串右侧的:符号
 }
 
@@ -153,8 +152,8 @@ func (c *RedisShowtimeCache) SetShowtimes(ctx context.Context, showtimes []*show
 
 // SetShowtimeList 设置放映列表的缓存
 func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*showtime.Showtime,
-	params map[string]interface{}, expiration time.Duration) error {
-	logger := c.logger.With(applog.String("Method", "SetShowtimeList"), applog.Any("params", params))
+	options *showtime.ShowtimeQueryOptions, expiration time.Duration) error {
+	logger := c.logger.With(applog.String("Method", "SetShowtimeList"), applog.Any("options", options))
 
 	if expiration == 0 {
 		expiration = c.defaultExpiration
@@ -174,7 +173,7 @@ func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*s
 	}
 
 	// 设置列表缓存（仅包含ID）
-	listKey := c.showtimeListKey(params)
+	listKey := c.showtimeListKey(options)
 	if err := c.redisClient.Set(ctx, listKey, data, expiration).Err(); err != nil {
 		logger.Error("failed to set showtime ID list", applog.Error(err))
 		return fmt.Errorf("failed to set showtime ID list: %w", err)
@@ -193,18 +192,15 @@ func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*s
 	return nil
 }
 
-func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, params map[string]interface{}) (*ShowtimeListResult, error) {
-	logger := c.logger.With(
-		applog.String("Method", "GetShowtimeList"),
-		applog.Any("params", params),
-	)
+func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, options *showtime.ShowtimeQueryOptions) (*showtime.ShowtimeListResult, error) {
+	logger := c.logger.With(applog.String("Method", "GetShowtimeList"), applog.Any("options", options))
 
-	result := &ShowtimeListResult{
+	result := &showtime.ShowtimeListResult{
 		Showtimes: make([]*showtime.Showtime, 0),
 	}
 
 	// 获取ID列表
-	listKey := c.showtimeListKey(params)
+	listKey := c.showtimeListKey(options)
 	valBytes, err := c.redisClient.Get(ctx, listKey).Bytes()
 	if err != nil {
 		if err == redis.Nil {
