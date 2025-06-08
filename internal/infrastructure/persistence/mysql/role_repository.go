@@ -27,10 +27,10 @@ func (r *gormRoleRepository) Create(ctx context.Context, rl *user.Role) error {
 	logger := r.logger.With(applog.String("Method", "Create"), applog.Uint("role_id", uint(rl.ID)), applog.String("role_name", rl.Name))
 	roleGorm := models.RoleGormFromDomain(rl)
 	if err := r.db.WithContext(ctx).Create(roleGorm).Error; err != nil {
-		logger.Error("failed to create role", applog.Error(err))
-		return err
+		logger.Error("database create role error", applog.Error(err))
+		return fmt.Errorf("database create role error: %w", err)
 	}
-	logger.Info("role created successfully")
+	logger.Info("create role successfully")
 	return nil
 }
 
@@ -41,12 +41,12 @@ func (r *gormRoleRepository) FindByID(ctx context.Context, id uint) (*user.Role,
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("role not found by ID")
 			// 封装哨兵错误
-			return nil, fmt.Errorf("%w: %w", user.ErrRoleNotFound, err)
+			return nil, fmt.Errorf("%w(id): %w", user.ErrRoleNotFound, err)
 		}
-		logger.Error("failed to find role by ID", applog.Error(err))
-		return nil, err
+		logger.Error("database find role by ID error", applog.Error(err))
+		return nil, fmt.Errorf("database find role by ID error: %w", err)
 	}
-	logger.Info("role created successfully", applog.String("role_name", roleGorm.Name))
+	logger.Info("find role by ID successfully")
 	return roleGorm.ToDomain(), nil
 }
 
@@ -57,12 +57,12 @@ func (r *gormRoleRepository) FindByName(ctx context.Context, name string) (*user
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("role not found by name")
 			// 封装哨兵错误
-			return nil, fmt.Errorf("%w: %w", user.ErrRoleNotFound, err)
+			return nil, fmt.Errorf("%w(name): %w", user.ErrRoleNotFound, err)
 		}
-		logger.Error("failed to find role by name", applog.Error(err))
-		return nil, err
+		logger.Error("database find role by name error", applog.Error(err))
+		return nil, fmt.Errorf("database find role by name error: %w", err)
 	}
-	logger.Info("role found by name", applog.Uint("role_id", uint(roleGorm.ID)))
+	logger.Info("find role by name successfully")
 	return roleGorm.ToDomain(), nil
 }
 
@@ -70,8 +70,8 @@ func (r *gormRoleRepository) ListAll(ctx context.Context) ([]*user.Role, error) 
 	logger := r.logger.With(applog.String("Method", "ListAll"))
 	var roleGorms []*models.RoleGorm
 	if err := r.db.WithContext(ctx).Find(&roleGorms).Error; err != nil {
-		logger.Error("falied to list all roles", applog.Error(err))
-		return nil, err
+		logger.Error("database list all roles error", applog.Error(err))
+		return nil, fmt.Errorf("database list all roles error: %w", err)
 	}
 	logger.Info("list all roles successfully", applog.Int("count", len(roleGorms)))
 	rls := make([]*user.Role, len(roleGorms))
@@ -84,9 +84,9 @@ func (r *gormRoleRepository) ListAll(ctx context.Context) ([]*user.Role, error) 
 func (r *gormRoleRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("role_id", id))
 	if err := r.db.WithContext(ctx).Delete(&models.RoleGorm{}, id).Error; err != nil {
-		logger.Error("failed to delete role by ID", applog.Error(err))
-		return err
+		logger.Error("database delete role by ID error", applog.Error(err))
+		return fmt.Errorf("database delete role by ID error: %w", err)
 	}
-	logger.Info("delete role by ID successfully")
+	logger.Info("delete role successfully")
 	return nil
 }
