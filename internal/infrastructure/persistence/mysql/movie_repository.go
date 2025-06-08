@@ -90,7 +90,7 @@ func (r *gormMovieRepository) FindByTitle(ctx context.Context, title string) (*m
 
 // List 从数据库中获取电影列表，支持分页和过滤。
 func (r *gormMovieRepository) List(ctx context.Context, options *movie.MovieQueryOptions) ([]*movie.Movie, int64, error) {
-	logger := r.logger.With(applog.String("Method", "List"), applog.Int("page", options.Page), applog.Int("pageSize", options.PageSize))
+	logger := r.logger.With(applog.String("Method", "List"), applog.Any("options", options))
 	var moviesGorms []*models.MovieGorm
 	var totalCount int64
 
