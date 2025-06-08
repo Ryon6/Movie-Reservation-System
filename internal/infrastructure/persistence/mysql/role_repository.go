@@ -85,6 +85,23 @@ func (r *gormRoleRepository) ListAll(ctx context.Context) ([]*user.Role, error) 
 	return rls, nil
 }
 
+// 更新角色
+func (r *gormRoleRepository) Update(ctx context.Context, role *user.Role) error {
+	logger := r.logger.With(applog.String("Method", "Update"), applog.Uint("role_id", uint(role.ID)))
+	roleGorm := models.RoleGormFromDomain(role)
+	if err := r.db.WithContext(ctx).Model(&models.RoleGorm{}).Where("id = ?", roleGorm.ID).Updates(roleGorm).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Warn("role not found")
+			return fmt.Errorf("%w(id): %w", user.ErrRoleNotFound, err)
+		}
+		logger.Error("database update role error", applog.Error(err))
+		return fmt.Errorf("database update role error: %w", err)
+	}
+	logger.Info("update role successfully")
+	return nil
+}
+
+// 删除角色
 func (r *gormRoleRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("role_id", id))
 	if err := r.db.WithContext(ctx).Delete(&models.RoleGorm{}, id).Error; err != nil {
