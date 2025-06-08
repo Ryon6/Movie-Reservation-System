@@ -1,4 +1,3 @@
-// TODO: 添加排序功能. 修改movie字段
 package app
 
 import (
