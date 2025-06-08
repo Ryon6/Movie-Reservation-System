@@ -11,7 +11,7 @@ type ShowtimeRepository interface {
 	FindByID(ctx context.Context, id uint) (*Showtime, error)
 	FindByIDs(ctx context.Context, ids []uint) ([]*Showtime, error)
 	// 分页查询支持过滤条件（如电影ID/影厅ID/日期范围）
-	List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*Showtime, int64, error)
+	List(ctx context.Context, options *ShowtimeQueryOptions) ([]*Showtime, int64, error)
 	Update(ctx context.Context, showtime *Showtime) error
 	Delete(ctx context.Context, id uint) error
 
@@ -23,4 +23,13 @@ type ShowtimeRepository interface {
 	// 查询指定影厅在日期范围内的所有场次
 	FindShowtimesByHallAndDateRanges(ctx context.Context, hallID uint,
 		startDate, endDate time.Time) ([]*Showtime, error)
+}
+
+// 放映查询选项
+type ShowtimeQueryOptions struct {
+	MovieID      uint      // 电影ID
+	CinemaHallID uint      // 影厅ID
+	Date         time.Time // 日期
+	Page         int       // 页码（从1开始）
+	PageSize     int       // 每页数量
 }
