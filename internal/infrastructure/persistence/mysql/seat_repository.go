@@ -32,8 +32,8 @@ func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Se
 		seatGorms[i] = models.SeatGormFromDomain(seat)
 	}
 	if err := r.db.WithContext(ctx).Create(&seatGorms).Error; err != nil {
-		logger.Error("failed to create seats", applog.Error(err))
-		return nil, err
+		logger.Error("database create seats error", applog.Error(err))
+		return nil, fmt.Errorf("database create seats error: %w", err)
 	}
 
 	logger.Info("create seats successfully")
@@ -52,8 +52,8 @@ func (r *gormSeatRepository) FindByID(ctx context.Context, id uint) (*cinema.Sea
 			logger.Warn("seat id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", cinema.ErrSeatNotFound, err)
 		}
-		logger.Error("failed to find seat by id", applog.Error(err))
-		return nil, fmt.Errorf("failed to find seat by id: %w", err)
+		logger.Error("database find seat by id error", applog.Error(err))
+		return nil, fmt.Errorf("database find seat by id error: %w", err)
 	}
 
 	logger.Info("find seat by id successfully")
@@ -69,8 +69,8 @@ func (r *gormSeatRepository) FindByHallID(ctx context.Context, hallID uint) ([]*
 			logger.Warn("no seats found for hall", applog.Error(err))
 			return nil, fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
 		}
-		logger.Error("failed to find seats by hall id", applog.Error(err))
-		return nil, fmt.Errorf("failed to find seats by hall id: %w", err)
+		logger.Error("database find seats by hall id error", applog.Error(err))
+		return nil, fmt.Errorf("database find seats by hall id error: %w", err)
 	}
 
 	logger.Info("find seats by hall id successfully")
@@ -89,8 +89,8 @@ func (r *gormSeatRepository) GetSeatsByIDs(ctx context.Context, seatIDs []uint) 
 			logger.Warn("seats not found", applog.Error(err))
 			return nil, fmt.Errorf("%w: %w", cinema.ErrSeatNotFound, err)
 		}
-		logger.Error("failed to get seats by ids", applog.Error(err))
-		return nil, fmt.Errorf("failed to get seats by ids: %w", err)
+		logger.Error("database get seats by ids error", applog.Error(err))
+		return nil, fmt.Errorf("database get seats by ids error: %w", err)
 	}
 
 	logger.Info("get seats by ids successfully")
@@ -106,19 +106,14 @@ func (r *gormSeatRepository) Update(ctx context.Context, seat *cinema.Seat) erro
 		applog.Uint("seat_id", uint(seat.ID)), applog.Uint("hall_id", uint(seat.CinemaHallID)))
 
 	seatGorm := models.SeatGormFromDomain(seat)
-	if err := r.db.WithContext(ctx).First(&models.SeatGorm{}, seatGorm.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("seat not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", cinema.ErrSeatNotFound, err)
-		}
-		logger.Error("failed to find seat by id", applog.Error(err))
-		return fmt.Errorf("failed to find seat by id: %w", err)
-	}
+	// 基础设施层只负责数据访问，不负责业务逻辑
+	// 因此，这里不进行业务逻辑的判断，直接更新数据库
+	// 如果需要业务逻辑的判断，应该在服务层进行
 
 	result := r.db.WithContext(ctx).Where("id = ?", seatGorm.ID).Updates(&seatGorm)
 	if err := result.Error; err != nil {
-		logger.Error("failed to update seat", applog.Error(err))
-		return fmt.Errorf("failed to update seat: %w", err)
+		logger.Error("database update seat error", applog.Error(err))
+		return fmt.Errorf("database update seat error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -135,9 +130,10 @@ func (r *gormSeatRepository) Delete(ctx context.Context, id uint) error {
 
 	result := r.db.WithContext(ctx).Delete(&models.SeatGorm{}, id)
 	if err := result.Error; err != nil {
-		logger.Error("failed to delete seat", applog.Error(err))
-		return fmt.Errorf("failed to delete seat: %w", err)
+		logger.Error("database delete seat error", applog.Error(err))
+		return fmt.Errorf("database delete seat error: %w", err)
 	}
+
 	// 是否不存在或已删除
 	if result.RowsAffected == 0 {
 		logger.Warn("seat to delete not found or already deleted")
@@ -153,8 +149,8 @@ func (r *gormSeatRepository) DeleteByHallID(ctx context.Context, hallID uint) er
 
 	result := r.db.WithContext(ctx).Where("cinema_hall_id = ?", hallID).Delete(&models.SeatGorm{})
 	if err := result.Error; err != nil {
-		logger.Error("failed to delete seats", applog.Error(err))
-		return fmt.Errorf("failed to delete seats: %w", err)
+		logger.Error("database delete seats error", applog.Error(err))
+		return fmt.Errorf("database delete seats error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
