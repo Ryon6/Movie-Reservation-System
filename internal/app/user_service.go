@@ -17,8 +17,8 @@ import (
 
 type UserService interface {
 	Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error)
-	GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error)
-	UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error)
+	GetUser(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error)
+	UpdateUser(ctx context.Context, req *request.UpdateUserRequest) (*response.UserResponse, error)
 	DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error
 	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)
 }
@@ -98,7 +98,7 @@ func (s *userService) Register(ctx context.Context, req *request.RegisterUserReq
 }
 
 // 获取用户信息
-func (s *userService) GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error) {
+func (s *userService) GetUser(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetUserProfile"), applog.Uint("user_id", req.ID))
 	usr, err := s.userRepo.FindByID(ctx, req.ID)
 	if err != nil {
@@ -111,11 +111,11 @@ func (s *userService) GetUserProfile(ctx context.Context, req *request.GetUserRe
 	}
 
 	logger.Info("find user successfully")
-	return response.ToUserProfileResponse(usr), nil
+	return response.ToUserResponse(usr), nil
 }
 
 // 更新用户信息
-func (s *userService) UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error) {
+func (s *userService) UpdateUser(ctx context.Context, req *request.UpdateUserRequest) (*response.UserResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateUserProfile"), applog.Uint("user_id", req.ID))
 	usr := req.ToDomain()
 	if req.Password != "" {
@@ -163,7 +163,7 @@ func (s *userService) UpdateUserProfile(ctx context.Context, req *request.Update
 	}
 
 	logger.Info("update user successfully")
-	return response.ToUserProfileResponse(usr), nil
+	return response.ToUserResponse(usr), nil
 }
 
 // 删除用户
