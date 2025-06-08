@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
@@ -65,28 +64,28 @@ func (s *movieService) CreateMovie(ctx context.Context,
 		mv, err = movieRepo.Create(ctx, mv)
 		if err != nil {
 			logger.Error("failed to create movie", applog.Error(err))
-			return fmt.Errorf("failed to create movie: %w", err)
+			return err
 		}
 
 		// 检查并创建电影类型
 		genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
 		if err != nil {
 			logger.Error("failed to get genres", applog.Error(err))
-			return fmt.Errorf("failed to get or create genres: %w", err)
+			return err
 		}
 		mv.Genres = genres
 
 		// 电影创建时并不会自动关联类型，需要手动替换
 		if err := movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
 			logger.Error("failed to replace genres for movie", applog.Error(err))
-			return fmt.Errorf("failed to replace genres for movie: %w", err)
+			return err
 		}
 		return nil
 	})
 
 	if err != nil {
 		logger.Error("failed to create movie", applog.Error(err))
-		return nil, fmt.Errorf("failed to create movie: %w", err)
+		return nil, err
 	}
 
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
@@ -122,6 +121,16 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 	// 如果有类型字段更新,先更新类型
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		movieRepo := provider.GetMovieRepository()
+		// 先检查电影是否存在
+		_, err := movieRepo.FindByID(ctx, uint(mv.ID))
+		if err != nil {
+			if errors.Is(err, movie.ErrMovieNotFound) {
+				logger.Info("movie not found")
+				return err
+			}
+			logger.Error("failed to find movie", applog.Error(err))
+			return err
+		}
 
 		// 如果有类型更新
 		if len(req.GenreNames) > 0 {
@@ -129,13 +138,13 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 			genres, err := provider.GetGenreRepository().FindOrCreateByNames(ctx, req.GenreNames)
 			if err != nil {
 				logger.Error("failed to get or create genres", applog.Error(err))
-				return fmt.Errorf("failed to get or create genres: %w", err)
+				return err
 			}
 
 			// 更新电影类型关联
 			if err := movieRepo.ReplaceGenresForMovie(ctx, mv, genres); err != nil {
 				logger.Error("failed to replace genres for movie", applog.Error(err))
-				return fmt.Errorf("failed to replace genres for movie: %w", err)
+				return err
 			}
 
 			// 如果只更新类型,则直接返回
@@ -147,7 +156,7 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 		// 更新电影其他字段
 		if err := movieRepo.Update(ctx, mv); err != nil {
 			logger.Error("failed to update movie", applog.Error(err))
-			return fmt.Errorf("failed to update movie: %w", err)
+			return err
 		}
 
 		return nil
@@ -155,7 +164,7 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 
 	if err != nil {
 		logger.Error("failed to update movie", applog.Error(err))
-		return fmt.Errorf("failed to update movie: %w", err)
+		return err
 	}
 
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
@@ -186,10 +195,10 @@ func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieReques
 				logger.Error("failed to set empty movie to cache", applog.Error(err))
 			}
 			logger.Info("set empty movie to cache successfully")
-			return nil, fmt.Errorf("%w: %w", movie.ErrMovieNotFound, err)
+			return nil, err
 		}
 		logger.Error("failed to get movie", applog.Error(err))
-		return nil, fmt.Errorf("failed to get movie: %w", err)
+		return nil, err
 	}
 
 	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
@@ -204,9 +213,20 @@ func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieReques
 func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteMovie"), applog.Uint("movie_id", req.ID))
 
-	if err := s.movieRepo.Delete(ctx, req.ID); err != nil {
+	// 先检查电影是否存在
+	mv, err := s.movieRepo.FindByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, movie.ErrMovieNotFound) {
+			logger.Info("movie not found")
+			return err
+		}
+		logger.Error("failed to get movie", applog.Error(err))
+		return err
+	}
+
+	if err := s.movieRepo.Delete(ctx, uint(mv.ID)); err != nil {
 		logger.Error("failed to delete movie", applog.Error(err))
-		return fmt.Errorf("failed to delete movie: %w", err)
+		return err
 	}
 
 	if err := s.movieCache.DeleteMovie(ctx, req.ID); err != nil {
@@ -291,21 +311,19 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 func (s *movieService) CreateGenre(ctx context.Context, req *request.CreateGenreRequest) (*response.GenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateGenre"))
 
-	genre := &movie.Genre{
-		Name: req.Name,
-	}
+	genre := &movie.Genre{Name: req.Name}
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		var err error
 		genre, err = provider.GetGenreRepository().Create(ctx, genre)
 		if err != nil {
 			logger.Error("failed to create genre", applog.Error(err))
-			return fmt.Errorf("failed to create genre: %w", err)
+			return err
 		}
 		return nil
 	})
 	if err != nil {
 		logger.Error("failed to create genre", applog.Error(err))
-		return nil, fmt.Errorf("failed to create genre: %w", err)
+		return nil, err
 	}
 
 	logger.Info("create genre successfully", applog.Uint("genre_id", uint(genre.ID)))
@@ -316,12 +334,18 @@ func (s *movieService) CreateGenre(ctx context.Context, req *request.CreateGenre
 func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenreRequest) (*response.GenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateGenre"))
 
+	// 先检查类型是否存在
 	genre, err := s.genreRepo.FindByID(ctx, req.ID)
 	if err != nil {
+		if errors.Is(err, movie.ErrGenreNotFound) {
+			logger.Info("genre not found")
+			return nil, err
+		}
 		logger.Error("failed to get genre", applog.Error(err))
-		return nil, fmt.Errorf("failed to get genre: %w", err)
+		return nil, err
 	}
 
+	// 如果类型名称与原名称相同，则直接返回
 	if req.Name == "" || req.Name == genre.Name {
 		logger.Info("genre name is the same as the original name")
 		return response.ToGenreResponse(genre), nil
@@ -330,7 +354,7 @@ func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenre
 	genre.Name = req.Name
 	if err := s.genreRepo.Update(ctx, genre); err != nil {
 		logger.Error("failed to update genre", applog.Error(err))
-		return nil, fmt.Errorf("failed to update genre: %w", err)
+		return nil, err
 	}
 
 	logger.Info("update genre successfully", applog.Uint("genre_id", uint(genre.ID)))
@@ -341,13 +365,24 @@ func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenre
 func (s *movieService) DeleteGenre(ctx context.Context, req *request.DeleteGenreRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteGenre"), applog.Uint("genre_id", req.ID))
 
-	if err := s.genreRepo.Delete(ctx, req.ID); err != nil {
+	// 先检查类型是否存在
+	genre, err := s.genreRepo.FindByID(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, movie.ErrGenreNotFound) {
+			logger.Info("genre not found")
+			return err
+		}
+		logger.Error("failed to get genre", applog.Error(err))
+		return err
+	}
+
+	if err := s.genreRepo.Delete(ctx, uint(genre.ID)); err != nil {
 		if errors.Is(err, movie.ErrGenreReferenced) {
 			logger.Warn("genre is referenced by movie", applog.Uint("genre_id", req.ID))
-			return fmt.Errorf("genre is referenced by movie: %w", err)
+			return err
 		}
 		logger.Error("failed to delete genre", applog.Error(err))
-		return fmt.Errorf("failed to delete genre: %w", err)
+		return err
 	}
 
 	logger.Info("delete genre successfully", applog.Uint("genre_id", req.ID))
@@ -361,7 +396,7 @@ func (s *movieService) ListAllGenres(ctx context.Context) (*response.ListAllGenr
 	genres, err := s.genreRepo.ListAll(ctx)
 	if err != nil {
 		logger.Error("failed to list genres", applog.Error(err))
-		return nil, fmt.Errorf("failed to list genres: %w", err)
+		return nil, err
 	}
 
 	logger.Info("list genres successfully", applog.Int("total", len(genres)))
