@@ -31,12 +31,12 @@ func (r *gormUserRepository) Create(ctx context.Context, usr *user.User) error {
 		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrDuplicatedKey) || errors.Is(err, gorm.ErrRegistered) {
 			logger.Warn("user already exists", applog.Error(err))
-			return fmt.Errorf("%w: %w", user.ErrUserAlreadyExists, err)
+			return fmt.Errorf("%w(id): %w", user.ErrUserAlreadyExists, err)
 		}
-		logger.Error("failed to create user", applog.Error(err))
-		return err
+		logger.Error("database create user error", applog.Error(err))
+		return fmt.Errorf("database create user error: %w", err)
 	}
-	logger.Info("user created successfully")
+	logger.Info("create user successfully")
 	return nil
 }
 
@@ -49,12 +49,12 @@ func (r *gormUserRepository) FindByID(ctx context.Context, id uint) (*user.User,
 		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not found by ID")
-			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
+			return nil, fmt.Errorf("%w(id): %w", user.ErrUserNotFound, err)
 		}
-		logger.Error("failed to find user by ID", applog.Error(err))
-		return nil, err
+		logger.Error("database find user by ID error", applog.Error(err))
+		return nil, fmt.Errorf("database find user by ID error: %w", err)
 	}
-	logger.Info("user found by ID", applog.String("username", userGorm.Username))
+	logger.Info("find user by ID successfully")
 	return userGorm.ToDomain(), nil
 }
 
@@ -66,12 +66,12 @@ func (r *gormUserRepository) FindByUsername(ctx context.Context, username string
 		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not found by username")
-			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
+			return nil, fmt.Errorf("%w(username): %w", user.ErrUserNotFound, err)
 		}
-		logger.Error("failed to find user by username", applog.Error(err))
-		return nil, err
+		logger.Error("database find user by username error", applog.Error(err))
+		return nil, fmt.Errorf("database find user by username error: %w", err)
 	}
-	logger.Info("user found by username", applog.Uint("user_id", uint(userGorm.ID)))
+	logger.Info("find user by username successfully")
 	return userGorm.ToDomain(), nil
 }
 
@@ -83,12 +83,12 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 		// 封装哨兵错误
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("user not found by email")
-			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
+			return nil, fmt.Errorf("%w(email): %w", user.ErrUserNotFound, err)
 		}
-		logger.Error("failed to find user by email", applog.Error(err))
-		return nil, err
+		logger.Error("database find user by email error", applog.Error(err))
+		return nil, fmt.Errorf("database find user by email error: %w", err)
 	}
-	logger.Info("user found by email", applog.Uint("user_id", uint(userGorm.ID)))
+	logger.Info("find user by email successfully")
 	return userGorm.ToDomain(), nil
 }
 
@@ -96,11 +96,12 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 	logger := r.logger.With(applog.String("Method", "Update"), applog.Uint("user_id", uint(usr.ID)))
 	userGorm := models.UserGormFromDomain(usr)
-	if err := r.db.WithContext(ctx).Save(userGorm).Error; err != nil {
-		logger.Error("failed to update user", applog.Error(err))
-		return err
+	// 使用Updates方法更新用户信息，避免使用Save方法，因为Save方法会忽略零值字段
+	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("id = ?", userGorm.ID).Updates(userGorm).Error; err != nil {
+		logger.Error("database update user error", applog.Error(err))
+		return fmt.Errorf("database update user error: %w", err)
 	}
-	logger.Info("user updated successfully")
+	logger.Info("update user successfully")
 	return nil
 }
 
