@@ -78,6 +78,16 @@ type ListMovieRequest struct {
 	ReleaseYear int    `json:"release_year" binding:"omitempty,min=1900,max=2100"` // 按上映年份过滤
 }
 
+func (r *ListMovieRequest) ToDomain() *movie.MovieQueryOptions {
+	return &movie.MovieQueryOptions{
+		Title:       r.Title,
+		GenreName:   r.GenreName,
+		ReleaseYear: r.ReleaseYear,
+		Page:        r.Page,
+		PageSize:    r.PageSize,
+	}
+}
+
 // 创建类型
 type CreateGenreRequest struct {
 	Name string `json:"name" binding:"required,min=1,max=255"`
