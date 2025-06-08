@@ -8,7 +8,6 @@ import (
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/shared"
 	"mrs/internal/domain/showtime"
-	"mrs/internal/infrastructure/cache"
 	applog "mrs/pkg/log"
 )
 
@@ -23,13 +22,13 @@ type ShowtimeService interface {
 type showtimeService struct {
 	uow       shared.UnitOfWork
 	showRepo  showtime.ShowtimeRepository
-	showCache cache.ShowtimeCache
+	showCache showtime.ShowtimeCache
 	logger    applog.Logger
 }
 
 func NewShowtimeService(
 	uow shared.UnitOfWork,
-	showCache cache.ShowtimeCache,
+	showCache showtime.ShowtimeCache,
 	logger applog.Logger,
 ) ShowtimeService {
 	return &showtimeService{
@@ -148,16 +147,7 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 		applog.Uint("cinema_hall_id", req.CinemaHallID),
 		applog.Time("date", req.Date))
 
-	filters := make(map[string]interface{})
-	if req.MovieID > 0 {
-		filters["movie_id"] = req.MovieID
-	}
-	if req.CinemaHallID > 0 {
-		filters["cinema_hall_id"] = req.CinemaHallID
-	}
-	if !req.Date.IsZero() {
-		filters["date"] = req.Date
-	}
+	options := req.ToDomain()
 
 	var showtimes []*showtime.Showtime
 	var fn = func(showtimes []*showtime.Showtime) *response.PaginatedShowtimeResponse {
@@ -185,7 +175,7 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 	// 2. 列表缓存中存在数据，但部分showtime记录缺失（即showtime_id列表中存在但缓存中不存在） -> 进一步查询数据库
 	// 3. 列表缓存中存在数据，且所有showtime记录都存在（即showtime_id列表中所有showtime记录都存在） -> 直接返回缓存数据
 	// 而列表缓存未命中，则需要进一步查询数据库
-	cacheResult, err := s.showCache.GetShowtimeList(ctx, filters)
+	cacheResult, err := s.showCache.GetShowtimeList(ctx, options)
 	if err != nil {
 		logger.Warn("failed to get showtime list from cache", applog.Error(err))
 	} else {
@@ -207,7 +197,7 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 		}
 		showtimes = append(showtimes, missingShowtimes...)
 	} else {
-		showtimes, _, err = s.showRepo.List(ctx, req.Page, req.PageSize, filters)
+		showtimes, _, err = s.showRepo.List(ctx, options)
 		if err != nil {
 			logger.Error("failed to list showtimes", applog.Error(err))
 			return nil, err
@@ -216,7 +206,7 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 
 	logger.Info("list showtimes successfully", applog.Int("total", int(len(showtimes))))
 
-	if err := s.showCache.SetShowtimeList(ctx, showtimes, filters, 0); err != nil {
+	if err := s.showCache.SetShowtimeList(ctx, showtimes, options, 0); err != nil {
 		logger.Error("failed to set showtime list to cache", applog.Error(err))
 	}
 	return fn(showtimes), nil
