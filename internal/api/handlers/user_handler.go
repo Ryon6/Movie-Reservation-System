@@ -259,3 +259,29 @@ func (h *UserHandler) ListUsers(ctx *gin.Context) {
 	logger.Info("list users successfully")
 	ctx.JSON(http.StatusOK, userResp)
 }
+
+// 创建角色
+func (h *UserHandler) CreateRole(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "CreateRole"))
+	var req request.CreateRoleRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind create role request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	roleResp, err := h.userService.CreateRole(ctx, &req)
+	if err != nil {
+		if errors.Is(err, user.ErrRoleAlreadyExists) {
+			logger.Warn("role already exists", applog.String("role_name", req.Name))
+			ctx.JSON(http.StatusConflict, gin.H{"error": "Role already exists"})
+			return
+		}
+		logger.Error("failed to create role", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("role created successfully")
+	ctx.JSON(http.StatusOK, roleResp)
+}

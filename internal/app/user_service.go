@@ -21,6 +21,7 @@ type UserService interface {
 	UpdateUser(ctx context.Context, req *request.UpdateUserRequest) (*response.UserResponse, error)
 	DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error
 	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)
+	CreateRole(ctx context.Context, req *request.CreateRoleRequest) (*response.RoleResponse, error)
 }
 
 type userService struct {
@@ -203,4 +204,31 @@ func (s *userService) ListUsers(ctx context.Context, req *request.ListUserReques
 	resp.PaginationResponse = pagination
 	logger.Info("list users successfully")
 	return resp, nil
+}
+
+// 创建角色
+func (s *userService) CreateRole(ctx context.Context, req *request.CreateRoleRequest) (*response.RoleResponse, error) {
+	logger := s.logger.With(applog.String("Method", "CreateRole"), applog.String("role_name", req.Name))
+	role := req.ToDomain()
+
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		var err error
+		role, err = provider.GetRoleRepository().Create(ctx, role)
+		if err != nil {
+			if errors.Is(err, user.ErrRoleAlreadyExists) {
+				logger.Warn("role already exists", applog.String("role_name", req.Name))
+				return err
+			}
+			logger.Error("failed to create role in repository", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Error("failed to execute transaction", applog.Error(err))
+		return nil, err
+	}
+
+	logger.Info("create role successfully")
+	return response.ToRoleResponse(role), nil
 }
