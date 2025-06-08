@@ -115,3 +115,25 @@ func (r *gormUserRepository) Delete(ctx context.Context, id uint) error {
 	logger.Info("delete user successfully")
 	return nil
 }
+
+func (r *gormUserRepository) List(ctx context.Context, options *user.UserQueryOptions) ([]*user.User, int64, error) {
+	logger := r.logger.With(applog.String("Method", "ListAll"), applog.Any("options", options))
+	var userGorms []models.UserGorm
+	if err := r.db.WithContext(ctx).Preload("Role").Limit(options.PageSize).Offset((options.Page - 1) * options.PageSize).Find(&userGorms).Error; err != nil {
+		logger.Error("database list all users error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database list all users error: %w", err)
+	}
+
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Count(&total).Error; err != nil {
+		logger.Error("database count users error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database count users error: %w", err)
+	}
+
+	logger.Info("list all users successfully")
+	users := make([]*user.User, len(userGorms))
+	for i, userGorm := range userGorms {
+		users[i] = userGorm.ToDomain()
+	}
+	return users, total, nil
+}
