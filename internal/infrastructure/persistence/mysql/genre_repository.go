@@ -33,8 +33,8 @@ func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) (*
 			logger.Warn("genre name already exists", applog.String("name", genre.Name), applog.Error(err))
 			return nil, fmt.Errorf("%w: %w", movie.ErrGenreAlreadyExists, err)
 		}
-		logger.Error("failed to create genre", applog.Uint("genre_id", uint(genre.ID)), applog.Error(err))
-		return nil, fmt.Errorf("failed to create genre: %w", err)
+		logger.Error("database create genre error", applog.Uint("genre_id", uint(genre.ID)), applog.Error(err))
+		return nil, fmt.Errorf("database create genre error: %w", err)
 	}
 	logger.Info("create genre successfully", applog.Uint("genre_id", uint(genre.ID)))
 	return genreGorm.ToDomain(), nil
@@ -48,8 +48,8 @@ func (r *gormGenreRepository) FindByID(ctx context.Context, id uint) (*movie.Gen
 			logger.Warn("genre id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", movie.ErrGenreNotFound, err)
 		}
-		logger.Error("failed to find genre by id", applog.Error(err))
-		return nil, fmt.Errorf("failed to find genre by id: %w", err)
+		logger.Error("database find genre by id error", applog.Error(err))
+		return nil, fmt.Errorf("database find genre by id error: %w", err)
 	}
 	logger.Info("find genre successfully", applog.String("name", genreGorm.Name))
 	return genreGorm.ToDomain(), nil
@@ -64,8 +64,8 @@ func (r *gormGenreRepository) FindByName(ctx context.Context, name string) (*mov
 			logger.Warn("genre name not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(name): %w", movie.ErrGenreNotFound, err)
 		}
-		logger.Error("failed to find genre by name", applog.Error(err))
-		return nil, fmt.Errorf("failed to find genre by name: %w", err)
+		logger.Error("database find genre by name error", applog.Error(err))
+		return nil, fmt.Errorf("database find genre by name error: %w", err)
 	}
 	logger.Info("find genre successfully", applog.Uint("genre_id", uint(genreGorm.ID)))
 	return genreGorm.ToDomain(), nil
@@ -75,8 +75,8 @@ func (r *gormGenreRepository) ListAll(ctx context.Context) ([]*movie.Genre, erro
 	logger := r.logger.With(applog.String("Method", "ListAll"))
 	var genresGorms []*models.GenreGorm
 	if err := r.db.WithContext(ctx).Find(&genresGorms).Error; err != nil {
-		logger.Error("failed to list all genres", applog.Error(err))
-		return nil, fmt.Errorf("failed to list all genres: %w", err)
+		logger.Error("database list all genres error", applog.Error(err))
+		return nil, fmt.Errorf("database list all genres error: %w", err)
 	}
 	logger.Info("list all genres successfully", applog.Int("count", len(genresGorms)))
 	genres := make([]*movie.Genre, len(genresGorms))
@@ -90,24 +90,18 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 	logger := r.logger.With(applog.String("Method", "Update"),
 		applog.Uint("genre_id", uint(genre.ID)), applog.String("name", genre.Name))
 
-	// 检查存在性
+	// 基础设施层只负责数据访问，不负责业务逻辑
+	// 因此，这里不进行业务逻辑的判断，直接更新数据库
+	// 如果需要业务逻辑的判断，应该在服务层进行
 	genreGorm := models.GenreGormFromDomain(genre)
-	if _, err := r.FindByID(ctx, genreGorm.ID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("genre id not found", applog.Error(err))
-			return fmt.Errorf("%w(id): %w", movie.ErrGenreNotFound, err)
-		}
-		return fmt.Errorf("failed to find by id: %w", err)
-	}
-
 	// 使用Updates只更新非零值字段
 	result := r.db.WithContext(ctx).Model(&models.GenreGorm{}).
 		Where("id = ?", genreGorm.ID).
 		Updates(genreGorm)
 
 	if result.Error != nil {
-		logger.Error("failed to update genre", applog.Error(result.Error))
-		return fmt.Errorf("failed to update genre: %w", result.Error)
+		logger.Error("database update genre error", applog.Error(result.Error))
+		return fmt.Errorf("database update genre error: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
@@ -134,8 +128,8 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 			logger.Warn("genre to delete not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", movie.ErrGenreNotFound, err)
 		}
-		logger.Error("failed to delete genre", applog.Error(err))
-		return fmt.Errorf("failed to delete genre: %w", err)
+		logger.Error("database delete genre error", applog.Error(err))
+		return fmt.Errorf("database delete genre error: %w", err)
 	}
 
 	// 是否不存在或已删除
@@ -154,8 +148,8 @@ func (r *gormGenreRepository) FindOrCreateByNames(ctx context.Context, names []s
 	var genreGorms []*models.GenreGorm
 	// 先尝试查找所有已存在的类型
 	if err := r.db.WithContext(ctx).Where("name IN ?", names).Find(&genreGorms).Error; err != nil {
-		logger.Error("failed to find genres by names", applog.Error(err))
-		return nil, fmt.Errorf("failed to find genres by names: %w", err)
+		logger.Error("database find genres by names error", applog.Error(err))
+		return nil, fmt.Errorf("database find genres by names error: %w", err)
 	}
 
 	// 找出需要创建的类型名称
@@ -178,8 +172,8 @@ func (r *gormGenreRepository) FindOrCreateByNames(ctx context.Context, names []s
 			newGenres[i] = &models.GenreGorm{Name: name}
 		}
 		if err := r.db.WithContext(ctx).Create(&newGenres).Error; err != nil {
-			logger.Error("failed to create new genres", applog.Error(err))
-			return nil, fmt.Errorf("failed to create new genres: %w", err)
+			logger.Error("database create new genres error", applog.Error(err))
+			return nil, fmt.Errorf("database create new genres error: %w", err)
 		}
 		genreGorms = append(genreGorms, newGenres...)
 	}
