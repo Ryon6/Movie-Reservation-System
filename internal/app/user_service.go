@@ -24,6 +24,7 @@ type UserService interface {
 	CreateRole(ctx context.Context, req *request.CreateRoleRequest) (*response.RoleResponse, error)        // 创建角色
 	ListRoles(ctx context.Context) (*response.ListRoleResponse, error)                                     // 获取角色列表
 	UpdateRole(ctx context.Context, req *request.UpdateRoleRequest) (*response.RoleResponse, error)        // 更新角色
+	DeleteRole(ctx context.Context, req *request.DeleteRoleRequest) error                                  // 删除角色
 }
 
 type userService struct {
@@ -293,4 +294,38 @@ func (s *userService) UpdateRole(ctx context.Context, req *request.UpdateRoleReq
 
 	logger.Info("update role successfully")
 	return response.ToRoleResponse(role), nil
+}
+
+// 删除角色
+func (s *userService) DeleteRole(ctx context.Context, req *request.DeleteRoleRequest) error {
+	logger := s.logger.With(applog.String("Method", "DeleteRole"), applog.Uint("role_id", req.ID))
+
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		var err error
+		roleRepo := provider.GetRoleRepository()
+		// 先检查角色是否存在
+		existingRole, err := roleRepo.FindByID(ctx, uint(req.ID))
+		if err != nil {
+			if errors.Is(err, user.ErrRoleNotFound) {
+				logger.Warn("role not found")
+				return err
+			}
+			logger.Error("failed to find role by ID", applog.Error(err))
+			return err
+		}
+
+		// 删除角色
+		if err := roleRepo.Delete(ctx, uint(existingRole.ID)); err != nil {
+			logger.Error("failed to delete role in repository", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Error("failed to execute transaction", applog.Error(err))
+		return err
+	}
+
+	logger.Info("delete role successfully")
+	return nil
 }

@@ -292,3 +292,24 @@ func (h *UserHandler) UpdateRole(ctx *gin.Context) {
 	logger.Info("role updated successfully")
 	ctx.JSON(http.StatusOK, roleResp)
 }
+
+// 删除角色
+func (h *UserHandler) DeleteRole(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "DeleteRole"))
+	id, err := getIDFromPath(ctx)
+	if err != nil {
+		logger.Error("failed to parse role_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
+		return
+	}
+
+	err = h.userService.DeleteRole(ctx, &request.DeleteRoleRequest{ID: id})
+	if err != nil {
+		logger.Error("failed to delete role", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("role deleted successfully")
+	ctx.JSON(http.StatusNoContent, nil)
+}
