@@ -4,12 +4,10 @@ import (
 	"errors"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
-	"mrs/internal/api/middleware"
 	"mrs/internal/app"
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -57,17 +55,10 @@ func (h *UserHandler) Register(ctx *gin.Context) {
 // 用户获取自身信息
 func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "GetUserProfile"))
-	userID, exists := ctx.Get(middleware.UserIDKey)
-	if !exists {
-		logger.Error("userID not found in context, auth middleware might not have run or failed")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: User ID not found in context"})
-		return
-	}
-
-	id, ok := userID.(uint)
-	if !ok {
-		logger.Error("user_id in context is not of type uint", applog.Any("user_id_type", userID))
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: User ID format issue"})
+	id, err := getIDFromPath(ctx)
+	if err != nil {
+		logger.Error("failed to parse user_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
@@ -90,21 +81,14 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 // 管理员获取用户信息
 func (h *UserHandler) GetUser(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "GetUser"))
-	userID, exists := ctx.Params.Get("id")
-	if !exists {
-		logger.Error("user_id not found in params")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found in params"})
-		return
-	}
-
-	id, err := strconv.ParseUint(userID, 10, 32)
+	id, err := getIDFromPath(ctx)
 	if err != nil {
 		logger.Error("failed to parse user_id", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	userResp, err := h.userService.GetUser(ctx, &request.GetUserRequest{ID: uint(id)})
+	userResp, err := h.userService.GetUser(ctx, &request.GetUserRequest{ID: id})
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found", applog.Uint("user_id", uint(id)))
@@ -135,20 +119,13 @@ func (h *UserHandler) UpdateUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	userID, exists := ctx.Get(middleware.UserIDKey)
-	if !exists {
-		logger.Error("userID not found in context, auth middleware might not have run or failed")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: User ID not found in context"})
+	id, err := getIDFromPath(ctx)
+	if err != nil {
+		logger.Error("failed to parse user_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
-
-	id, ok := userID.(uint)
-	if !ok {
-		logger.Error("user_id in context is not of type uint", applog.Any("user_id_type", userID))
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: User ID format issue"})
-		return
-	}
-	req.ID = id
+	req.ID = uint(id)
 
 	userResp, err := h.userService.UpdateUser(ctx, &req)
 	if err != nil {
@@ -180,14 +157,7 @@ func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	userID, exists := ctx.Params.Get("id")
-	if !exists {
-		logger.Error("user_id not found in params")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found in params"})
-		return
-	}
-
-	id, err := strconv.ParseUint(userID, 10, 32)
+	id, err := getIDFromPath(ctx)
 	if err != nil {
 		logger.Error("failed to parse user_id", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
@@ -209,14 +179,7 @@ func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 // 删除用户
 func (h *UserHandler) DeleteUser(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "DeleteUser"))
-	userID, exists := ctx.Params.Get("id")
-	if !exists {
-		logger.Error("user_id not found in params")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found in params"})
-		return
-	}
-
-	id, err := strconv.ParseUint(userID, 10, 32)
+	id, err := getIDFromPath(ctx)
 	if err != nil {
 		logger.Error("failed to parse user_id", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
@@ -283,5 +246,34 @@ func (h *UserHandler) CreateRole(ctx *gin.Context) {
 	}
 
 	logger.Info("role created successfully")
+	ctx.JSON(http.StatusOK, roleResp)
+}
+
+func (h *UserHandler) UpdateRole(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "UpdateRole"))
+
+	id, err := getIDFromPath(ctx)
+	if err != nil {
+		logger.Error("failed to parse role_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
+		return
+	}
+
+	var req request.UpdateRoleRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind update role request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+	req.ID = id
+
+	roleResp, err := h.userService.UpdateRole(ctx, &req)
+	if err != nil {
+		logger.Error("failed to update role", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("role updated successfully")
 	ctx.JSON(http.StatusOK, roleResp)
 }
