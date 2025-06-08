@@ -138,9 +138,9 @@ func (s *userService) UpdateUserProfile(ctx context.Context, req *request.Update
 		}
 
 		// 检查是否需要更新
-		if existingUser.Username == usr.Username &&
-			existingUser.Email == usr.Email &&
-			existingUser.PasswordHash == usr.PasswordHash {
+		if (usr.Username == "" || usr.Username == existingUser.Username) &&
+			(usr.Email == "" || usr.Email == existingUser.Email) &&
+			(usr.PasswordHash == "" || usr.PasswordHash == existingUser.PasswordHash) {
 			logger.Info("no need to update user")
 			return shared.ErrNoRowsAffected
 		}
