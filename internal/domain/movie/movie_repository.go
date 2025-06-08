@@ -14,8 +14,8 @@ type MovieRepository interface {
 	Update(ctx context.Context, movie *Movie) error
 	Delete(ctx context.Context, id uint) error
 	// 为电影增加、删除和修改类型
-	AddGenreToMovie(ctx context.Context, movie *Movie, genre *Genre) error
-	RemoveGenreToMovie(ctx context.Context, movie *Movie, genre *Genre) error
+	// AddGenreToMovie(ctx context.Context, movie *Movie, genre *Genre) error
+	// RemoveGenreToMovie(ctx context.Context, movie *Movie, genre *Genre) error
 	ReplaceGenresForMovie(ctx context.Context, movie *Movie, genres []*Genre) error
 }
 

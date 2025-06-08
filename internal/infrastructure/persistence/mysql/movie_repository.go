@@ -33,8 +33,8 @@ func (r *gormMovieRepository) Create(ctx context.Context, mv *movie.Movie) (*mov
 			logger.Warn("movie already eixsts", applog.Error(err))
 			return nil, fmt.Errorf("%w: %w", movie.ErrMovieAlreadyExists, err)
 		}
-		logger.Error("failed to create movie", applog.Error(err))
-		return nil, fmt.Errorf("failed to create movie: %w", err)
+		logger.Error("database create movie error", applog.Error(err))
+		return nil, fmt.Errorf("database create movie error: %w", err)
 
 	}
 	logger.Info("create movie successfully")
@@ -50,8 +50,8 @@ func (r *gormMovieRepository) FindByID(ctx context.Context, id uint) (*movie.Mov
 			logger.Warn("movie id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", movie.ErrMovieNotFound, err)
 		}
-		logger.Error("failed to find movie by id", applog.Error(err))
-		return nil, fmt.Errorf("failed to find movie by id: %w", err)
+		logger.Error("database find movie by id error", applog.Error(err))
+		return nil, fmt.Errorf("database find movie by id error: %w", err)
 	}
 	logger.Info("find movie by id successfully")
 	return mvGorm.ToDomain(), nil
@@ -61,8 +61,8 @@ func (r *gormMovieRepository) FindByIDs(ctx context.Context, ids []uint) ([]*mov
 	logger := r.logger.With(applog.String("Method", "FindByIDs"), applog.Int("count", len(ids)))
 	var mvGorms []*models.MovieGorm
 	if err := r.db.WithContext(ctx).Preload("Genres").Where("id IN (?)", ids).Find(&mvGorms).Error; err != nil {
-		logger.Error("failed to find movies by ids", applog.Error(err))
-		return nil, fmt.Errorf("failed to find movies by ids: %w", err)
+		logger.Error("database find movies by ids error", applog.Error(err))
+		return nil, fmt.Errorf("database find movies by ids error: %w", err)
 	}
 	movies := make([]*movie.Movie, len(mvGorms))
 	for i, mvGorm := range mvGorms {
@@ -81,8 +81,8 @@ func (r *gormMovieRepository) FindByTitle(ctx context.Context, title string) (*m
 			logger.Warn("movie title not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(title): %w", movie.ErrMovieNotFound, err)
 		}
-		logger.Error("failed to find movie by title", applog.Error(err))
-		return nil, fmt.Errorf("failed to find movie by title: %w", err)
+		logger.Error("database find movie by title error", applog.Error(err))
+		return nil, fmt.Errorf("database find movie by title error: %w", err)
 	}
 	logger.Info("find movie by title successfully")
 	return mvGorm.ToDomain(), nil
@@ -124,8 +124,8 @@ func (r *gormMovieRepository) List(ctx context.Context, options *movie.MovieQuer
 	}
 	// 获取总数
 	if err := countQuery.Count(&totalCount).Error; err != nil {
-		logger.Error("Failed to count movies", applog.Error(err))
-		return nil, 0, err
+		logger.Error("database count movies error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database count movies error: %w", err)
 	}
 
 	if totalCount == 0 {
@@ -136,11 +136,11 @@ func (r *gormMovieRepository) List(ctx context.Context, options *movie.MovieQuer
 	// 应用排序和分页，并预加载类型
 	offset := (options.Page - 1) * options.PageSize
 	if err := query.Order("release_date DESC, title ASC").Offset(offset).Limit(options.PageSize).Preload("Genres").Find(&moviesGorms).Error; err != nil {
-		logger.Error("Failed to list movies", applog.Error(err))
-		return nil, 0, err
+		logger.Error("database list movies error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database list movies error: %w", err)
 	}
 
-	logger.Info("Movies listed successfully", applog.Int("count", len(moviesGorms)), applog.Int64("total_count", totalCount))
+	logger.Info("list movies successfully", applog.Int("count", len(moviesGorms)), applog.Int64("total_count", totalCount))
 	movies := make([]*movie.Movie, len(moviesGorms))
 	for i, movieGorm := range moviesGorms {
 		movies[i] = movieGorm.ToDomain()
@@ -153,19 +153,14 @@ func (r *gormMovieRepository) Update(ctx context.Context, mv *movie.Movie) error
 		applog.Uint("movie_id", uint(mv.ID)), applog.String("title", mv.Title))
 
 	movieGorm := models.MovieGormFromDomain(mv)
-	if err := r.db.WithContext(ctx).First(&models.MovieGorm{}, movieGorm.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("movie not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", movie.ErrMovieNotFound, err)
-		}
-		logger.Error("failed to find movie by id", applog.Error(err))
-		return fmt.Errorf("failed to find movie by id: %w", err)
-	}
+	// 基础设施层只负责数据访问，不负责业务逻辑
+	// 因此，这里不进行业务逻辑的判断，直接更新数据库
+	// 如果需要业务逻辑的判断，应该在服务层进行
 
 	result := r.db.WithContext(ctx).Model(&models.MovieGorm{}).Where("id = ?", movieGorm.ID).Updates(movieGorm)
 	if err := result.Error; err != nil {
-		logger.Error("failed to update movie", applog.Error(err))
-		return fmt.Errorf("failed to update movie: %w", err)
+		logger.Error("database update movie error", applog.Error(err))
+		return fmt.Errorf("database update movie error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -186,8 +181,8 @@ func (r *gormMovieRepository) Delete(ctx context.Context, id uint) error {
 			logger.Warn("movie to delete not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", movie.ErrMovieNotFound, err)
 		}
-		logger.Error("failed to delete movie", applog.Error(err))
-		return fmt.Errorf("failed to delete movie: %w", err)
+		logger.Error("database delete movie error", applog.Error(err))
+		return fmt.Errorf("database delete movie error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -199,38 +194,7 @@ func (r *gormMovieRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-// 为电影增加、删除和修改类型
-func (r *gormMovieRepository) AddGenreToMovie(ctx context.Context, mv *movie.Movie, genre *movie.Genre) error {
-	logger := r.logger.With(applog.String("Method", "AddGenreToMovie"),
-		applog.Uint("movie_id", uint(mv.ID)), applog.String("movie_title", mv.Title),
-		applog.Uint("genre_id", uint(genre.ID)), applog.String("genre_name", genre.Name))
-	movieGorm := models.MovieGormFromDomain(mv)
-	genreGorm := models.GenreGormFromDomain(genre)
-	if err := r.db.WithContext(ctx).Model(movieGorm).Association("Genres").Append(genreGorm); err != nil {
-		logger.Error("failed to add genre to movie", applog.Error(err))
-		return fmt.Errorf("failed to add genre to movie: %w", err)
-	}
-
-	logger.Info("add genre to movie successfully")
-	return nil
-}
-
-func (r *gormMovieRepository) RemoveGenreToMovie(ctx context.Context, mv *movie.Movie, genre *movie.Genre) error {
-	logger := r.logger.With(applog.String("Method", "RemoveGenreToMovie"),
-		applog.Uint("movie_id", uint(mv.ID)), applog.String("movie_title", mv.Title),
-		applog.Uint("genre_id", uint(genre.ID)), applog.String("genre_name", genre.Name))
-
-	movieGorm := models.MovieGormFromDomain(mv)
-	genreGorm := models.GenreGormFromDomain(genre)
-	if err := r.db.WithContext(ctx).Model(movieGorm).Association("Genres").Delete(genreGorm); err != nil {
-		logger.Error("failed to remove genre to movie", applog.Error(err))
-		return fmt.Errorf("failed to remove genre to movie: %w", err)
-	}
-	logger.Info("remove genre to movie successfully")
-	return nil
-
-}
-
+// 替换电影的类型
 func (r *gormMovieRepository) ReplaceGenresForMovie(ctx context.Context, mv *movie.Movie, genres []*movie.Genre) error {
 	logger := r.logger.With(applog.String("Method", "ReplaceGenresForMovie"),
 		applog.Uint("movie_id", uint(mv.ID)), applog.String("movie_title", mv.Title))
@@ -241,9 +205,46 @@ func (r *gormMovieRepository) ReplaceGenresForMovie(ctx context.Context, mv *mov
 	}
 	movieGorm := models.MovieGormFromDomain(mv)
 	if err := r.db.WithContext(ctx).Model(movieGorm).Association("Genres").Replace(genresGorms); err != nil {
-		logger.Error("failed to replace genre to movie", applog.Error(err))
-		return fmt.Errorf("failed to replace genre to movie: %w", err)
+		logger.Error("database replace genre to movie error", applog.Error(err))
+		return fmt.Errorf("database replace genre to movie error: %w", err)
 	}
 	logger.Info("replace genre to movie successfully")
 	return nil
 }
+
+// // 为电影增加、删除和修改类型
+// func (r *gormMovieRepository) AddGenreToMovie(ctx context.Context, mv *movie.Movie, genre *movie.Genre) error {
+// 	logger := r.logger.With(
+// 		applog.String("Method", "AddGenreToMovie"),
+// 		applog.Uint("movie_id", uint(mv.ID)),
+// 		applog.String("movie_title", mv.Title),
+// 		applog.Uint("genre_id", uint(genre.ID)),
+// 		applog.String("genre_name", genre.Name),
+// 	)
+
+// 	movieGorm := models.MovieGormFromDomain(mv)
+// 	genreGorm := models.GenreGormFromDomain(genre)
+// 	if err := r.db.WithContext(ctx).Model(movieGorm).Association("Genres").Append(genreGorm); err != nil {
+// 		logger.Error("database add genre to movie error", applog.Error(err))
+// 		return fmt.Errorf("database add genre to movie error: %w", err)
+// 	}
+
+// 	logger.Info("add genre to movie successfully")
+// 	return nil
+// }
+
+// func (r *gormMovieRepository) RemoveGenreToMovie(ctx context.Context, mv *movie.Movie, genre *movie.Genre) error {
+// 	logger := r.logger.With(applog.String("Method", "RemoveGenreToMovie"),
+// 		applog.Uint("movie_id", uint(mv.ID)), applog.String("movie_title", mv.Title),
+// 		applog.Uint("genre_id", uint(genre.ID)), applog.String("genre_name", genre.Name))
+
+// 	movieGorm := models.MovieGormFromDomain(mv)
+// 	genreGorm := models.GenreGormFromDomain(genre)
+// 	if err := r.db.WithContext(ctx).Model(movieGorm).Association("Genres").Delete(genreGorm); err != nil {
+// 		logger.Error("failed to remove genre to movie", applog.Error(err))
+// 		return fmt.Errorf("failed to remove genre to movie: %w", err)
+// 	}
+// 	logger.Info("remove genre to movie successfully")
+// 	return nil
+
+// }
