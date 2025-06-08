@@ -16,12 +16,13 @@ import (
 )
 
 type UserService interface {
-	Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error)
-	GetUser(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error)
-	UpdateUser(ctx context.Context, req *request.UpdateUserRequest) (*response.UserResponse, error)
-	DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error
-	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)
-	CreateRole(ctx context.Context, req *request.CreateRoleRequest) (*response.RoleResponse, error)
+	Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error) // 注册用户
+	GetUser(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error)              // 获取用户信息
+	UpdateUser(ctx context.Context, req *request.UpdateUserRequest) (*response.UserResponse, error)        // 更新用户信息
+	DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error                                  // 删除用户
+	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)       // 获取用户列表
+	CreateRole(ctx context.Context, req *request.CreateRoleRequest) (*response.RoleResponse, error)        // 创建角色
+	UpdateRole(ctx context.Context, req *request.UpdateRoleRequest) (*response.RoleResponse, error)        // 更新角色
 }
 
 type userService struct {
@@ -230,5 +231,52 @@ func (s *userService) CreateRole(ctx context.Context, req *request.CreateRoleReq
 	}
 
 	logger.Info("create role successfully")
+	return response.ToRoleResponse(role), nil
+}
+
+// 更新角色
+func (s *userService) UpdateRole(ctx context.Context, req *request.UpdateRoleRequest) (*response.RoleResponse, error) {
+	logger := s.logger.With(applog.String("Method", "UpdateRole"), applog.Uint("role_id", req.ID))
+	role := req.ToDomain()
+
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		var err error
+		roleRepo := provider.GetRoleRepository()
+		// 先检查角色是否存在
+		existingRole, err := roleRepo.FindByID(ctx, uint(role.ID))
+		if err != nil {
+			if errors.Is(err, user.ErrRoleNotFound) {
+				logger.Warn("role not found")
+				return err
+			}
+			logger.Error("failed to find role by ID", applog.Error(err))
+			return err
+		}
+
+		// 检查是否需要更新
+		if (role.Name == "" || role.Name == existingRole.Name) &&
+			(role.Description == "" || role.Description == existingRole.Description) {
+			logger.Info("no need to update role")
+			return shared.ErrNoRowsAffected
+		}
+
+		// 更新角色
+		if err := roleRepo.Update(ctx, role); err != nil {
+			logger.Error("failed to update role in repository", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		// 如果角色没有变化，则返回角色信息
+		if errors.Is(err, shared.ErrNoRowsAffected) {
+			logger.Info("no need to update role")
+			return response.ToRoleResponse(role), nil
+		}
+		logger.Error("failed to execute transaction", applog.Error(err))
+		return nil, err
+	}
+
+	logger.Info("update role successfully")
 	return response.ToRoleResponse(role), nil
 }
