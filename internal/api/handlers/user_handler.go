@@ -8,6 +8,7 @@ import (
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -84,6 +85,7 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, userResp)
 }
 
+// 用户更新自身信息
 func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "UpdateUser"))
 	var req request.UpdateUserRequest
@@ -121,5 +123,41 @@ func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 	}
 
 	logger.Info("user profile updated successfully", applog.Uint("user_id", id))
+	ctx.JSON(http.StatusOK, userResp)
+}
+
+// 管理员更新用户信息
+func (h *UserHandler) AdminUpdateUser(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "AdminUpdateUser"))
+	var req request.UpdateUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind update request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	userID, exists := ctx.Params.Get("id")
+	if !exists {
+		logger.Error("user_id not found in params")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found in params"})
+		return
+	}
+
+	id, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		logger.Error("failed to parse user_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+	req.ID = uint(id)
+
+	userResp, err := h.userService.UpdateUserProfile(ctx, &req)
+	if err != nil {
+		logger.Error("failed to update user", applog.Uint("user_id", uint(id)), applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("user profile updated successfully", applog.Uint("user_id", uint(id)))
 	ctx.JSON(http.StatusOK, userResp)
 }
