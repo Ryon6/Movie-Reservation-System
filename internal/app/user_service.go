@@ -54,13 +54,10 @@ func (s *userService) Register(ctx context.Context, req *request.RegisterUserReq
 	// 数据库底层存在用户名和邮箱的唯一性约束，因此不需要再验证
 
 	// 查找默认角色，无需事务，因为角色不会被修改
-	if req.DefaultRole == "" {
-		req.DefaultRole = s.defaultRoleName
-	}
-	defaultRole, err := s.roleRepo.FindByName(ctx, req.DefaultRole)
+	defaultRole, err := s.roleRepo.FindByName(ctx, s.defaultRoleName)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("Default role not found", applog.String("role_name", req.DefaultRole))
+			logger.Error("Default role not found", applog.String("role_name", s.defaultRoleName))
 			return nil, fmt.Errorf("default role not found: %w", user.ErrRoleNotFound)
 		}
 		logger.Error("Failed to find default role", applog.Error(err))
