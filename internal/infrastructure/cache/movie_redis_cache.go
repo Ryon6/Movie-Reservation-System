@@ -47,23 +47,14 @@ func (c *RedisMovieCache) movieListKey(options *movie.MovieQueryOptions) string 
 	}
 
 	// 规范化参数以确保键的一致性
-	keys := make([]string, 0, 3)
-	if options.Title != "" {
-		keys = append(keys, fmt.Sprintf("title=%s", options.Title))
-	}
-	if options.ReleaseYear != 0 {
-		keys = append(keys, fmt.Sprintf("release_year=%d", options.ReleaseYear))
-	}
-	if options.GenreName != "" {
-		keys = append(keys, fmt.Sprintf("genre_name=%s", options.GenreName))
-	}
-	sort.Strings(keys)
-
 	var sb strings.Builder
 	sb.WriteString(movieListKeyPrefix)
-	for _, k := range keys {
-		sb.WriteString(fmt.Sprintf("%s:", k)) // 构建器追加字符串
-	}
+	sb.WriteString(fmt.Sprintf("%s=%v:", "title", options.Title))              // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "release_year", options.ReleaseYear)) // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "genre_name", options.GenreName))     // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "page", options.Page))                // 构建器追加字符串
+	sb.WriteString(fmt.Sprintf("%s=%v:", "page_size", options.PageSize))       // 构建器追加字符串
+
 	return strings.TrimRight(sb.String(), ":") // 移除字符串右侧的:符号
 }
 
