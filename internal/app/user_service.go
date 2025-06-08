@@ -19,6 +19,7 @@ type UserService interface {
 	Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error)
 	GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error)
 	UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error)
+	DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error
 	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)
 }
 
@@ -163,6 +164,23 @@ func (s *userService) UpdateUserProfile(ctx context.Context, req *request.Update
 
 	logger.Info("update user successfully")
 	return response.ToUserProfileResponse(usr), nil
+}
+
+// 删除用户
+func (s *userService) DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error {
+	logger := s.logger.With(applog.String("Method", "DeleteUser"), applog.Uint("user_id", req.ID))
+	err := s.userRepo.Delete(ctx, req.ID)
+	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user not found")
+			return err
+		}
+		logger.Error("failed to delete user", applog.Error(err))
+		return err
+	}
+
+	logger.Info("delete user successfully")
+	return nil
 }
 
 // 获取用户列表
