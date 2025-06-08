@@ -39,20 +39,20 @@
     *   **描述**: 用户注册。
     *   **请求体**: `注册用户请求` (例如: `{ "name": "测试用户", "email": "test@example.com", "password": "securePassword" }`)
     *   **响应体**: `用户资料响应` (用户详情，不包括密码等敏感信息)
-    *   **调用服务**: `UserService.RegisterUser()`
+    *   **调用服务**: `UserService.Register(RegisterUserRequest)`
 
 *   **`GET /api/v1/users/me`**
     *   **描述**: 获取当前认证用户的个人资料。
     *   **需要认证**: 是
     *   **响应体**: `用户资料响应`
-    *   **调用服务**: `UserService.GetUserProfile(currentUserID)`
+    *   **调用服务**: `UserService.GetUser(GetUserRequest)`
 
 *   **`PUT /api/v1/users/me`**
     *   **描述**: 更新当前认证用户的个人资料。
     *   **需要认证**: 是
     *   **请求体**: `更新用户请求` (例如: `{ "name": "更新后的名称" }`)
     *   **响应体**: `用户资料响应`
-    *   **调用服务**: `UserService.UpdateUserProfile(currentUserID, params)`
+    *   **调用服务**: `UserService.UpdateUser(UpdateUserRequest)`
 
 ---
 
@@ -62,25 +62,21 @@
 
 *   **`GET /api/v1/admin/users`**
     *   **描述**: 列出所有用户 (分页)。
-    *   **查询参数**: `page` (页码), `pageSize` (每页数量), `email` (邮箱过滤), `name` (名称过滤)
     *   **响应体**: `分页响应包装器<用户资料响应>`
-    *   **调用服务**: `UserService.ListUsers(params)`
-
+    *   **调用服务**: `UserService.ListUsers(ListUserRequest)`
 *   **`GET /api/v1/admin/users/{userId}`**
     *   **描述**: 获取特定用户的详细信息。
     *   **响应体**: `用户资料响应`
-    *   **调用服务**: `UserService.GetUserByID(userId)`
-
+    *   **调用服务**: `UserService.GetUser(GetUserRequest)`
 *   **`PUT /api/v1/admin/users/{userId}`**
-    *   **描述**: 管理员更新用户资料 (例如: 激活/停用账户)。
+    *   **描述**: 管理员更新用户资料 (例如: 修改用户权限)。
     *   **请求体**: `管理员更新用户请求`
     *   **响应体**: `用户资料响应`
-    *   **调用服务**: `UserService.AdminUpdateUser(userId, params)`
-
+    *   **调用服务**: `UserService.UpdateUser(UpdateUserRequest)`
 *   **`DELETE /api/v1/admin/users/{userId}`**
     *   **描述**: 管理员删除用户。
     *   **响应**: `204 No Content` 或 `成功响应`
-    *   **调用服务**: `UserService.DeleteUser(userId)`
+    *   **调用服务**: `UserService.DeleteUser(DeleteUserRequest)`
 
 ### 2.2. UserService (管理员 - 角色管理)
 
@@ -88,34 +84,25 @@
     *   **描述**: 创建一个新角色。
     *   **请求体**: `{ "name": "editor", "description": "可以编辑内容" }`
     *   **响应体**: `角色响应`
-    *   **调用服务**: `UserService.CreateRole(params)`
-
+    *   **调用服务**: `UserService.CreateRole(CreateRoleRequest)`
 *   **`GET /api/v1/admin/roles`**
     *   **描述**: 列出所有角色。
     *   **响应体**: `角色响应列表`
     *   **调用服务**: `UserService.ListRoles()`
-
 *   **`PUT /api/v1/admin/roles/{roleId}`**
     *   **描述**: 更新一个角色。
     *   **请求体**: `{ "name": "content_editor", "description": "可以编辑和发布内容" }`
     *   **响应体**: `角色响应`
     *   **调用服务**: `UserService.UpdateRole(roleId, params)`
-
 *   **`DELETE /api/v1/admin/roles/{roleId}`**
     *   **描述**: 删除一个角色。
     *   **响应**: `204 No Content`
     *   **调用服务**: `UserService.DeleteRole(roleId)`
-
 *   **`POST /api/v1/admin/users/{userId}/roles`**
     *   **描述**: 为用户分配角色。
     *   **请求体**: `{ "roleId": "..." }`
-    *   **响应**: `201 Created` 或 `成功响应`
-    *   **调用服务**: `UserService.AssignRoleToUser(userId, roleId)`
-
-*   **`DELETE /api/v1/admin/users/{userId}/roles/{roleId}`**
-    *   **描述**: 从用户移除角色。
-    *   **响应**: `204 No Content`
-    *   **调用服务**: `UserService.RemoveRoleFromUser(userId, roleId)`
+    *   **响应**: `成功响应`
+    *   **调用服务**: `UserService.AssignRoleToUser(AssignRoleToUserRequest)`
 
 ---
 
