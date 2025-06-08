@@ -313,3 +313,24 @@ func (h *UserHandler) DeleteRole(ctx *gin.Context) {
 	logger.Info("role deleted successfully")
 	ctx.JSON(http.StatusNoContent, nil)
 }
+
+// 为用户分配角色
+func (h *UserHandler) AssignRoleToUser(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "AssignRoleToUser"))
+	var req request.AssignRoleToUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind assign role to user request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	err := h.userService.AssignRoleToUser(ctx, &req)
+	if err != nil {
+		logger.Error("failed to assign role to user", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("role assigned to user successfully")
+	ctx.JSON(http.StatusNoContent, nil)
+}
