@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/shared"
@@ -18,6 +19,7 @@ type UserService interface {
 	Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error)
 	GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error)
 	UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error)
+	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)
 }
 
 type userService struct {
@@ -47,6 +49,7 @@ func NewUserService(
 	}
 }
 
+// 注册用户
 func (s *userService) Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error) {
 	logger := s.logger.With(applog.String("Method", "RegisterUser"),
 		applog.String("username", req.Username),
@@ -93,6 +96,7 @@ func (s *userService) Register(ctx context.Context, req *request.RegisterUserReq
 	return response.ToUserProfileResponse(&newUser), nil
 }
 
+// 获取用户信息
 func (s *userService) GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetUserProfile"), applog.Uint("user_id", req.ID))
 	usr, err := s.userRepo.FindByID(ctx, req.ID)
@@ -109,6 +113,7 @@ func (s *userService) GetUserProfile(ctx context.Context, req *request.GetUserRe
 	return response.ToUserProfileResponse(usr), nil
 }
 
+// 更新用户信息
 func (s *userService) UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateUserProfile"), applog.Uint("user_id", req.ID))
 	usr := req.ToDomain()
@@ -158,4 +163,26 @@ func (s *userService) UpdateUserProfile(ctx context.Context, req *request.Update
 
 	logger.Info("update user successfully")
 	return response.ToUserProfileResponse(usr), nil
+}
+
+// 获取用户列表
+func (s *userService) ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error) {
+	logger := s.logger.With(applog.String("Method", "ListUsers"), applog.Any("request", req))
+	options := req.ToDomain()
+	users, total, err := s.userRepo.List(ctx, options)
+	if err != nil {
+		logger.Error("failed to list users", applog.Error(err))
+		return nil, err
+	}
+
+	pagination := response.PaginationResponse{
+		Page:       options.Page,
+		PageSize:   options.PageSize,
+		TotalCount: int(total),
+		TotalPages: int(math.Ceil(float64(total) / float64(options.PageSize))),
+	}
+	resp := response.ToListUserResponse(users)
+	resp.PaginationResponse = pagination
+	logger.Info("list users successfully")
+	return resp, nil
 }

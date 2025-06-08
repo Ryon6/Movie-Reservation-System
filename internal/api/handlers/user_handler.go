@@ -161,3 +161,24 @@ func (h *UserHandler) AdminUpdateUser(ctx *gin.Context) {
 	logger.Info("user profile updated successfully", applog.Uint("user_id", uint(id)))
 	ctx.JSON(http.StatusOK, userResp)
 }
+
+// 获取用户列表
+func (h *UserHandler) ListUsers(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "ListUsers"))
+	var req request.ListUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind list users request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	userResp, err := h.userService.ListUsers(ctx, &req)
+	if err != nil {
+		logger.Error("failed to list users", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("list users successfully")
+	ctx.JSON(http.StatusOK, userResp)
+}
