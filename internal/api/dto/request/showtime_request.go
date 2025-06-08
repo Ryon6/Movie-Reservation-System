@@ -68,9 +68,20 @@ func (r *DeleteShowtimeRequest) ToDomain() *showtime.Showtime {
 	}
 }
 
+// 获取放映列表
 type ListShowtimesRequest struct {
 	PaginationRequest
 	MovieID      uint      `json:"movie_id" binding:"omitempty,min=1"`
 	CinemaHallID uint      `json:"cinema_hall_id" binding:"omitempty,min=1"`
 	Date         time.Time `json:"date" binding:"omitempty"`
+}
+
+func (r *ListShowtimesRequest) ToDomain() *showtime.ShowtimeQueryOptions {
+	return &showtime.ShowtimeQueryOptions{
+		MovieID:      r.MovieID,
+		CinemaHallID: r.CinemaHallID,
+		Date:         r.Date,
+		Page:         r.Page,
+		PageSize:     r.PageSize,
+	}
 }
