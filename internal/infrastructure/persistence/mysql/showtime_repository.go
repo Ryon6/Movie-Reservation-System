@@ -34,8 +34,8 @@ func (r *gormShowtimeRepository) Create(ctx context.Context, st *showtime.Showti
 	)
 	showtimeGorm := models.ShowtimeGormFromDomain(st)
 	if err := r.db.WithContext(ctx).Create(showtimeGorm).Error; err != nil {
-		logger.Error("failed to create showtime", applog.Error(err))
-		return nil, fmt.Errorf("failed to create showtime: %w", err)
+		logger.Error("database create showtime error", applog.Error(err))
+		return nil, fmt.Errorf("database create showtime error: %w", err)
 	}
 	logger.Info("create showtime successfully")
 	return showtimeGorm.ToDomain(), nil
@@ -55,8 +55,8 @@ func (r *gormShowtimeRepository) FindByID(ctx context.Context, id uint) (*showti
 			logger.Warn("showtime id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", showtime.ErrShowtimeNotFound, err)
 		}
-		logger.Error("failed to find showtime by id", applog.Error(err))
-		return nil, fmt.Errorf("failed to find showtime by id: %w", err)
+		logger.Error("database find showtime by id error", applog.Error(err))
+		return nil, fmt.Errorf("database find showtime by id error: %w", err)
 	}
 
 	logger.Info("find showtime by id successfully")
@@ -73,8 +73,8 @@ func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []uint) ([]*
 		Preload("Movie").
 		Preload("CinemaHall").
 		Find(&showtimesGorms).Error; err != nil {
-		logger.Error("failed to find showtimes by ids", applog.Error(err))
-		return nil, err
+		logger.Error("database find showtimes by ids error", applog.Error(err))
+		return nil, fmt.Errorf("database find showtimes by ids error: %w", err)
 	}
 	logger.Info("find showtimes by ids successfully", applog.Int("count", len(showtimesGorms)))
 	showtimes := make([]*showtime.Showtime, len(showtimesGorms))
@@ -108,8 +108,8 @@ func (r *gormShowtimeRepository) List(ctx context.Context, options *showtime.Sho
 
 	// 获取总数
 	if err := countQuery.Count(&totalCount).Error; err != nil {
-		logger.Error("failed to count showtimes", applog.Error(err))
-		return nil, 0, err
+		logger.Error("database count showtimes error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database count showtimes error: %w", err)
 	}
 
 	if totalCount == 0 {
@@ -124,8 +124,8 @@ func (r *gormShowtimeRepository) List(ctx context.Context, options *showtime.Sho
 		Preload("Movie").
 		Preload("CinemaHall").
 		Find(&showtimesGorms).Error; err != nil {
-		logger.Error("failed to list showtimes", applog.Error(err))
-		return nil, 0, err
+		logger.Error("database list showtimes error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database list showtimes error: %w", err)
 	}
 
 	logger.Info("list showtimes successfully",
@@ -146,19 +146,14 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 		applog.Uint("hall_id", uint(st.CinemaHallID)),
 	)
 
-	if err := r.db.WithContext(ctx).First(&models.ShowtimeGorm{}, st.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("showtime not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", showtime.ErrShowtimeNotFound, err)
-		}
-		logger.Error("failed to find showtime by id", applog.Error(err))
-		return fmt.Errorf("failed to find showtime by id: %w", err)
-	}
+	// 基础设施层只负责数据访问，不负责业务逻辑
+	// 因此，这里不进行业务逻辑的判断，直接更新数据库
+	// 如果需要业务逻辑的判断，应该在服务层进行
 
 	result := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Updates(st)
 	if err := result.Error; err != nil {
-		logger.Error("failed to update showtime", applog.Error(err))
-		return fmt.Errorf("failed to update showtime: %w", err)
+		logger.Error("database update showtime error", applog.Error(err))
+		return fmt.Errorf("database update showtime error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -182,8 +177,8 @@ func (r *gormShowtimeRepository) Delete(ctx context.Context, id uint) error {
 			logger.Warn("showtime to delete not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", showtime.ErrShowtimeNotFound, err)
 		}
-		logger.Error("failed to delete showtime", applog.Error(err))
-		return fmt.Errorf("failed to delete showtime: %w", err)
+		logger.Error("database delete showtime error", applog.Error(err))
+		return fmt.Errorf("database delete showtime error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -222,8 +217,8 @@ func (r *gormShowtimeRepository) CheckOverlap(ctx context.Context, hallID uint,
 	}
 
 	if err := query.Count(&count).Error; err != nil {
-		logger.Error("failed to count overlapping showtimes", applog.Error(err))
-		return false, err
+		logger.Error("database count overlapping showtimes error", applog.Error(err))
+		return false, fmt.Errorf("database count overlapping showtimes error: %w", err)
 	}
 
 	isOverlapping := count > 0
@@ -259,8 +254,8 @@ func (r *gormShowtimeRepository) FindShowtimesByMovieAndDateRanges(ctx context.C
 		Find(&showtimesGorms).Error
 
 	if err != nil {
-		logger.Error("failed to find showtimes by movie and date range", applog.Error(err))
-		return nil, err
+		logger.Error("database find showtimes by movie and date range error", applog.Error(err))
+		return nil, fmt.Errorf("database find showtimes by movie and date range error: %w", err)
 	}
 	logger.Info("find showtimes by movie and date range successfully", applog.Int("count", len(showtimesGorms)))
 
@@ -290,8 +285,8 @@ func (r *gormShowtimeRepository) FindShowtimesByHallAndDateRanges(ctx context.Co
 		Find(&showtimesGorms).Error
 
 	if err != nil {
-		logger.Error("Failed to find showtimes by hall and date range", applog.Error(err))
-		return nil, err
+		logger.Error("database find showtimes by hall and date range error", applog.Error(err))
+		return nil, fmt.Errorf("database find showtimes by hall and date range error: %w", err)
 	}
 
 	logger.Info("find showtimes by hall and date range successfully", applog.Int("count", len(showtimesGorms)))
