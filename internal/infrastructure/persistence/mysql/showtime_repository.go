@@ -85,38 +85,26 @@ func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []uint) ([]*
 }
 
 // 分页查询支持过滤条件（如电影ID/影厅ID/日期范围）
-func (r *gormShowtimeRepository) List(ctx context.Context, page, pageSize int,
-	filters map[string]interface{}) ([]*showtime.Showtime, int64, error) {
-	logger := r.logger.With(
-		applog.String("method", "List"),
-		applog.Int("page", page),
-		applog.Int("pageSize", pageSize))
+func (r *gormShowtimeRepository) List(ctx context.Context, options *showtime.ShowtimeQueryOptions) ([]*showtime.Showtime, int64, error) {
+	logger := r.logger.With(applog.String("method", "List"), applog.Any("options", options))
 	var showtimesGorms []*models.ShowtimeGorm
 	var totalCount int64
 
 	query := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{})
 	countQuery := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{})
 
-	// 应用过滤器
-	if movieID, ok := filters["movie_id"].(uint); ok && movieID > 0 {
-		query = query.Where("movie_id = ?", movieID)
-		countQuery = countQuery.Where("movie_id = ?", movieID)
-		logger = logger.With(applog.Uint("filter_movie_id", movieID))
+	if options.MovieID > 0 {
+		query = query.Where("movie_id = ?", options.MovieID)
+		countQuery = countQuery.Where("movie_id = ?", options.MovieID)
 	}
-	if cinemaHallID, ok := filters["cinema_hall_id"].(uint); ok && cinemaHallID > 0 {
-		query = query.Where("cinema_hall_id = ?", cinemaHallID)
-		countQuery = countQuery.Where("cinema_hall_id = ?", cinemaHallID)
-		logger = logger.With(applog.Uint("filter_cinema_hall_id", cinemaHallID))
+	if options.CinemaHallID > 0 {
+		query = query.Where("cinema_hall_id = ?", options.CinemaHallID)
+		countQuery = countQuery.Where("cinema_hall_id = ?", options.CinemaHallID)
 	}
-	if date, ok := filters["date"].(time.Time); ok && !date.IsZero() {
-		// 假设 "date" 过滤器是指某一天内的所有场次
-		startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-		endOfDay := startOfDay.AddDate(0, 0, 1)
-		query = query.Where("start_time >= ? AND start_time < ?", startOfDay, endOfDay)
-		countQuery = countQuery.Where("start_time >= ? AND start_time < ?", startOfDay, endOfDay)
-		logger = logger.With(applog.String("filter_date", date.Format("2006-01-02")))
+	if !options.Date.IsZero() {
+		query = query.Where("start_time >= ? AND start_time < ?", options.Date, options.Date.AddDate(0, 0, 1))
+		countQuery = countQuery.Where("start_time >= ? AND start_time < ?", options.Date, options.Date.AddDate(0, 0, 1))
 	}
-	// 可以添加更多过滤器，例如按价格范围、未来的场次等
 
 	// 获取总数
 	if err := countQuery.Count(&totalCount).Error; err != nil {
@@ -130,9 +118,9 @@ func (r *gormShowtimeRepository) List(ctx context.Context, page, pageSize int,
 	}
 
 	// 应用排序和分页，并预加载关联数据
-	offset := (page - 1) * pageSize
+	offset := (options.Page - 1) * options.PageSize
 	if err := query.Order("start_time ASC").
-		Offset(offset).Limit(pageSize).
+		Offset(offset).Limit(options.PageSize).
 		Preload("Movie").
 		Preload("CinemaHall").
 		Find(&showtimesGorms).Error; err != nil {
