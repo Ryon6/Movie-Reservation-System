@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"mrs/internal/api/dto/request"
+	"mrs/internal/api/dto/response"
 	"mrs/internal/api/middleware"
 	"mrs/internal/app"
 	"mrs/internal/domain/user"
@@ -53,6 +54,7 @@ func (h *UserHandler) Register(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, userResp)
 }
 
+// 用户获取自身信息
 func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "GetUserProfile"))
 	userID, exists := ctx.Get(middleware.UserIDKey)
@@ -69,7 +71,7 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	userResp, err := h.userService.GetUserProfile(ctx, &request.GetUserRequest{ID: id})
+	userResp, err := h.userService.GetUser(ctx, &request.GetUserRequest{ID: id})
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user profile not found", applog.Uint("user_id", id))
@@ -85,8 +87,46 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, userResp)
 }
 
+// 管理员获取用户信息
+func (h *UserHandler) GetUser(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "GetUser"))
+	userID, exists := ctx.Params.Get("id")
+	if !exists {
+		logger.Error("user_id not found in params")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found in params"})
+		return
+	}
+
+	id, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		logger.Error("failed to parse user_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	userResp, err := h.userService.GetUser(ctx, &request.GetUserRequest{ID: uint(id)})
+	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user not found", applog.Uint("user_id", uint(id)))
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		logger.Error("failed to get user", applog.Uint("user_id", uint(id)), applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	userProfileResp := response.UserProfileResponse{
+		Username: userResp.Username,
+		Email:    userResp.Email,
+		RoleName: userResp.RoleName,
+	}
+
+	logger.Info("user retrieved successfully", applog.Uint("user_id", uint(id)))
+	ctx.JSON(http.StatusOK, userProfileResp)
+}
+
 // 用户更新自身信息
-func (h *UserHandler) UpdateUser(ctx *gin.Context) {
+func (h *UserHandler) UpdateUserProfile(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "UpdateUser"))
 	var req request.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -110,7 +150,7 @@ func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 	}
 	req.ID = id
 
-	userResp, err := h.userService.UpdateUserProfile(ctx, &req)
+	userResp, err := h.userService.UpdateUser(ctx, &req)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found", applog.Uint("user_id", id))
@@ -121,13 +161,17 @@ func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-
+	userProfileResp := response.UserProfileResponse{
+		Username: userResp.Username,
+		Email:    userResp.Email,
+		RoleName: userResp.RoleName,
+	}
 	logger.Info("user profile updated successfully", applog.Uint("user_id", id))
-	ctx.JSON(http.StatusOK, userResp)
+	ctx.JSON(http.StatusOK, userProfileResp)
 }
 
 // 管理员更新用户信息
-func (h *UserHandler) AdminUpdateUser(ctx *gin.Context) {
+func (h *UserHandler) UpdateUser(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "AdminUpdateUser"))
 	var req request.UpdateUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -151,7 +195,7 @@ func (h *UserHandler) AdminUpdateUser(ctx *gin.Context) {
 	}
 	req.ID = uint(id)
 
-	userResp, err := h.userService.UpdateUserProfile(ctx, &req)
+	userResp, err := h.userService.UpdateUser(ctx, &req)
 	if err != nil {
 		logger.Error("failed to update user", applog.Uint("user_id", uint(id)), applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
