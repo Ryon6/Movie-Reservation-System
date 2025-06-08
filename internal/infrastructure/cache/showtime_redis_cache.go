@@ -13,22 +13,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// ShowtimeCache 放映缓存接口
-type ShowtimeCache interface {
-	GetShowtime(ctx context.Context, showtimeID uint) (*showtime.Showtime, error)
-	SetShowtime(ctx context.Context, showtime *showtime.Showtime, expiration time.Duration) error
-	DeleteShowtime(ctx context.Context, showtimeID uint) error
-	GetShowtimeList(ctx context.Context, params map[string]interface{}) (*ShowtimeListResult, error)
-	SetShowtimeList(ctx context.Context, showtimes []*showtime.Showtime, params map[string]interface{}, expiration time.Duration) error
-}
-
-// ShowtimeListResult 放映列表的查询结果
-type ShowtimeListResult struct {
-	Showtimes          []*showtime.Showtime // 成功获取的放映记录
-	AllShowtimeIDs     []uint               // 列表中所有的放映ID
-	MissingShowtimeIDs []uint               // 缓存中未找到的放映ID
-}
-
 // RedisShowtimeCache 放映缓存实现
 type RedisShowtimeCache struct {
 	redisClient       RedisClient
