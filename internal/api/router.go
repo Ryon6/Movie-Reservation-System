@@ -40,7 +40,7 @@ func SetupRouter(
 	userRoutes := apiV1.Group("/users")
 	{
 		// 无需认证的用户路由
-		userRoutes.POST("/register", userHandler.RegisterUser) // 用户注册
+		userRoutes.POST("/register", userHandler.Register) // 用户注册
 
 		// 需要认证的用户路由
 		authUserRoutes := userRoutes.Group("")
