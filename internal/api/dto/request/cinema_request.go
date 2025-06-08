@@ -21,7 +21,7 @@ func (r *CreateCinemaHallRequest) ToDomain() *cinema.CinemaHall {
 }
 
 type GetCinemaHallRequest struct {
-	ID uint `json:"id" binding:"required,min=1"`
+	ID uint
 }
 
 type SeatRequest struct {
