@@ -22,6 +22,7 @@ type UserService interface {
 	DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error                                  // 删除用户
 	ListUsers(ctx context.Context, req *request.ListUserRequest) (*response.ListUserResponse, error)       // 获取用户列表
 	CreateRole(ctx context.Context, req *request.CreateRoleRequest) (*response.RoleResponse, error)        // 创建角色
+	ListRoles(ctx context.Context) (*response.ListRoleResponse, error)                                     // 获取角色列表
 	UpdateRole(ctx context.Context, req *request.UpdateRoleRequest) (*response.RoleResponse, error)        // 更新角色
 }
 
@@ -232,6 +233,19 @@ func (s *userService) CreateRole(ctx context.Context, req *request.CreateRoleReq
 
 	logger.Info("create role successfully")
 	return response.ToRoleResponse(role), nil
+}
+
+// 获取角色列表
+func (s *userService) ListRoles(ctx context.Context) (*response.ListRoleResponse, error) {
+	logger := s.logger.With(applog.String("Method", "ListRoles"))
+	roles, err := s.roleRepo.ListAll(ctx)
+	if err != nil {
+		logger.Error("failed to list roles", applog.Error(err))
+		return nil, err
+	}
+
+	logger.Info("list roles successfully")
+	return response.ToListRoleResponse(roles), nil
 }
 
 // 更新角色

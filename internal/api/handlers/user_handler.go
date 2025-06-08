@@ -249,6 +249,21 @@ func (h *UserHandler) CreateRole(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, roleResp)
 }
 
+// 获取角色列表
+func (h *UserHandler) ListRoles(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "ListRoles"))
+	roles, err := h.userService.ListRoles(ctx)
+	if err != nil {
+		logger.Error("failed to list roles", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("list roles successfully")
+	ctx.JSON(http.StatusOK, roles)
+}
+
+// 更新角色
 func (h *UserHandler) UpdateRole(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "UpdateRole"))
 
