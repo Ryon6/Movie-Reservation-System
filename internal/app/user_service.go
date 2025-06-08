@@ -25,6 +25,7 @@ type UserService interface {
 	ListRoles(ctx context.Context) (*response.ListRoleResponse, error)                                     // 获取角色列表
 	UpdateRole(ctx context.Context, req *request.UpdateRoleRequest) (*response.RoleResponse, error)        // 更新角色
 	DeleteRole(ctx context.Context, req *request.DeleteRoleRequest) error                                  // 删除角色
+	AssignRoleToUser(ctx context.Context, req *request.AssignRoleToUserRequest) error                      // 为用户分配角色
 }
 
 type userService struct {
@@ -327,5 +328,63 @@ func (s *userService) DeleteRole(ctx context.Context, req *request.DeleteRoleReq
 	}
 
 	logger.Info("delete role successfully")
+	return nil
+}
+
+// 为用户分配角色
+func (s *userService) AssignRoleToUser(ctx context.Context, req *request.AssignRoleToUserRequest) error {
+	logger := s.logger.With(applog.String("Method", "AssignRoleToUser"), applog.Uint("user_id", req.UserID), applog.Uint("role_id", req.RoleID))
+
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		var err error
+		userRepo := provider.GetUserRepository()
+		roleRepo := provider.GetRoleRepository()
+
+		// 先检查用户和角色是否存在
+		existingUser, err := userRepo.FindByID(ctx, uint(req.UserID))
+		if err != nil {
+			if errors.Is(err, user.ErrUserNotFound) {
+				logger.Warn("user not found")
+				return err
+			}
+			logger.Error("failed to find user by ID", applog.Error(err))
+			return err
+		}
+
+		// 检查角色是否存在
+		existingRole, err := roleRepo.FindByID(ctx, uint(req.RoleID))
+		if err != nil {
+			if errors.Is(err, user.ErrRoleNotFound) {
+				logger.Warn("role not found")
+				return err
+			}
+			logger.Error("failed to find role by ID", applog.Error(err))
+			return err
+		}
+
+		// 检查用户是否已分配该角色
+		if existingUser.Role.ID == existingRole.ID {
+			logger.Info("user already has this role")
+			return shared.ErrNoRowsAffected
+		}
+
+		// 为用户分配角色
+		existingUser.Role = existingRole
+		if err := userRepo.Update(ctx, existingUser); err != nil {
+			logger.Error("failed to update user in repository", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, shared.ErrNoRowsAffected) {
+			logger.Info("no need to assign role to user")
+			return nil
+		}
+		logger.Error("failed to execute transaction", applog.Error(err))
+		return err
+	}
+
+	logger.Info("assign role to user successfully")
 	return nil
 }
