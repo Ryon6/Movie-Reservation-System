@@ -23,15 +23,19 @@ func NewGormRoleRepository(db *gorm.DB, logger applog.Logger) user.RoleRepositor
 	}
 }
 
-func (r *gormRoleRepository) Create(ctx context.Context, rl *user.Role) error {
+func (r *gormRoleRepository) Create(ctx context.Context, rl *user.Role) (*user.Role, error) {
 	logger := r.logger.With(applog.String("Method", "Create"), applog.Uint("role_id", uint(rl.ID)), applog.String("role_name", rl.Name))
 	roleGorm := models.RoleGormFromDomain(rl)
 	if err := r.db.WithContext(ctx).Create(roleGorm).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			logger.Warn("role already exists", applog.String("role_name", rl.Name))
+			return nil, user.ErrRoleAlreadyExists
+		}
 		logger.Error("database create role error", applog.Error(err))
-		return fmt.Errorf("database create role error: %w", err)
+		return nil, fmt.Errorf("database create role error: %w", err)
 	}
 	logger.Info("create role successfully")
-	return nil
+	return roleGorm.ToDomain(), nil
 }
 
 func (r *gormRoleRepository) FindByID(ctx context.Context, id uint) (*user.Role, error) {
