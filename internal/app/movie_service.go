@@ -12,7 +12,6 @@ import (
 	"mrs/internal/domain/movie"
 	"mrs/internal/domain/shared"
 	"mrs/internal/domain/shared/vo"
-	"mrs/internal/infrastructure/cache"
 	applog "mrs/pkg/log"
 )
 
@@ -32,7 +31,7 @@ type movieService struct {
 	uow        shared.UnitOfWork
 	movieRepo  movie.MovieRepository
 	genreRepo  movie.GenreRepository
-	movieCache cache.MovieCache
+	movieCache movie.MovieCache
 	logger     applog.Logger
 }
 
@@ -40,7 +39,7 @@ func NewMovieService(
 	uow shared.UnitOfWork,
 	movieRepo movie.MovieRepository,
 	genreRepo movie.GenreRepository,
-	movieCache cache.MovieCache,
+	movieCache movie.MovieCache,
 	logger applog.Logger,
 ) MovieService {
 	return &movieService{
@@ -223,16 +222,7 @@ func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovie
 func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieRequest) (*response.PaginatedMovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "ListMovies"))
 
-	filters := make(map[string]interface{})
-	if req.Title != "" {
-		filters["title"] = req.Title
-	}
-	if req.GenreName != "" {
-		filters["genre_name"] = req.GenreName
-	}
-	if req.ReleaseYear != 0 {
-		filters["release_year"] = req.ReleaseYear
-	}
+	options := req.ToDomain()
 
 	var movies []*movie.Movie
 	// 分页函数，用于处理缓存命中和未命中两种情况
@@ -261,7 +251,7 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 	// 2. 列表缓存中存在数据，但部分movie记录缺失（即movie_id列表中存在但缓存中不存在） -> 进一步查询数据库
 	// 3. 列表缓存中存在数据，且所有movie记录都存在（即movie_id列表中所有movie记录都存在） -> 直接返回缓存数据
 	// 而列表缓存未命中，则需要进一步查询数据库
-	cacheResult, err := s.movieCache.GetMovieList(ctx, filters)
+	cacheResult, err := s.movieCache.GetMovieList(ctx, options)
 	if err != nil {
 		logger.Warn("failed to get movie list from cache", applog.Error(err))
 	} else {
@@ -283,7 +273,7 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 		}
 		movies = append(movies, missingMovies...)
 	} else {
-		movies, _, err = s.movieRepo.List(ctx, req.Page, req.PageSize, filters)
+		movies, _, err = s.movieRepo.List(ctx, options)
 		if err != nil {
 			logger.Error("failed to list movies", applog.Error(err))
 			return nil, err
@@ -292,7 +282,7 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 
 	logger.Info("list movies successfully", applog.Int("total", len(movies)))
 
-	if err := s.movieCache.SetMovieList(ctx, movies, filters, 0); err != nil {
+	if err := s.movieCache.SetMovieList(ctx, movies, options, 0); err != nil {
 		logger.Error("failed to set movie list to cache", applog.Error(err))
 	}
 	return fn(movies), nil
