@@ -89,30 +89,39 @@ func (r *gormMovieRepository) FindByTitle(ctx context.Context, title string) (*m
 }
 
 // List 从数据库中获取电影列表，支持分页和过滤。
-func (r *gormMovieRepository) List(ctx context.Context, page, pageSize int, filters map[string]interface{}) ([]*movie.Movie, int64, error) {
-	logger := r.logger.With(applog.String("Method", "List"), applog.Int("page", page), applog.Int("pageSize", pageSize))
+func (r *gormMovieRepository) List(ctx context.Context, options *movie.MovieQueryOptions) ([]*movie.Movie, int64, error) {
+	logger := r.logger.With(applog.String("Method", "List"), applog.Int("page", options.Page), applog.Int("pageSize", options.PageSize))
 	var moviesGorms []*models.MovieGorm
 	var totalCount int64
 
 	query := r.db.WithContext(ctx).Model(&models.MovieGorm{})
 	countQuery := r.db.WithContext(ctx).Model(&models.MovieGorm{}) // 用于计数的独立查询
 
-	// 应用过滤器
-	if title, ok := filters["title"].(string); ok && title != "" {
-		searchTerm := fmt.Sprintf("%%%s%%", title) // 模糊搜索
+	// 标题过滤（模糊查询）
+	if options.Title != "" {
+		searchTerm := fmt.Sprintf("%%%s%%", options.Title) // 模糊搜索
 		query = query.Where("title LIKE ?", searchTerm)
 		countQuery = countQuery.Where("title LIKE ?", searchTerm)
-		logger = logger.With(applog.String("filter_title", title))
+		logger = logger.With(applog.String("query_title", options.Title))
 	}
 
-	if genreID, ok := filters["genre_id"].(uint); ok && genreID > 0 {
-		// 通过 movie_genres 连接表进行过滤
-		query = query.Joins("JOIN movie_genres ON movie_genres.movie_id = movies.id").Where("movie_genres.genre_id = ?", genreID)
-		countQuery = countQuery.Joins("JOIN movie_genres ON movie_genres.movie_id = movies.id").Where("movie_genres.genre_id = ?", genreID)
-		logger = logger.With(applog.Uint("filter_genre_id", genreID))
+	// 上映年份过滤
+	if options.ReleaseYear != 0 {
+		query = query.Where("YEAR(release_date) = ?", options.ReleaseYear)
+		countQuery = countQuery.Where("YEAR(release_date) = ?", options.ReleaseYear)
+		logger = logger.With(applog.Int("query_release_year", options.ReleaseYear))
 	}
-	// 可以添加更多过滤器，例如按上映日期范围等
 
+	// 类型过滤
+	if options.GenreName != "" {
+		query = query.Joins("JOIN movies_genres ON movies_genres.movie_id = movies.id").
+			Joins("JOIN genres ON genres.id = movies_genres.genre_id").
+			Where("genres.name = ?", options.GenreName)
+		countQuery = countQuery.Joins("JOIN movies_genres ON movies_genres.movie_id = movies.id").
+			Joins("JOIN genres ON genres.id = movies_genres.genre_id").
+			Where("genres.name = ?", options.GenreName)
+		logger = logger.With(applog.String("query_genre", options.GenreName))
+	}
 	// 获取总数
 	if err := countQuery.Count(&totalCount).Error; err != nil {
 		logger.Error("Failed to count movies", applog.Error(err))
@@ -125,8 +134,8 @@ func (r *gormMovieRepository) List(ctx context.Context, page, pageSize int, filt
 	}
 
 	// 应用排序和分页，并预加载类型
-	offset := (page - 1) * pageSize
-	if err := query.Order("release_date DESC, title ASC").Offset(offset).Limit(pageSize).Preload("Genres").Find(&moviesGorms).Error; err != nil {
+	offset := (options.Page - 1) * options.PageSize
+	if err := query.Order("release_date DESC, title ASC").Offset(offset).Limit(options.PageSize).Preload("Genres").Find(&moviesGorms).Error; err != nil {
 		logger.Error("Failed to list movies", applog.Error(err))
 		return nil, 0, err
 	}
