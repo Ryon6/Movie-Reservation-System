@@ -34,8 +34,8 @@ func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.Cine
 			logger.Warn("cinema hall already eixsts", applog.Error(err))
 			return nil, fmt.Errorf("%w: %w", cinema.ErrCinemaHallAlreadyExists, err)
 		}
-		logger.Error("failed to create cinema hall", applog.Error(err))
-		return nil, fmt.Errorf("failed to create cinema hall: %w", err)
+		logger.Error("database create cinema hall error", applog.Error(err))
+		return nil, fmt.Errorf("database create cinema hall error: %w", err)
 	}
 
 	logger.Info("create cinema hall successfully")
@@ -52,8 +52,8 @@ func (r *gormCinemaHallRepository) FindByID(ctx context.Context, id uint) (*cine
 			logger.Warn("cinema hall id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", cinema.ErrCinemaHallNotFound, err)
 		}
-		logger.Error("failed to find cinema hall by id", applog.Error(err))
-		return nil, fmt.Errorf("failed to find cinema hall by id: %w", err)
+		logger.Error("database find cinema hall by id error", applog.Error(err))
+		return nil, fmt.Errorf("database find cinema hall by id error: %w", err)
 	}
 
 	logger.Info("find cinema hall by id successfully")
@@ -71,8 +71,8 @@ func (r *gormCinemaHallRepository) FindByName(ctx context.Context, name string) 
 			logger.Warn("cinema hall name not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(name): %w", cinema.ErrCinemaHallNotFound, err)
 		}
-		logger.Error("failed to find cinema hall by name", applog.Error(err))
-		return nil, fmt.Errorf("failed to find cinema hall by name: %w", err)
+		logger.Error("database find cinema hall by name error", applog.Error(err))
+		return nil, fmt.Errorf("database find cinema hall by name error: %w", err)
 	}
 
 	logger.Info("find cinema hall by name successfully")
@@ -85,8 +85,8 @@ func (r *gormCinemaHallRepository) ListAll(ctx context.Context) ([]*cinema.Cinem
 	if err := r.db.WithContext(ctx).
 		Preload("Seats").
 		Find(&hallsGorms).Error; err != nil {
-		logger.Error("failed to list all cinema halls", applog.Error(err))
-		return nil, fmt.Errorf("failed to list all cinema halls: %w", err)
+		logger.Error("database list all cinema halls error", applog.Error(err))
+		return nil, fmt.Errorf("database list all cinema halls error: %w", err)
 	}
 
 	logger.Info("list all cinema hall successfully")
@@ -101,22 +101,17 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 		applog.Uint("hall_id", uint(hall.ID)), applog.String("name", hall.Name))
 
 	cinemaHallGorm := models.CinemaHallGormFromDomain(hall)
-	if err := r.db.WithContext(ctx).First(&models.CinemaHallGorm{}, cinemaHallGorm.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("cinema hall not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
-		}
-		logger.Error("failed to find cinema hall by id", applog.Error(err))
-		return fmt.Errorf("failed to find cinema hall by id: %w", err)
-	}
 
+	// 基础设施层只负责数据访问，不负责业务逻辑
+	// 因此，这里不进行业务逻辑的判断，直接更新数据库
+	// 如果需要业务逻辑的判断，应该在服务层进行
 	result := r.db.WithContext(ctx).
 		Model(&models.CinemaHallGorm{}).
 		Where("id = ?", cinemaHallGorm.ID).
 		Updates(cinemaHallGorm)
 	if err := result.Error; err != nil {
-		logger.Error("failed to update cinema hall", applog.Error(err))
-		return fmt.Errorf("failed to update cinema hall: %w", err)
+		logger.Error("database update cinema hall error", applog.Error(err))
+		return fmt.Errorf("database update cinema hall error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
@@ -124,7 +119,7 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 		return shared.ErrNoRowsAffected
 	}
 
-	logger.Info("Update cinema hall successfully")
+	logger.Info("update cinema hall successfully")
 	return nil
 }
 
@@ -133,17 +128,13 @@ func (r *gormCinemaHallRepository) Delete(ctx context.Context, id uint) error {
 
 	result := r.db.WithContext(ctx).Delete(&models.CinemaHallGorm{}, id)
 	if err := result.Error; err != nil {
-		// 是否为外键约束错误，是则返回哨兵错误，有服务层进一步处理
-		if isForeignKeyConstraintError(err) {
-			logger.Warn("cannot delete cinema hall due to foreign key constraint", applog.Error(err))
-			return fmt.Errorf("%w: %w", cinema.ErrCinemaHallReferenced, err)
-		}
+		// 无需判断外键约束错误，业务上座位归属于影厅，影厅删除时，座位也会被删除，数据模型上外键约束为CASCADE
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("cinema hall to delete not found", applog.Error(err))
 			return fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
 		}
-		logger.Error("failed to delete cinema hall", applog.Error(err))
-		return fmt.Errorf("failed to delete cinema hall: %w", err)
+		logger.Error("database delete cinema hall error", applog.Error(err))
+		return fmt.Errorf("database delete cinema hall error: %w", err)
 	}
 
 	// 是否不存在或已删除
