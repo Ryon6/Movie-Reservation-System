@@ -96,7 +96,7 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 	logger := r.logger.With(applog.String("Method", "Update"), applog.Uint("user_id", uint(usr.ID)))
 	userGorm := models.UserGormFromDomain(usr)
-	// 使用Updates方法更新用户信息，避免使用Save方法，因为Save方法会忽略零值字段
+	// 使用Updates方法更新用户信息，避免使用Save方法，因为Save方法会保存所有字段，包括零值
 	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("id = ?", userGorm.ID).Updates(userGorm).Error; err != nil {
 		logger.Error("database update user error", applog.Error(err))
 		return fmt.Errorf("database update user error: %w", err)
@@ -109,9 +109,9 @@ func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 func (r *gormUserRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("user_id", id))
 	if err := r.db.WithContext(ctx).Delete(&models.UserGorm{}, id).Error; err != nil {
-		logger.Error("failed to delete user", applog.Error(err))
-		return err
+		logger.Error("database delete user error", applog.Error(err))
+		return fmt.Errorf("database delete user error: %w", err)
 	}
-	logger.Info("user delete successfully")
+	logger.Info("delete user successfully")
 	return nil
 }
