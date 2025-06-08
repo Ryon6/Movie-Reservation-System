@@ -25,8 +25,8 @@ func NewUserHandler(userService app.UserService, logger applog.Logger) *UserHand
 }
 
 // 处理注册请求
-func (h *UserHandler) RegisterUser(ctx *gin.Context) {
-	logger := h.logger.With(applog.String("Method", "RegisterUser"))
+func (h *UserHandler) Register(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "Register"))
 	var req request.RegisterUserRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		logger.Warn("failed to bind register request", applog.Error(err))
@@ -35,7 +35,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 	}
 
 	// 在service层判断DefaultRole是否为空
-	userResp, err := h.userService.RegisterUser(ctx, &req)
+	userResp, err := h.userService.Register(ctx, &req)
 	if err != nil {
 		// 用户可能已存在
 		if errors.Is(err, user.ErrUserAlreadyExists) {
@@ -48,7 +48,7 @@ func (h *UserHandler) RegisterUser(ctx *gin.Context) {
 		return
 	}
 
-	logger.Info("user registered successfully", applog.Uint("user_id", uint(userResp.ID)))
+	logger.Info("user registered successfully")
 	ctx.JSON(http.StatusOK, userResp)
 }
 
@@ -68,7 +68,7 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	userResp, err := h.userService.GetUserByID(ctx, &request.GetUserRequest{ID: id})
+	userResp, err := h.userService.GetUserProfile(ctx, &request.GetUserRequest{ID: id})
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user profile not found", applog.Uint("user_id", id))
@@ -80,6 +80,46 @@ func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	logger.Info("user profile retrieved successfully", applog.Uint("user_id", uint(userResp.ID)))
+	logger.Info("user profile retrieved successfully", applog.Uint("user_id", id))
+	ctx.JSON(http.StatusOK, userResp)
+}
+
+func (h *UserHandler) UpdateUser(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "UpdateUser"))
+	var req request.UpdateUserRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		logger.Warn("failed to bind update request", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	userID, exists := ctx.Get(middleware.UserIDKey)
+	if !exists {
+		logger.Error("userID not found in context, auth middleware might not have run or failed")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: User ID not found in context"})
+		return
+	}
+
+	id, ok := userID.(uint)
+	if !ok {
+		logger.Error("user_id in context is not of type uint", applog.Any("user_id_type", userID))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error: User ID format issue"})
+		return
+	}
+	req.ID = id
+
+	userResp, err := h.userService.UpdateUserProfile(ctx, &req)
+	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user not found", applog.Uint("user_id", id))
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		logger.Error("failed to update user", applog.Uint("user_id", id), applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+
+	logger.Info("user profile updated successfully", applog.Uint("user_id", id))
 	ctx.JSON(http.StatusOK, userResp)
 }
