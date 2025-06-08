@@ -15,8 +15,9 @@ import (
 )
 
 type UserService interface {
-	RegisterUser(ctx context.Context, req *request.RegisterUserRequest) (*response.UserResponse, error)
-	GetUserByID(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error)
+	Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error)
+	GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error)
+	UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error)
 }
 
 type userService struct {
@@ -46,7 +47,7 @@ func NewUserService(
 	}
 }
 
-func (s *userService) RegisterUser(ctx context.Context, req *request.RegisterUserRequest) (*response.UserResponse, error) {
+func (s *userService) Register(ctx context.Context, req *request.RegisterUserRequest) (*response.UserProfileResponse, error) {
 	logger := s.logger.With(applog.String("Method", "RegisterUser"),
 		applog.String("username", req.Username),
 		applog.String("email", req.Email))
@@ -92,21 +93,72 @@ func (s *userService) RegisterUser(ctx context.Context, req *request.RegisterUse
 	}
 
 	logger.Info("create user successful")
-	return response.ToUserResponse(&newUser), nil
+	return response.ToUserProfileResponse(&newUser), nil
 }
 
-func (s *userService) GetUserByID(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error) {
-	logger := s.logger.With(applog.String("Method", "GetUserByID"), applog.Uint("user_id", req.ID))
+func (s *userService) GetUserProfile(ctx context.Context, req *request.GetUserRequest) (*response.UserProfileResponse, error) {
+	logger := s.logger.With(applog.String("Method", "GetUserProfile"), applog.Uint("user_id", req.ID))
 	usr, err := s.userRepo.FindByID(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found")
-			return nil, fmt.Errorf("%w: %w", user.ErrUserNotFound, err)
+			return nil, err
 		}
 		logger.Error("failed to find user by ID", applog.Error(err))
-		return nil, fmt.Errorf("userService.GetUserByID: %w", err)
+		return nil, err
 	}
 
 	logger.Info("find user successfully")
-	return response.ToUserResponse(usr), nil
+	return response.ToUserProfileResponse(usr), nil
+}
+
+func (s *userService) UpdateUserProfile(ctx context.Context, req *request.UpdateUserRequest) (*response.UserProfileResponse, error) {
+	logger := s.logger.With(applog.String("Method", "UpdateUserProfile"), applog.Uint("user_id", req.ID))
+	usr := req.ToDomain()
+	if req.Password != "" {
+		if err := usr.SetPassword(req.Password, s.hasher); err != nil {
+			logger.Error("failed to hash password", applog.Error(err))
+			return nil, err
+		}
+	}
+
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		// 先检查用户是否存在
+		existingUser, err := provider.GetUserRepository().FindByID(ctx, uint(usr.ID))
+		if err != nil {
+			if errors.Is(err, user.ErrUserNotFound) {
+				logger.Warn("user not found")
+				return err
+			}
+			logger.Error("failed to find user by ID", applog.Error(err))
+			return err
+		}
+
+		// 检查是否需要更新
+		if existingUser.Username == usr.Username &&
+			existingUser.Email == usr.Email &&
+			existingUser.PasswordHash == usr.PasswordHash {
+			logger.Info("no need to update user")
+			return shared.ErrNoRowsAffected
+		}
+
+		// 更新用户
+		if err := provider.GetUserRepository().Update(ctx, usr); err != nil {
+			logger.Error("failed to update user in repository", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		if errors.Is(err, shared.ErrNoRowsAffected) {
+			logger.Info("no need to update user")
+			return nil, err
+		}
+		logger.Error("failed to execute transaction", applog.Error(err))
+		return nil, err
+	}
+
+	logger.Info("update user successfully")
+	return response.ToUserProfileResponse(usr), nil
 }
