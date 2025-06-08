@@ -45,7 +45,8 @@ func createInitialRoles(roleRepo user.RoleRepository, logger applog.Logger) erro
 		Description: "系统管理员",
 	}
 	ctx := context.Background()
-	if err := roleRepo.Create(ctx, adminRole); err != nil {
+	_, err := roleRepo.Create(ctx, adminRole)
+	if err != nil {
 		return fmt.Errorf("创建管理员角色失败: %w", err)
 	}
 	logger.Info("成功创建管理员角色")
@@ -56,7 +57,8 @@ func createInitialRoles(roleRepo user.RoleRepository, logger applog.Logger) erro
 		Description: "普通用户",
 	}
 
-	if err := roleRepo.Create(ctx, userRole); err != nil {
+	_, err = roleRepo.Create(ctx, userRole)
+	if err != nil {
 		return fmt.Errorf("创建普通用户角色失败: %w", err)
 	}
 	logger.Info("成功创建普通用户角色")
