@@ -13,22 +13,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// MovieCache 电影缓存接口
-type MovieCache interface {
-	GetMovie(ctx context.Context, movieID uint) (*movie.Movie, error)
-	SetMovie(ctx context.Context, movie *movie.Movie, expiration time.Duration) error
-	DeleteMovie(ctx context.Context, movieID uint) error
-	GetMovieList(ctx context.Context, params map[string]interface{}) (*MovieListResult, error)
-	SetMovieList(ctx context.Context, movies []*movie.Movie, params map[string]interface{}, expiration time.Duration) error
-}
-
-// MovieListResult 电影列表的查询结果
-type MovieListResult struct {
-	Movies          []*movie.Movie // 成功获取的电影记录
-	AllMovieIDs     []uint         // 列表中所有的电影ID
-	MissingMovieIDs []uint         // 缓存中未找到的电影ID
-}
-
 // RedisMovieCache 电影缓存实现
 type RedisMovieCache struct {
 	redisClient       RedisClient
@@ -43,7 +27,7 @@ const (
 )
 
 // 创建一个RedisMovieCache实例
-func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) MovieCache {
+func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) movie.MovieCache {
 	return &RedisMovieCache{
 		redisClient:       redisClient,
 		logger:            logger.With(applog.String("Component", "RedisMovieCache")),
@@ -57,22 +41,28 @@ func (c *RedisMovieCache) movieKey(movieID uint) string {
 }
 
 // movieListKey 生成电影列表的缓存键
-func (c *RedisMovieCache) movieListKey(params map[string]interface{}) string {
-	if len(params) == 0 {
+func (c *RedisMovieCache) movieListKey(options *movie.MovieQueryOptions) string {
+	if options == nil {
 		return movieListKeyPrefix + "all"
 	}
 
 	// 规范化参数以确保键的一致性
-	keys := make([]string, 0, len(params))
-	for k := range params {
-		keys = append(keys, k)
+	keys := make([]string, 0, 3)
+	if options.Title != "" {
+		keys = append(keys, fmt.Sprintf("title=%s", options.Title))
+	}
+	if options.ReleaseYear != 0 {
+		keys = append(keys, fmt.Sprintf("release_year=%d", options.ReleaseYear))
+	}
+	if options.GenreName != "" {
+		keys = append(keys, fmt.Sprintf("genre_name=%s", options.GenreName))
 	}
 	sort.Strings(keys)
 
 	var sb strings.Builder
 	sb.WriteString(movieListKeyPrefix)
 	for _, k := range keys {
-		sb.WriteString(fmt.Sprintf("%s=%v:", k, params[k])) // 构建器追加字符串
+		sb.WriteString(fmt.Sprintf("%s:", k)) // 构建器追加字符串
 	}
 	return strings.TrimRight(sb.String(), ":") // 移除字符串右侧的:符号
 }
@@ -176,10 +166,10 @@ func (c *RedisMovieCache) SetMovies(ctx context.Context, movies []*movie.Movie, 
 }
 
 // SetMovieList 设置电影列表缓存（只存储ID）
-func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movie, params map[string]interface{}, expiration time.Duration) error {
+func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movie, options *movie.MovieQueryOptions, expiration time.Duration) error {
 	logger := c.logger.With(
 		applog.String("Method", "SetMovieList"),
-		applog.Any("params", params),
+		applog.Any("options", options),
 	)
 
 	if expiration == 0 {
@@ -200,7 +190,7 @@ func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movi
 	}
 
 	// 设置列表缓存（仅包含ID）
-	listKey := c.movieListKey(params)
+	listKey := c.movieListKey(options)
 	if err := c.redisClient.Set(ctx, listKey, data, expiration).Err(); err != nil {
 		logger.Error("failed to set movie ID list", applog.Error(err))
 		return fmt.Errorf("failed to set movie ID list: %w", err)
@@ -219,18 +209,18 @@ func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movi
 }
 
 // GetMovieList 获取电影列表缓存，同时返回缓存状态信息
-func (c *RedisMovieCache) GetMovieList(ctx context.Context, params map[string]interface{}) (*MovieListResult, error) {
+func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.MovieQueryOptions) (*movie.MovieCacheListResult, error) {
 	logger := c.logger.With(
 		applog.String("Method", "GetMovieList"),
-		applog.Any("params", params),
+		applog.Any("options", options),
 	)
 
-	result := &MovieListResult{
+	result := &movie.MovieCacheListResult{
 		Movies: make([]*movie.Movie, 0),
 	}
 
 	// 获取ID列表
-	listKey := c.movieListKey(params)
+	listKey := c.movieListKey(options)
 	valBytes, err := c.redisClient.Get(ctx, listKey).Bytes()
 	if err != nil {
 		if err == redis.Nil {
