@@ -162,6 +162,39 @@ func (h *UserHandler) AdminUpdateUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, userResp)
 }
 
+// 删除用户
+func (h *UserHandler) DeleteUser(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "DeleteUser"))
+	userID, exists := ctx.Params.Get("id")
+	if !exists {
+		logger.Error("user_id not found in params")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found in params"})
+		return
+	}
+
+	id, err := strconv.ParseUint(userID, 10, 32)
+	if err != nil {
+		logger.Error("failed to parse user_id", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	err = h.userService.DeleteUser(ctx, &request.DeleteUserRequest{ID: uint(id)})
+	if err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user not found", applog.Uint("user_id", uint(id)))
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+		logger.Error("failed to delete user", applog.Uint("user_id", uint(id)), applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	logger.Info("user deleted successfully", applog.Uint("user_id", uint(id)))
+	ctx.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+}
+
 // 获取用户列表
 func (h *UserHandler) ListUsers(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListUsers"))
