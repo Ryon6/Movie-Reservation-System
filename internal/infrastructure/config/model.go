@@ -20,11 +20,13 @@ type ServerConfig struct {
 }
 
 type LogConfig struct {
-	Level            string   `mapstructure:"level"`            // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
-	OutputPaths      []string `mapstructure:"outputPaths"`      // 日志编码，例如 "json", "console"
-	ErrorOutputPaths []string `mapstructure:"errorOutputPaths"` // 日志输出路径，例如 ["stdout", "/var/log/app.log"]
-	Encoding         string   `mapstructure:"encoding"`         // 错误日志输出路径，例如 ["stderr"]
-	DevelopmentMode  bool     `mapstructure:"development_mode"` // 是否使用开发模式日志配置（会覆盖上面的一些精细配置）
+	Level             string   `mapstructure:"level"`             // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
+	OutputPaths       []string `mapstructure:"outputPaths"`       // 日志编码，例如 "json", "console"
+	ErrorOutputPaths  []string `mapstructure:"errorOutputPaths"`  // 日志输出路径，例如 ["stdout", "/var/log/app.log"]
+	Encoding          string   `mapstructure:"encoding"`          // 错误日志输出路径，例如 ["stderr"]
+	DevelopmentMode   bool     `mapstructure:"development_mode"`  // 是否使用开发模式日志配置（会覆盖上面的一些精细配置）
+	DisableCaller     bool     `mapstructure:"disableCaller"`     // 是否禁用调用者信息
+	DisableStacktrace bool     `mapstructure:"disableStacktrace"` // 是否禁用堆栈跟踪
 }
 
 type DatabaseConfig struct {

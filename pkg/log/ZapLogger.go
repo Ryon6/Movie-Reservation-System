@@ -19,6 +19,8 @@ func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, error
 	zapcfg.ErrorOutputPaths = logCfg.ErrorOutputPaths
 	zapLevel, _ := zapcore.ParseLevel(logCfg.Level)
 	zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
+	zapcfg.DisableCaller = logCfg.DisableCaller
+	zapcfg.DisableStacktrace = logCfg.DisableStacktrace
 
 	automicLevel := zapcfg.Level
 	baseLogger, err := zapcfg.Build(options...)

@@ -33,6 +33,8 @@ log:
   errorOutputPaths: ["stderr", "./var/log/error.log"]
   encoding: json
   development_mode: true
+  disableCaller: true
+  disableStacktrace: true
 
 auth:
   defaultRoleName: "USER"
