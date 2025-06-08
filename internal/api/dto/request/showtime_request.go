@@ -10,8 +10,8 @@ import (
 type CreateShowtimeRequest struct {
 	MovieID      uint      `json:"movie_id" binding:"required,min=1"`
 	CinemaHallID uint      `json:"cinema_hall_id" binding:"required,min=1"`
-	StartTime    time.Time `json:"start_time" binding:"required,min=1,max=255"`
-	EndTime      time.Time `json:"end_time" binding:"required,min=1,max=255"`
+	StartTime    time.Time `json:"start_time" binding:"required"`
+	EndTime      time.Time `json:"end_time" binding:"required"`
 	Price        float64   `json:"price" binding:"required,min=0"`
 }
 
@@ -27,7 +27,7 @@ func (r *CreateShowtimeRequest) ToDomain() *showtime.Showtime {
 
 // 获取场次
 type GetShowtimeRequest struct {
-	ID uint `json:"id" binding:"required,min=1"`
+	ID uint
 }
 
 func (r *GetShowtimeRequest) ToDomain() *showtime.Showtime {
@@ -38,7 +38,7 @@ func (r *GetShowtimeRequest) ToDomain() *showtime.Showtime {
 
 // 更新场次
 type UpdateShowtimeRequest struct {
-	ID           uint      `json:"id" binding:"required,min=1"`
+	ID           uint
 	MovieID      uint      `json:"movie_id" binding:"omitempty,min=1"`
 	CinemaHallID uint      `json:"cinema_hall_id" binding:"omitempty,min=1"`
 	StartTime    time.Time `json:"start_time" binding:"omitempty"`
@@ -59,7 +59,7 @@ func (r *UpdateShowtimeRequest) ToDomain() *showtime.Showtime {
 
 // 删除场次
 type DeleteShowtimeRequest struct {
-	ID uint `json:"id" binding:"required,min=1"`
+	ID uint
 }
 
 func (r *DeleteShowtimeRequest) ToDomain() *showtime.Showtime {
