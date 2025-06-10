@@ -213,18 +213,14 @@ func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieReques
 func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteMovie"), applog.Uint("movie_id", req.ID))
 
-	// 先检查电影是否存在
-	mv, err := s.movieRepo.FindByID(ctx, req.ID)
-	if err != nil {
+	// 无需显式检查电影是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
+	// 单条电影删除，不需要事务
+	if err := s.movieRepo.Delete(ctx, req.ID); err != nil {
+		// 如果电影不存在，则返回错误(仓库底层实现会根据RowAffected判断记录是否存在)
 		if errors.Is(err, movie.ErrMovieNotFound) {
-			logger.Info("movie not found")
+			logger.Warn("movie not found")
 			return err
 		}
-		logger.Error("failed to get movie", applog.Error(err))
-		return err
-	}
-
-	if err := s.movieRepo.Delete(ctx, uint(mv.ID)); err != nil {
 		logger.Error("failed to delete movie", applog.Error(err))
 		return err
 	}
@@ -311,48 +307,33 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 func (s *movieService) CreateGenre(ctx context.Context, req *request.CreateGenreRequest) (*response.GenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateGenre"))
 
+	// 单条类型创建，不需要事务
 	genre := &movie.Genre{Name: req.Name}
-	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		var err error
-		genre, err = provider.GetGenreRepository().Create(ctx, genre)
-		if err != nil {
-			logger.Error("failed to create genre", applog.Error(err))
-			return err
-		}
-		return nil
-	})
+	newGenre, err := s.genreRepo.Create(ctx, genre)
 	if err != nil {
+		if errors.Is(err, movie.ErrGenreAlreadyExists) {
+			logger.Warn("genre already exists")
+			return nil, err
+		}
 		logger.Error("failed to create genre", applog.Error(err))
 		return nil, err
 	}
 
-	logger.Info("create genre successfully", applog.Uint("genre_id", uint(genre.ID)))
-	return response.ToGenreResponse(genre), nil
+	logger.Info("create genre successfully", applog.Uint("genre_id", uint(newGenre.ID)))
+	return response.ToGenreResponse(newGenre), nil
 }
 
 // 更新类型
 func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenreRequest) (*response.GenreResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateGenre"))
 
-	// 先检查类型是否存在
-	genre, err := s.genreRepo.FindByID(ctx, req.ID)
-	if err != nil {
+	genre := req.ToDomain()
+
+	if err := s.genreRepo.Update(ctx, genre); err != nil {
 		if errors.Is(err, movie.ErrGenreNotFound) {
-			logger.Info("genre not found")
+			logger.Warn("genre not found")
 			return nil, err
 		}
-		logger.Error("failed to get genre", applog.Error(err))
-		return nil, err
-	}
-
-	// 如果类型名称与原名称相同，则直接返回
-	if req.Name == "" || req.Name == genre.Name {
-		logger.Info("genre name is the same as the original name")
-		return response.ToGenreResponse(genre), nil
-	}
-
-	genre.Name = req.Name
-	if err := s.genreRepo.Update(ctx, genre); err != nil {
 		logger.Error("failed to update genre", applog.Error(err))
 		return nil, err
 	}
@@ -365,18 +346,9 @@ func (s *movieService) UpdateGenre(ctx context.Context, req *request.UpdateGenre
 func (s *movieService) DeleteGenre(ctx context.Context, req *request.DeleteGenreRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteGenre"), applog.Uint("genre_id", req.ID))
 
-	// 先检查类型是否存在
-	genre, err := s.genreRepo.FindByID(ctx, req.ID)
-	if err != nil {
-		if errors.Is(err, movie.ErrGenreNotFound) {
-			logger.Info("genre not found")
-			return err
-		}
-		logger.Error("failed to get genre", applog.Error(err))
-		return err
-	}
-
-	if err := s.genreRepo.Delete(ctx, uint(genre.ID)); err != nil {
+	// 无需先检查类型是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
+	if err := s.genreRepo.Delete(ctx, req.ID); err != nil {
+		// 如果类型被引用，则返回错误
 		if errors.Is(err, movie.ErrGenreReferenced) {
 			logger.Warn("genre is referenced by movie", applog.Uint("genre_id", req.ID))
 			return err
