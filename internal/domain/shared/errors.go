@@ -11,6 +11,11 @@ var (
 	ErrNoRowsAffected = errors.New("no rows affected")
 )
 
+// 缓存错误
+var (
+	ErrKeyNotFound = errors.New("key not found")
+)
+
 var (
 	// ErrTransactionBeginFailed 事务开启失败
 	ErrTransactionBeginFailed = errors.New("failed to begin transaction")
