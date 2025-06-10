@@ -89,14 +89,25 @@ func (r *gormRoleRepository) ListAll(ctx context.Context) ([]*user.Role, error) 
 func (r *gormRoleRepository) Update(ctx context.Context, role *user.Role) error {
 	logger := r.logger.With(applog.String("Method", "Update"), applog.Uint("role_id", uint(role.ID)))
 	roleGorm := models.RoleGormFromDomain(role)
+
+	// 先执行一个轻量级查询
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.RoleGorm{}).Where("id = ?", roleGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check role exist error", applog.Error(err))
+		return fmt.Errorf("database check role exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("role not found")
+		return fmt.Errorf("%w(id): %v", user.ErrRoleNotFound, roleGorm.ID)
+	}
+
 	if err := r.db.WithContext(ctx).Model(&models.RoleGorm{}).Where("id = ?", roleGorm.ID).Updates(roleGorm).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("role not found")
-			return fmt.Errorf("%w(id): %w", user.ErrRoleNotFound, err)
-		}
 		logger.Error("database update role error", applog.Error(err))
 		return fmt.Errorf("database update role error: %w", err)
 	}
+
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update role successfully")
 	return nil
 }
@@ -104,9 +115,14 @@ func (r *gormRoleRepository) Update(ctx context.Context, role *user.Role) error 
 // 删除角色
 func (r *gormRoleRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("role_id", id))
-	if err := r.db.WithContext(ctx).Delete(&models.RoleGorm{}, id).Error; err != nil {
-		logger.Error("database delete role by ID error", applog.Error(err))
-		return fmt.Errorf("database delete role by ID error: %w", err)
+	result := r.db.WithContext(ctx).Delete(&models.RoleGorm{}, id)
+	if result.Error != nil {
+		logger.Error("database delete role by ID error", applog.Error(result.Error))
+		return fmt.Errorf("database delete role by ID error: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		logger.Warn("role not found")
+		return fmt.Errorf("%w(id): %v", user.ErrRoleNotFound, id)
 	}
 	logger.Info("delete role successfully")
 	return nil
