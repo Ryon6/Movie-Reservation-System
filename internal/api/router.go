@@ -14,6 +14,8 @@ func SetupRouter(
 	authHandler *handlers.AuthHandler,
 	userHandler *handlers.UserHandler,
 	movieHandler *handlers.MovieHandler,
+	cinemaHandler *handlers.CinemaHandler,
+	showtimeHandler *handlers.ShowtimeHandler,
 	authMiddleware gin.HandlerFunc,
 	adminMiddleware gin.HandlerFunc,
 	// ... 其他处理器 ...
@@ -74,6 +76,34 @@ func SetupRouter(
 		genreAdminRoutes.POST("", movieHandler.CreateGenre)
 		genreAdminRoutes.PUT("/:id", movieHandler.UpdateGenre)
 		genreAdminRoutes.DELETE("/:id", movieHandler.DeleteGenre)
+	}
+
+	// 影厅管理路由
+	cinemaHallRoutes := apiV1.Group("/cinema-halls")
+	cinemaHallRoutes.Use(authMiddleware)
+	{
+		cinemaHallRoutes.GET("", cinemaHandler.ListAllCinemaHalls)
+		cinemaHallRoutes.GET("/:id", cinemaHandler.GetCinemaHall)
+	}
+	cinemaHallAdminRoutes := adminRoutes.Group("/cinema-halls")
+	{
+		cinemaHallAdminRoutes.POST("", cinemaHandler.CreateCinemaHall)
+		cinemaHallAdminRoutes.PUT("/:id", cinemaHandler.UpdateCinemaHall)
+		cinemaHallAdminRoutes.DELETE("/:id", cinemaHandler.DeleteCinemaHall)
+	}
+
+	// 放映场次管理路由
+	showtimeRoutes := apiV1.Group("/showtimes")
+	showtimeRoutes.Use(authMiddleware)
+	{
+		showtimeRoutes.GET("", showtimeHandler.ListShowtimes)
+		showtimeRoutes.GET("/:id", showtimeHandler.GetShowtime)
+	}
+	showtimeAdminRoutes := adminRoutes.Group("/showtimes")
+	{
+		showtimeAdminRoutes.POST("", showtimeHandler.CreateShowtime)
+		showtimeAdminRoutes.PUT("/:id", showtimeHandler.UpdateShowtime)
+		showtimeAdminRoutes.DELETE("/:id", showtimeHandler.DeleteShowtime)
 	}
 
 	return router
