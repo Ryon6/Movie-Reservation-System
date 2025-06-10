@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mrs/internal/domain/shared"
 	"mrs/internal/domain/showtime"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
@@ -150,17 +149,23 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 	// 因此，这里不进行业务逻辑的判断，直接更新数据库
 	// 如果需要业务逻辑的判断，应该在服务层进行
 
-	result := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Updates(st)
-	if err := result.Error; err != nil {
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check showtime exist error", applog.Error(err))
+		return fmt.Errorf("database check showtime exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("showtime not found")
+		return fmt.Errorf("%w(id): %v", showtime.ErrShowtimeNotFound, st.ID)
+	}
+
+	if err := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Updates(st).Error; err != nil {
 		logger.Error("database update showtime error", applog.Error(err))
 		return fmt.Errorf("database update showtime error: %w", err)
 	}
 
-	if result.RowsAffected == 0 {
-		logger.Warn("no rows affected during update")
-		return shared.ErrNoRowsAffected
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update showtime successfully")
 	return nil
 }
@@ -172,18 +177,14 @@ func (r *gormShowtimeRepository) Delete(ctx context.Context, id uint) error {
 	)
 
 	result := r.db.WithContext(ctx).Delete(&models.ShowtimeGorm{}, id)
-	if err := result.Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("showtime to delete not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", showtime.ErrShowtimeNotFound, err)
-		}
-		logger.Error("database delete showtime error", applog.Error(err))
-		return fmt.Errorf("database delete showtime error: %w", err)
+	if result.Error != nil {
+		logger.Error("database delete showtime error", applog.Error(result.Error))
+		return fmt.Errorf("database delete showtime error: %w", result.Error)
 	}
 
 	if result.RowsAffected == 0 {
-		logger.Warn("movie to delete not found or already deleted")
-		return shared.ErrNoRowsAffected
+		logger.Warn("showtime not found")
+		return fmt.Errorf("%w(id): %v", showtime.ErrShowtimeNotFound, id)
 	}
 
 	logger.Info("delete showtime successfully")
