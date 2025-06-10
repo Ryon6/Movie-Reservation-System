@@ -110,34 +110,41 @@ func (r *gormSeatRepository) Update(ctx context.Context, seat *cinema.Seat) erro
 	// 因此，这里不进行业务逻辑的判断，直接更新数据库
 	// 如果需要业务逻辑的判断，应该在服务层进行
 
-	result := r.db.WithContext(ctx).Where("id = ?", seatGorm.ID).Updates(&seatGorm)
-	if err := result.Error; err != nil {
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.SeatGorm{}).Where("id = ?", seatGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check seat exist error", applog.Error(err))
+		return fmt.Errorf("database check seat exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("seat not found")
+		return fmt.Errorf("%w(id): %v", cinema.ErrSeatNotFound, seatGorm.ID)
+	}
+
+	if err := r.db.WithContext(ctx).Model(&models.SeatGorm{}).Where("id = ?", seatGorm.ID).Updates(&seatGorm).Error; err != nil {
 		logger.Error("database update seat error", applog.Error(err))
 		return fmt.Errorf("database update seat error: %w", err)
 	}
 
-	if result.RowsAffected == 0 {
-		logger.Warn("no rows affected during update")
-		return shared.ErrNoRowsAffected
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update seat successfully")
 	return nil
 }
 
+// 删除座位
 func (r *gormSeatRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("seat_id", id))
 
 	result := r.db.WithContext(ctx).Delete(&models.SeatGorm{}, id)
-	if err := result.Error; err != nil {
-		logger.Error("database delete seat error", applog.Error(err))
-		return fmt.Errorf("database delete seat error: %w", err)
+	if result.Error != nil {
+		logger.Error("database delete seat error", applog.Error(result.Error))
+		return fmt.Errorf("database delete seat error: %w", result.Error)
 	}
 
 	// 是否不存在或已删除
 	if result.RowsAffected == 0 {
-		logger.Warn("seat to delete not found or already deleted")
-		return shared.ErrNoRowsAffected
+		logger.Warn("seat not found")
+		return fmt.Errorf("%w(id): %v", cinema.ErrSeatNotFound, id)
 	}
 
 	logger.Info("delete seat successfully")
