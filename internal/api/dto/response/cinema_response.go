@@ -62,3 +62,17 @@ func ToSeatResponse(seat *cinema.Seat) *SeatResponse {
 		Type:          string(seat.Type),
 	}
 }
+
+type ListAllCinemaHallsResponse struct {
+	CinemaHalls []*CinemaHallSimpleResponse `json:"cinema_halls"`
+}
+
+func ToListAllCinemaHallsResponse(halls []*cinema.CinemaHall) *ListAllCinemaHallsResponse {
+	cinemaHallResponses := make([]*CinemaHallSimpleResponse, len(halls))
+	for i, hall := range halls {
+		cinemaHallResponses[i] = ToCinemaHallSimpleResponse(hall)
+	}
+	return &ListAllCinemaHallsResponse{
+		CinemaHalls: cinemaHallResponses,
+	}
+}
