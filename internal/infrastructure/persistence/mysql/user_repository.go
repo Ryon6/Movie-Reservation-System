@@ -96,11 +96,26 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 	logger := r.logger.With(applog.String("Method", "Update"), applog.Uint("user_id", uint(usr.ID)))
 	userGorm := models.UserGormFromDomain(usr)
-	// 使用Updates方法更新用户信息，避免使用Save方法，因为Save方法会保存所有字段，包括零值
-	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("id = ?", userGorm.ID).Updates(userGorm).Error; err != nil {
-		logger.Error("database update user error", applog.Error(err))
-		return fmt.Errorf("database update user error: %w", err)
+
+	// 先执行一个轻量级查询
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("id = ?", userGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check user exist error", applog.Error(err))
+		return fmt.Errorf("database check user exist error: %w", err)
 	}
+
+	if exist == 0 {
+		logger.Warn("user not found")
+		return fmt.Errorf("%w(id): %v", user.ErrUserNotFound, userGorm.ID)
+	}
+
+	// 使用Updates方法更新用户信息，避免使用Save方法，因为Save方法会保存所有字段，包括零值
+	result := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("id = ?", userGorm.ID).Updates(userGorm).Scan(&userGorm)
+	if result.Error != nil {
+		logger.Error("database update user error", applog.Error(result.Error))
+		return fmt.Errorf("database update user error: %w", result.Error)
+	}
+
 	logger.Info("update user successfully")
 	return nil
 }
@@ -108,9 +123,14 @@ func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 // Delete 删除用户
 func (r *gormUserRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("user_id", id))
-	if err := r.db.WithContext(ctx).Delete(&models.UserGorm{}, id).Error; err != nil {
-		logger.Error("database delete user error", applog.Error(err))
-		return fmt.Errorf("database delete user error: %w", err)
+	result := r.db.WithContext(ctx).Delete(&models.UserGorm{}, id)
+	if result.Error != nil {
+		logger.Error("database delete user error", applog.Error(result.Error))
+		return fmt.Errorf("database delete user error: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		logger.Warn("user not found")
+		return fmt.Errorf("%w(id): %v", user.ErrUserNotFound, id)
 	}
 	logger.Info("delete user successfully")
 	return nil
