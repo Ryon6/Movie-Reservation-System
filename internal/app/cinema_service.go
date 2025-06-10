@@ -14,25 +14,24 @@ import (
 type CinemaService interface {
 	CreateCinemaHall(ctx context.Context, req *request.CreateCinemaHallRequest) (*response.CinemaHallResponse, error)
 	GetCinemaHall(ctx context.Context, req *request.GetCinemaHallRequest) (*response.CinemaHallResponse, error)
-	CreateHallSeats(ctx context.Context, req *request.CreateHallSeatsRequest) (*response.CinemaHallResponse, error)
+	ListAllCinemaHalls(ctx context.Context) (*response.ListAllCinemaHallsResponse, error)
+	UpdateCinemaHall(ctx context.Context, req *request.UpdateCinemaHallRequest) (*response.CinemaHallResponse, error)
+	DeleteCinemaHall(ctx context.Context, req *request.DeleteCinemaHallRequest) error
 }
 
 type cinemaService struct {
 	uow            shared.UnitOfWork
-	seatRepo       cinema.SeatRepository
 	cinemaHallRepo cinema.CinemaHallRepository
 	logger         applog.Logger
 }
 
 func NewCinemaService(
 	uow shared.UnitOfWork,
-	seatRepo cinema.SeatRepository,
 	cinemaHallRepo cinema.CinemaHallRepository,
 	logger applog.Logger,
-) *cinemaService {
+) CinemaService {
 	return &cinemaService{
 		uow:            uow,
-		seatRepo:       seatRepo,
 		cinemaHallRepo: cinemaHallRepo,
 		logger:         logger.With(applog.String("Service", "CinemaHallService")),
 	}
@@ -43,6 +42,11 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 	logger := s.logger.With(applog.String("Method", "CreateCinemaHall"), applog.String("cinema_hall_name", req.Name))
 
 	cinemaHall := req.ToDomain()
+	if len(cinemaHall.Seats) == 0 {
+		cinemaHall.Seats = cinema.GenerateDefaultSeats()
+	}
+
+	// 创建影厅时，需要创建座位，所以需要使用事务
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		var err error
 		cinemaHall, err = provider.GetCinemaHallRepository().Create(ctx, cinemaHall)
@@ -54,6 +58,13 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 			logger.Error("failed to create cinema hall", applog.Error(err))
 			return err
 		}
+
+		seats, err := provider.GetSeatRepository().CreateBatch(ctx, cinemaHall.Seats)
+		if err != nil {
+			logger.Error("failed to create seats", applog.Error(err))
+			return err
+		}
+		cinemaHall.Seats = seats
 		return nil
 	})
 	if err != nil {
@@ -83,36 +94,62 @@ func (s *cinemaService) GetCinemaHall(ctx context.Context, req *request.GetCinem
 	return response.ToCinemaHallResponse(cinemaHall), nil
 }
 
-// 创建影厅座位
-func (s *cinemaService) CreateHallSeats(ctx context.Context, req *request.CreateHallSeatsRequest) (*response.CinemaHallResponse, error) {
-	logger := s.logger.With(applog.String("Method", "CreateHallSeats"), applog.Uint("cinema_hall_id", req.CinemaHallID))
+// 获取所有影厅
+func (s *cinemaService) ListAllCinemaHalls(ctx context.Context) (*response.ListAllCinemaHallsResponse, error) {
+	logger := s.logger.With(applog.String("Method", "ListAllCinemaHalls"))
 
-	// 获取影厅，判断影厅是否存在
-	cinemaHall, err := s.cinemaHallRepo.FindByID(ctx, req.CinemaHallID)
+	cinemaHalls, err := s.cinemaHallRepo.ListAll(ctx)
 	if err != nil {
-		if errors.Is(err, cinema.ErrCinemaHallNotFound) {
-			logger.Warn("cinema hall not found", applog.Error(err))
-			return nil, fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
-		}
-		logger.Error("failed to get cinema hall", applog.Error(err))
+		logger.Error("failed to list all cinema halls", applog.Error(err))
 		return nil, err
 	}
 
-	seats := req.ToDomain()
-	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		seats, err = provider.GetSeatRepository().CreateBatch(ctx, seats)
-		if err != nil {
-			logger.Error("failed to create seats", applog.Error(err))
+	logger.Info("list all cinema halls successfully", applog.Int("cinema_hall_count", len(cinemaHalls)))
+	return response.ToListAllCinemaHallsResponse(cinemaHalls), nil
+}
+
+// 更新影厅
+func (s *cinemaService) UpdateCinemaHall(ctx context.Context, req *request.UpdateCinemaHallRequest) (*response.CinemaHallResponse, error) {
+	logger := s.logger.With(applog.String("Method", "UpdateCinemaHall"), applog.Uint("cinema_hall_id", req.ID))
+
+	cinemaHall := req.ToDomain()
+	// 影厅更新只涉及单条记录，不需要事务
+	if err := s.cinemaHallRepo.Update(ctx, cinemaHall); err != nil {
+		if errors.Is(err, cinema.ErrCinemaHallNotFound) {
+			logger.Warn("cinema hall not found")
+			return nil, err
+		}
+		logger.Error("failed to update cinema hall", applog.Error(err))
+		return nil, err
+	}
+
+	logger.Info("update cinema hall successfully", applog.Uint("cinema_hall_id", req.ID))
+	return response.ToCinemaHallResponse(cinemaHall), nil
+}
+
+// 删除影厅
+func (s *cinemaService) DeleteCinemaHall(ctx context.Context, req *request.DeleteCinemaHallRequest) error {
+	logger := s.logger.With(applog.String("Method", "DeleteCinemaHall"), applog.Uint("cinema_hall_id", req.ID))
+
+	// 由于座位的外键约束为CASCADE，影厅删除时，座位也会被删除，所以需要使用事务
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		cinemaHallRepo := provider.GetCinemaHallRepository()
+		// 无需先检查影厅是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
+		if err := cinemaHallRepo.Delete(ctx, req.ID); err != nil {
+			if errors.Is(err, cinema.ErrCinemaHallNotFound) {
+				logger.Warn("cinema hall not found", applog.Error(err))
+				return fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
+			}
+			logger.Error("failed to delete cinema hall", applog.Error(err))
 			return err
 		}
 		return nil
 	})
 	if err != nil {
-		logger.Error("failed to create seats", applog.Error(err))
-		return nil, err
+		logger.Error("failed to delete cinema hall", applog.Error(err))
+		return err
 	}
 
-	cinemaHall.Seats = seats
-	logger.Info("create seats successfully", applog.Int("seat count", len(seats)))
-	return response.ToCinemaHallResponse(cinemaHall), nil
+	logger.Info("delete cinema hall successfully", applog.Uint("cinema_hall_id", req.ID))
+	return nil
 }
