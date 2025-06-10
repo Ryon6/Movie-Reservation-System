@@ -199,14 +199,14 @@
     *   **描述**: 列出放映场次 (分页)。
     *   **查询参数**: `page`, `pageSize`, `movieId` (电影ID), `hallId` (影厅ID), `date` (日期, 例如: YYYY-MM-DD), `startTimeAfter` (此时间之后开始)
     *   **响应体**: `分页响应包装器<场次响应>`
-    *   **调用服务**: `ShowtimeService.ListShowtimes(params)`
+    *   **调用服务**: `ShowtimeService.ListShowtimes(ListShowtimesRequest)`
 
 *   **`GET /api/v1/showtimes/{showtimeId}`**
     *   **描述**: 获取特定放映场次的详情。
     *   **响应体**: `场次响应` (包含电影和影厅信息)
-    *   **调用服务**: `ShowtimeService.GetShowtimeByID(showtimeId)`
+    *   **调用服务**: `ShowtimeService.GetShowtime(GetShowtimeRequest)`
 
-*   **`GET /api/v1/showtimes/{showtimeId}/seat-map`**
+*   **`GET /api/v1/showtimes/{showtimeId}/seat-map`**（需要预定服务的详细设计）
     *   **描述**: 获取特定放映场次的座位图 (布局和可用状态)。
     *   **响应体**: `座位图响应` (例如: ` { "hallName": "1号厅", "seats": [ [ { "id": "A1", "status": "available" }, ... ] ] } `)
     *   **调用服务**: `ShowtimeService.GetShowtimeSeatMap(showtimeId)`
@@ -217,16 +217,16 @@
     *   **描述**: 安排一个新的放映场次。
     *   **请求体**: `安排场次请求` (电影ID, 影厅ID, 开始时间, 票价)
     *   **响应体**: `场次响应`
-    *   **调用服务**: `ShowtimeService.ScheduleShowtime(params)`
+    *   **调用服务**: `ShowtimeService.CreateShowtime(CreateShowtimeRequest)`
 *   **`PUT /api/v1/admin/showtimes/{showtimeId}`**
     *   **描述**: 更新一个放映场次 (例如: 修改时间, 票价)。
     *   **请求体**: `更新场次请求`
     *   **响应体**: `场次响应`
-    *   **调用服务**: `ShowtimeService.UpdateShowtime(showtimeId, params)`
+    *   **调用服务**: `ShowtimeService.UpdateShowtime(UpdateShowtimeRequest)`
 *   **`DELETE /api/v1/admin/showtimes/{showtimeId}`**
     *   **描述**: 取消/删除一个放映场次。
     *   **响应**: `204 No Content`
-    *   **调用服务**: `ShowtimeService.CancelShowtime(showtimeId)`
+    *   **调用服务**: `ShowtimeService.DeleteShowtime(DeleteShowtimeRequest)`
 
 ---
 
