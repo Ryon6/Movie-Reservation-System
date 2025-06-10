@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mrs/internal/domain/cinema"
-	"mrs/internal/domain/shared"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -96,6 +95,8 @@ func (r *gormCinemaHallRepository) ListAll(ctx context.Context) ([]*cinema.Cinem
 	}
 	return halls, nil
 }
+
+// 更新影厅
 func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.CinemaHall) error {
 	logger := r.logger.With(applog.String("Method", "Update"),
 		applog.Uint("hall_id", uint(hall.ID)), applog.String("name", hall.Name))
@@ -105,42 +106,44 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 	// 基础设施层只负责数据访问，不负责业务逻辑
 	// 因此，这里不进行业务逻辑的判断，直接更新数据库
 	// 如果需要业务逻辑的判断，应该在服务层进行
-	result := r.db.WithContext(ctx).
-		Model(&models.CinemaHallGorm{}).
-		Where("id = ?", cinemaHallGorm.ID).
-		Updates(cinemaHallGorm)
-	if err := result.Error; err != nil {
+
+	// 先执行一个轻量级查询
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.CinemaHallGorm{}).Where("id = ?", cinemaHallGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check cinema hall exist error", applog.Error(err))
+		return fmt.Errorf("database check cinema hall exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("cinema hall not found")
+		return fmt.Errorf("%w(id): %v", cinema.ErrCinemaHallNotFound, cinemaHallGorm.ID)
+	}
+
+	if err := r.db.WithContext(ctx).Model(&models.CinemaHallGorm{}).Where("id = ?", cinemaHallGorm.ID).Updates(cinemaHallGorm).Error; err != nil {
 		logger.Error("database update cinema hall error", applog.Error(err))
 		return fmt.Errorf("database update cinema hall error: %w", err)
 	}
 
-	if result.RowsAffected == 0 {
-		logger.Warn("no rows affected during update")
-		return shared.ErrNoRowsAffected
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update cinema hall successfully")
 	return nil
 }
 
+// 删除影厅
 func (r *gormCinemaHallRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("hall_id", id))
 
 	result := r.db.WithContext(ctx).Delete(&models.CinemaHallGorm{}, id)
 	if err := result.Error; err != nil {
 		// 无需判断外键约束错误，业务上座位归属于影厅，影厅删除时，座位也会被删除，数据模型上外键约束为CASCADE
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("cinema hall to delete not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
-		}
 		logger.Error("database delete cinema hall error", applog.Error(err))
 		return fmt.Errorf("database delete cinema hall error: %w", err)
 	}
 
 	// 是否不存在或已删除
 	if result.RowsAffected == 0 {
-		logger.Warn("cinema hall to delete not found or already deleted")
-		return shared.ErrNoRowsAffected
+		logger.Warn("cinema hall not found")
+		return fmt.Errorf("%w(id): %v", cinema.ErrCinemaHallNotFound, id)
 	}
 
 	logger.Info("delete cinema hall successfully")
