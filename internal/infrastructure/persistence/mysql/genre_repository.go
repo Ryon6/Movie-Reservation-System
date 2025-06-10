@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mrs/internal/domain/movie"
-	"mrs/internal/domain/shared"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -94,6 +93,19 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 	// 因此，这里不进行业务逻辑的判断，直接更新数据库
 	// 如果需要业务逻辑的判断，应该在服务层进行
 	genreGorm := models.GenreGormFromDomain(genre)
+
+	// 先执行一个轻量级查询
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.GenreGorm{}).Where("id = ?", genreGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check genre exist error", applog.Error(err))
+		return fmt.Errorf("database check genre exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("genre not found")
+		return fmt.Errorf("%w(id): %v", movie.ErrGenreNotFound, genreGorm.ID)
+	}
+
 	// 使用Updates只更新非零值字段
 	result := r.db.WithContext(ctx).Model(&models.GenreGorm{}).
 		Where("id = ?", genreGorm.ID).
@@ -104,11 +116,7 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 		return fmt.Errorf("database update genre error: %w", result.Error)
 	}
 
-	if result.RowsAffected == 0 {
-		logger.Warn("no rows affected during update")
-		return shared.ErrNoRowsAffected
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update genre successfully")
 	return nil
 }
@@ -117,16 +125,11 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("genre_id", id))
 
 	result := r.db.WithContext(ctx).Delete(&models.GenreGorm{}, id)
-
 	if err := result.Error; err != nil {
 		// 是否为外键约束错误，是则返回哨兵错误，有服务层进一步处理
 		if isForeignKeyConstraintError(err) {
 			logger.Warn("cannot delete genre due to foreign key constraint", applog.Error(err))
 			return fmt.Errorf("%w: %w", movie.ErrGenreReferenced, err)
-		}
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("genre to delete not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", movie.ErrGenreNotFound, err)
 		}
 		logger.Error("database delete genre error", applog.Error(err))
 		return fmt.Errorf("database delete genre error: %w", err)
@@ -134,8 +137,8 @@ func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
 
 	// 是否不存在或已删除
 	if result.RowsAffected == 0 {
-		logger.Warn("genre to delete not found or already deleted")
-		return shared.ErrNoRowsAffected
+		logger.Warn("genre not found")
+		return fmt.Errorf("%w(id): %v", movie.ErrGenreNotFound, id)
 	}
 	logger.Info("delete genre successfully")
 	return nil
