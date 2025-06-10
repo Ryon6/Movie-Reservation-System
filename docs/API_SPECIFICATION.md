@@ -93,14 +93,14 @@
     *   **描述**: 更新一个角色。
     *   **请求体**: `{ "name": "content_editor", "description": "可以编辑和发布内容" }`
     *   **响应体**: `角色响应`
-    *   **调用服务**: `UserService.UpdateRole(roleId, params)`
+    *   **调用服务**: `UserService.UpdateRole(UpdateRoleRequest)`
 *   **`DELETE /api/v1/admin/roles/{roleId}`**
     *   **描述**: 删除一个角色。
     *   **响应**: `204 No Content`
-    *   **调用服务**: `UserService.DeleteRole(roleId)`
-*   **`POST /api/v1/admin/users/{userId}/roles`**
+    *   **调用服务**: `UserService.DeleteRole(DeleteRoleRequest)`
+*   **`POST /api/v1/admin/users/roles`**
     *   **描述**: 为用户分配角色。
-    *   **请求体**: `{ "roleId": "..." }`
+    *   **请求体**: `AssignRoleToUserRequest`
     *   **响应**: `成功响应`
     *   **调用服务**: `UserService.AssignRoleToUser(AssignRoleToUserRequest)`
 
@@ -162,15 +162,15 @@
 ### 公开/用户端点 (信息查询):
 
 *   **`GET /api/v1/cinema-halls`**
-    *   **描述**: 列出可用的影厅 (分页)。
+    *   **描述**: 列出可用的影厅。
     *   **查询参数**: `page`, `pageSize`
     *   **响应体**: `分页响应包装器<影厅响应>` (基本信息)
-    *   **调用服务**: `CinemaService.ListCinemaHalls(params)` (可能有独立的公开列表方法)
+    *   **调用服务**: `CinemaService.ListAllCinemaHalls()` 
 
 *   **`GET /api/v1/cinema-halls/{hallId}`**
     *   **描述**: 获取特定影厅的详情。
-    *   **响应体**: `影厅响应` (基本信息)
-    *   **调用服务**: `CinemaService.GetCinemaHallByID(hallId)`
+    *   **响应体**: `影厅响应` (详细信息)
+    *   **调用服务**: `CinemaService.GetCinemaHall(GetCinemaHallRequest)`
 
 ### 管理员端点:
 
@@ -178,35 +178,16 @@
     *   **描述**: 创建一个新的影厅。
     *   **请求体**: `创建影厅请求` (名称, 屏幕类型, 座位布局详情)
     *   **响应体**: `影厅响应` (包含座位布局的完整详情)
-    *   **调用服务**: `CinemaService.CreateCinemaHall(params)`
-
-*   **`GET /api/v1/admin/cinema-halls`**
-    *   **描述**: 管理员列出所有影厅 (分页, 完整详情)。
-    *   **查询参数**: `page`, `pageSize`
-    *   **响应体**: `分页响应包装器<影厅响应>`
-    *   **调用服务**: `CinemaService.ListCinemaHalls(params)`
-
-*   **`GET /api/v1/admin/cinema-halls/{hallId}`**
-    *   **描述**: 管理员获取特定影厅的完整详情。
-    *   **响应体**: `影厅响应`
-    *   **调用服务**: `CinemaService.GetCinemaHallByID(hallId)`
-
+    *   **调用服务**: `CinemaService.CreateCinemaHall(CreateCinemaHallRequest)`
 *   **`PUT /api/v1/admin/cinema-halls/{hallId}`**
-    *   **描述**: 更新影厅详情 (名称, 屏幕类型)。座位布局更新是独立操作。
+    *   **描述**: 更新影厅详情 (名称, 屏幕类型)。
     *   **请求体**: `更新影厅请求`
     *   **响应体**: `影厅响应`
-    *   **调用服务**: `CinemaService.UpdateCinemaHall(hallId, params)`
-
-*   **`PUT /api/v1/admin/cinema-halls/{hallId}/seats`**
-    *   **描述**: 配置或重新配置影厅的座位布局。
-    *   **请求体**: `配置座位请求` (座位定义列表)
-    *   **响应**: `200 OK` 或包含更新后座位布局的 `影厅响应`
-    *   **调用服务**: `CinemaService.ConfigureHallSeats(hallId, params)`
-
+    *   **调用服务**: `CinemaService.UpdateCinemaHall(UpdateCinemaHallRequest)`
 *   **`DELETE /api/v1/admin/cinema-halls/{hallId}`**
     *   **描述**: 删除一个影厅。
     *   **响应**: `204 No Content`
-    *   **调用服务**: `CinemaService.DeleteCinemaHall(hallId)`
+    *   **调用服务**: `CinemaService.DeleteCinemaHall(DeleteCinemaHallRequest)`
 
 ---
 
@@ -237,19 +218,11 @@
     *   **请求体**: `安排场次请求` (电影ID, 影厅ID, 开始时间, 票价)
     *   **响应体**: `场次响应`
     *   **调用服务**: `ShowtimeService.ScheduleShowtime(params)`
-
-*   **`GET /api/v1/admin/showtimes`**
-    *   **描述**: 管理员列出所有放映场次 (分页)。
-    *   **查询参数**: `page`, `pageSize`, `movieId`, `hallId`, `dateFrom` (起始日期), `dateTo` (结束日期)
-    *   **响应体**: `分页响应包装器<场次响应>`
-    *   **调用服务**: `ShowtimeService.ListShowtimesForAdmin(params)`
-
 *   **`PUT /api/v1/admin/showtimes/{showtimeId}`**
     *   **描述**: 更新一个放映场次 (例如: 修改时间, 票价)。
     *   **请求体**: `更新场次请求`
     *   **响应体**: `场次响应`
     *   **调用服务**: `ShowtimeService.UpdateShowtime(showtimeId, params)`
-
 *   **`DELETE /api/v1/admin/showtimes/{showtimeId}`**
     *   **描述**: 取消/删除一个放映场次。
     *   **响应**: `204 No Content`
