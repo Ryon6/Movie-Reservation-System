@@ -11,8 +11,6 @@ import (
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
-
-	"gorm.io/gorm"
 )
 
 type UserService interface {
@@ -62,40 +60,39 @@ func (s *userService) Register(ctx context.Context, req *request.RegisterUserReq
 		applog.String("email", req.Email))
 	// 数据库底层存在用户名和邮箱的唯一性约束，因此不需要再验证
 
-	// 查找默认角色，无需事务，因为角色不会被修改
-	defaultRole, err := s.roleRepo.FindByName(ctx, s.defaultRoleName)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Error("Default role not found", applog.String("role_name", s.defaultRoleName))
-			return nil, fmt.Errorf("default role not found: %w", user.ErrRoleNotFound)
-		}
-		logger.Error("Failed to find default role", applog.Error(err))
-		return nil, err
-	}
-
 	// 创建用户实体并生成哈希密码
 	newUser := user.User{
 		Username: req.Username,
 		Email:    req.Email,
-		Role:     defaultRole,
 	}
-
 	if err := newUser.SetPassword(req.Password, s.hasher); err != nil {
 		logger.Error("failed to hash password", applog.Error(err))
 		return nil, fmt.Errorf("%w: %w", user.ErrInvalidPassword, err)
 	}
 
-	// 开启事务
-	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+	// 涉及多表操作，开启事务
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		// 查找默认角色，无需事务，因为角色不会被修改
+		defaultRole, err := provider.GetRoleRepository().FindByName(ctx, s.defaultRoleName)
+		if err != nil {
+			if errors.Is(err, user.ErrRoleNotFound) {
+				logger.Error("Default role not found", applog.String("role_name", s.defaultRoleName))
+				return err
+			}
+			logger.Error("Failed to find default role", applog.Error(err))
+			return err
+		}
+		newUser.Role = defaultRole
 		if err := provider.GetUserRepository().Create(ctx, &newUser); err != nil {
 			logger.Error("failed to create user in repository", applog.Error(err))
-			return fmt.Errorf("userService.RegisterUser: %w", err)
+			return err
 		}
 		return nil
 	})
+
 	if err != nil {
 		logger.Error("failed to execute transaction", applog.Error(err))
-		return nil, fmt.Errorf("userService.RegisterUser: %w", err)
+		return nil, err
 	}
 
 	logger.Info("create user successful")
@@ -130,40 +127,13 @@ func (s *userService) UpdateUser(ctx context.Context, req *request.UpdateUserReq
 		}
 	}
 
-	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		// 先检查用户是否存在
-		existingUser, err := provider.GetUserRepository().FindByID(ctx, uint(usr.ID))
-		if err != nil {
-			if errors.Is(err, user.ErrUserNotFound) {
-				logger.Warn("user not found")
-				return err
-			}
-			logger.Error("failed to find user by ID", applog.Error(err))
-			return err
-		}
-
-		// 检查是否需要更新
-		if (usr.Username == "" || usr.Username == existingUser.Username) &&
-			(usr.Email == "" || usr.Email == existingUser.Email) &&
-			(usr.PasswordHash == "" || usr.PasswordHash == existingUser.PasswordHash) {
-			logger.Info("no need to update user")
-			return shared.ErrNoRowsAffected
-		}
-
-		// 更新用户
-		if err := provider.GetUserRepository().Update(ctx, usr); err != nil {
-			logger.Error("failed to update user in repository", applog.Error(err))
-			return err
-		}
-		return nil
-	})
-
-	if err != nil {
-		if errors.Is(err, shared.ErrNoRowsAffected) {
-			logger.Info("no need to update user")
+	// 单个的原子的写操作，无需事务。数据库引擎本身保证了单条SQL的原子性
+	if err := s.userRepo.Update(ctx, usr); err != nil {
+		if errors.Is(err, user.ErrUserNotFound) {
+			logger.Warn("user not found")
 			return nil, err
 		}
-		logger.Error("failed to execute transaction", applog.Error(err))
+		logger.Error("failed to update user in repository", applog.Error(err))
 		return nil, err
 	}
 
@@ -174,6 +144,7 @@ func (s *userService) UpdateUser(ctx context.Context, req *request.UpdateUserReq
 // 删除用户
 func (s *userService) DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteUser"), applog.Uint("user_id", req.ID))
+
 	err := s.userRepo.Delete(ctx, req.ID)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
@@ -215,26 +186,18 @@ func (s *userService) CreateRole(ctx context.Context, req *request.CreateRoleReq
 	logger := s.logger.With(applog.String("Method", "CreateRole"), applog.String("role_name", req.Name))
 	role := req.ToDomain()
 
-	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		var err error
-		role, err = provider.GetRoleRepository().Create(ctx, role)
-		if err != nil {
-			if errors.Is(err, user.ErrRoleAlreadyExists) {
-				logger.Warn("role already exists", applog.String("role_name", req.Name))
-				return err
-			}
-			logger.Error("failed to create role in repository", applog.Error(err))
-			return err
-		}
-		return nil
-	})
+	createdRole, err := s.roleRepo.Create(ctx, role)
 	if err != nil {
-		logger.Error("failed to execute transaction", applog.Error(err))
+		if errors.Is(err, user.ErrRoleAlreadyExists) {
+			logger.Warn("role already exists", applog.String("role_name", req.Name))
+			return nil, err
+		}
+		logger.Error("failed to create role in repository", applog.Error(err))
 		return nil, err
 	}
 
 	logger.Info("create role successfully")
-	return response.ToRoleResponse(role), nil
+	return response.ToRoleResponse(createdRole), nil
 }
 
 // 获取角色列表
@@ -255,41 +218,13 @@ func (s *userService) UpdateRole(ctx context.Context, req *request.UpdateRoleReq
 	logger := s.logger.With(applog.String("Method", "UpdateRole"), applog.Uint("role_id", req.ID))
 	role := req.ToDomain()
 
-	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		var err error
-		roleRepo := provider.GetRoleRepository()
-		// 先检查角色是否存在
-		existingRole, err := roleRepo.FindByID(ctx, uint(role.ID))
-		if err != nil {
-			if errors.Is(err, user.ErrRoleNotFound) {
-				logger.Warn("role not found")
-				return err
-			}
-			logger.Error("failed to find role by ID", applog.Error(err))
-			return err
-		}
-
-		// 检查是否需要更新
-		if (role.Name == "" || role.Name == existingRole.Name) &&
-			(role.Description == "" || role.Description == existingRole.Description) {
-			logger.Info("no need to update role")
-			return shared.ErrNoRowsAffected
-		}
-
-		// 更新角色
-		if err := roleRepo.Update(ctx, role); err != nil {
-			logger.Error("failed to update role in repository", applog.Error(err))
-			return err
-		}
-		return nil
-	})
+	err := s.roleRepo.Update(ctx, role)
 	if err != nil {
-		// 如果角色没有变化，则返回角色信息
-		if errors.Is(err, shared.ErrNoRowsAffected) {
-			logger.Info("no need to update role")
-			return response.ToRoleResponse(role), nil
+		if errors.Is(err, user.ErrRoleNotFound) {
+			logger.Warn("role not found")
+			return nil, err
 		}
-		logger.Error("failed to execute transaction", applog.Error(err))
+		logger.Error("failed to update role in repository", applog.Error(err))
 		return nil, err
 	}
 
@@ -301,29 +236,13 @@ func (s *userService) UpdateRole(ctx context.Context, req *request.UpdateRoleReq
 func (s *userService) DeleteRole(ctx context.Context, req *request.DeleteRoleRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteRole"), applog.Uint("role_id", req.ID))
 
-	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		var err error
-		roleRepo := provider.GetRoleRepository()
-		// 先检查角色是否存在
-		existingRole, err := roleRepo.FindByID(ctx, uint(req.ID))
-		if err != nil {
-			if errors.Is(err, user.ErrRoleNotFound) {
-				logger.Warn("role not found")
-				return err
-			}
-			logger.Error("failed to find role by ID", applog.Error(err))
-			return err
-		}
-
-		// 删除角色
-		if err := roleRepo.Delete(ctx, uint(existingRole.ID)); err != nil {
-			logger.Error("failed to delete role in repository", applog.Error(err))
-			return err
-		}
-		return nil
-	})
+	err := s.roleRepo.Delete(ctx, req.ID)
 	if err != nil {
-		logger.Error("failed to execute transaction", applog.Error(err))
+		if errors.Is(err, user.ErrRoleNotFound) {
+			logger.Warn("role not found")
+			return err
+		}
+		logger.Error("failed to delete role in repository", applog.Error(err))
 		return err
 	}
 
@@ -335,6 +254,7 @@ func (s *userService) DeleteRole(ctx context.Context, req *request.DeleteRoleReq
 func (s *userService) AssignRoleToUser(ctx context.Context, req *request.AssignRoleToUserRequest) error {
 	logger := s.logger.With(applog.String("Method", "AssignRoleToUser"), applog.Uint("user_id", req.UserID), applog.Uint("role_id", req.RoleID))
 
+	// 多表操作，需要开启事务
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		var err error
 		userRepo := provider.GetUserRepository()
