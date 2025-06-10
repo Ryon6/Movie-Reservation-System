@@ -1,6 +1,9 @@
 package cinema
 
-import "mrs/internal/domain/shared/vo"
+import (
+	"fmt"
+	"mrs/internal/domain/shared/vo"
+)
 
 type SeatType string
 
@@ -18,4 +21,19 @@ type Seat struct {
 	RowIdentifier string // 座位所在排的标识,如 A、B、C
 	SeatNumber    string // 座位在该排中的编号,如 1、2、3
 	Type          SeatType
+}
+
+func GenerateDefaultSeats() []*Seat {
+	rows, columns := 10, 10
+	seats := make([]*Seat, 0, rows*columns)
+	for i := 0; i < rows; i++ {
+		for j := 1; j <= columns; j++ {
+			seats = append(seats, &Seat{
+				RowIdentifier: string(rune('A' + i)),
+				SeatNumber:    fmt.Sprintf("%02d", j),
+				Type:          SeatTypeStandard,
+			})
+		}
+	}
+	return seats
 }
