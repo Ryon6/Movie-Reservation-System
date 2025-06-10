@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mrs/internal/domain/movie"
-	"mrs/internal/domain/shared"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -157,37 +156,41 @@ func (r *gormMovieRepository) Update(ctx context.Context, mv *movie.Movie) error
 	// 因此，这里不进行业务逻辑的判断，直接更新数据库
 	// 如果需要业务逻辑的判断，应该在服务层进行
 
-	result := r.db.WithContext(ctx).Model(&models.MovieGorm{}).Where("id = ?", movieGorm.ID).Updates(movieGorm)
-	if err := result.Error; err != nil {
+	// 先执行一个轻量级查询
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.MovieGorm{}).Where("id = ?", movieGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check movie exist error", applog.Error(err))
+		return fmt.Errorf("database check movie exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("movie not found")
+		return fmt.Errorf("%w(id): %v", movie.ErrMovieNotFound, movieGorm.ID)
+	}
+
+	if err := r.db.WithContext(ctx).Model(&models.MovieGorm{}).Where("id = ?", movieGorm.ID).Updates(movieGorm).Error; err != nil {
 		logger.Error("database update movie error", applog.Error(err))
 		return fmt.Errorf("database update movie error: %w", err)
 	}
 
-	if result.RowsAffected == 0 {
-		logger.Warn("no rows affected during update")
-		return shared.ErrNoRowsAffected
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update movie successfully")
 	return nil
 }
 
+// 删除电影
 func (r *gormMovieRepository) Delete(ctx context.Context, id uint) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("movie_id", id))
 
 	result := r.db.WithContext(ctx).Delete(&models.MovieGorm{}, id)
 	if err := result.Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("movie to delete not found", applog.Error(err))
-			return fmt.Errorf("%w: %w", movie.ErrMovieNotFound, err)
-		}
 		logger.Error("database delete movie error", applog.Error(err))
 		return fmt.Errorf("database delete movie error: %w", err)
 	}
 
 	if result.RowsAffected == 0 {
 		logger.Warn("movie to delete not found or already deleted")
-		return shared.ErrNoRowsAffected
+		return fmt.Errorf("%w(id): %v", movie.ErrMovieNotFound, id)
 	}
 
 	logger.Info("delete movie successfully")
