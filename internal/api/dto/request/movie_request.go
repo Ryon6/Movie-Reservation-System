@@ -99,6 +99,13 @@ type UpdateGenreRequest struct {
 	Name string `json:"name" binding:"required,min=1,max=255"`
 }
 
+func (r *UpdateGenreRequest) ToDomain() *movie.Genre {
+	return &movie.Genre{
+		ID:   vo.GenreID(r.ID),
+		Name: r.Name,
+	}
+}
+
 // 删除类型
 type DeleteGenreRequest struct {
 	ID uint
