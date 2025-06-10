@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"mrs/internal/api/dto/request"
@@ -94,23 +95,32 @@ func (s *showtimeService) GetShowtime(ctx context.Context, req *request.GetShowt
 	return response.ToShowtimeResponse(showtime), nil
 }
 
+// 更新场次
 func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.UpdateShowtimeRequest) (*response.ShowtimeResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateShowtime"), applog.Uint("showtime_id", req.ID))
 	st := req.ToDomain()
-	// 检查是否重叠
-	overlap, err := s.showRepo.CheckOverlap(ctx, uint(st.CinemaHallID), st.StartTime, st.EndTime, uint(st.ID))
-	if err != nil {
-		logger.Error("failed to check overlap", applog.Error(err))
-		return nil, err
-	}
-	if overlap {
-		logger.Error("showtime overlaps with existing showtime", applog.Uint("cinema_hall_id", uint(st.CinemaHallID)))
-		return nil, fmt.Errorf("ServiceError: %w", showtime.ErrShowtimeOverlap)
-	}
-	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+
+	// 更新场次时，需要检查是否重叠，如果重叠，则返回错误。否则更新场次。
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		showtimeRepo := provider.GetShowtimeRepository()
+		// 检查是否重叠
+		overlap, err := showtimeRepo.CheckOverlap(ctx, uint(st.CinemaHallID), st.StartTime, st.EndTime, uint(st.ID))
+		if err != nil {
+			logger.Error("failed to check overlap", applog.Error(err))
+			return err
+		}
+		if overlap {
+			logger.Error("showtime overlaps with existing showtime", applog.Uint("cinema_hall_id", uint(st.CinemaHallID)))
+			return fmt.Errorf("ServiceError: %w", showtime.ErrShowtimeOverlap)
+		}
+		// 更新场次
 		err = showtimeRepo.Update(ctx, st)
 		if err != nil {
+			// 如果场次不存在，则返回错误(CheckOverlap并不能保证场次存在)
+			if errors.Is(err, showtime.ErrShowtimeNotFound) {
+				logger.Warn("showtime not found")
+				return err
+			}
 			logger.Error("failed to update showtime", applog.Error(err))
 			return err
 		}
@@ -126,13 +136,17 @@ func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.Updat
 	return response.ToShowtimeResponse(st), nil
 }
 
+// 删除场次
 func (s *showtimeService) DeleteShowtime(ctx context.Context, req *request.DeleteShowtimeRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteShowtime"), applog.Uint("showtime_id", req.ID))
-	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		showtimeRepo := provider.GetShowtimeRepository()
-		return showtimeRepo.Delete(ctx, req.ID)
-	})
+	// 单条场次删除，不需要事务
+	err := s.showRepo.Delete(ctx, req.ID)
 	if err != nil {
+		// 如果场次不存在，则返回错误(仓库底层实现会根据RowAffected判断记录是否存在)
+		if errors.Is(err, showtime.ErrShowtimeNotFound) {
+			logger.Warn("showtime not found")
+			return err
+		}
 		logger.Error("failed to delete showtime", applog.Error(err))
 		return err
 	}
