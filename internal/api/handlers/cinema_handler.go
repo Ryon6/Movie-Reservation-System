@@ -137,5 +137,5 @@ func (h *CinemaHandler) DeleteCinemaHall(ctx *gin.Context) {
 	}
 
 	logger.Info("cinema hall deleted successfully", applog.Uint("cinema_hall_id", uint(req.ID)))
-	ctx.JSON(http.StatusOK, gin.H{"message": "cinema hall deleted successfully"})
+	ctx.JSON(http.StatusNoContent, nil)
 }
