@@ -108,24 +108,35 @@ func main() {
 	roleRepo := appmysql.NewGormRoleRepository(db, logger)
 	movieRepo := appmysql.NewGormMovieRepository(db, logger)
 	genreRepo := appmysql.NewGormGenreRepository(db, logger)
+	cinemaRepo := appmysql.NewGormCinemaHallRepository(db, logger)
+	seatRepo := appmysql.NewGormSeatRepository(db, logger)
+	showtimeRepo := appmysql.NewGormShowtimeRepository(db, logger)
 	movieCache := cache.NewRedisMovieCache(rdb.(*redis.Client), logger, time.Second*30) // 后续可以改为配置中获取
+	showtimeCache := cache.NewRedisShowtimeCache(rdb.(*redis.Client), logger, time.Second*30)
+
 	uow := appmysql.NewGormUnitOfWork(db, logger)
 
 	// 应用层
 	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, uow, userRepo, roleRepo, hasher, logger)
 	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
 	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
+	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
+	showtimeService := app.NewShowtimeService(uow, showtimeRepo, showtimeCache, logger)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	userHandler := handlers.NewUserHandler(userService, logger)
 	movieHandler := handlers.NewMovieHandler(movieService, logger)
+	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
+	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
 
 	r := api.SetupRouter(healthHandler,
 		authHandler,
 		userHandler,
 		movieHandler,
+		cinemaHandler,
+		showtimeHandler,
 		middleware.AuthMiddleware(jwtManager, logger),
 		middleware.AdminMiddleware(jwtManager, logger))
 

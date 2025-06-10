@@ -29,11 +29,13 @@ type showtimeService struct {
 
 func NewShowtimeService(
 	uow shared.UnitOfWork,
+	showRepo showtime.ShowtimeRepository,
 	showCache showtime.ShowtimeCache,
 	logger applog.Logger,
 ) ShowtimeService {
 	return &showtimeService{
 		uow:       uow,
+		showRepo:  showRepo,
 		showCache: showCache,
 		logger:    logger.With(applog.String("Service", "ShowtimeService")),
 	}

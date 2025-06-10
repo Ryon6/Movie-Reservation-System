@@ -22,17 +22,20 @@ type CinemaService interface {
 type cinemaService struct {
 	uow            shared.UnitOfWork
 	cinemaHallRepo cinema.CinemaHallRepository
+	seatRepo       cinema.SeatRepository
 	logger         applog.Logger
 }
 
 func NewCinemaService(
 	uow shared.UnitOfWork,
 	cinemaHallRepo cinema.CinemaHallRepository,
+	seatRepo cinema.SeatRepository,
 	logger applog.Logger,
 ) CinemaService {
 	return &cinemaService{
 		uow:            uow,
 		cinemaHallRepo: cinemaHallRepo,
+		seatRepo:       seatRepo,
 		logger:         logger.With(applog.String("Service", "CinemaHallService")),
 	}
 }
