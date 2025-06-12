@@ -29,7 +29,7 @@ func NewRedisSeatCache(client RedisClient, logger applog.Logger, defaultExpirati
 	}
 }
 
-func (c *RedisSeatCache) getHallLayoutAndMapping(ctx context.Context, showtimeID vo.ShowtimeID) ([]cinema.Seat, map[vo.SeatID]uint, error) {
+func (c *RedisSeatCache) getHallLayoutAndMapping(ctx context.Context, showtimeID vo.ShowtimeID) ([]*cinema.Seat, map[vo.SeatID]uint, error) {
 	logger := c.logger.With(applog.String("Method", "getHallLayoutAndMapping"), applog.Uint("ShowtimeID", uint(showtimeID)))
 	seatInfoKey := cinema.GetShowtimeSeatsInfoKey(showtimeID)
 
@@ -39,7 +39,7 @@ func (c *RedisSeatCache) getHallLayoutAndMapping(ctx context.Context, showtimeID
 		return nil, nil, fmt.Errorf("redis get seat info error: %w", shared.ErrCacheNotInitialized)
 	}
 
-	var hallLayout []cinema.Seat
+	var hallLayout []*cinema.Seat
 	if err := json.Unmarshal([]byte(seatInfo), &hallLayout); err != nil {
 		logger.Error("json unmarshal seat info error", applog.Error(err))
 		return nil, nil, fmt.Errorf("json unmarshal seat info error: %w", err)
@@ -57,7 +57,7 @@ func (c *RedisSeatCache) getHallLayoutAndMapping(ctx context.Context, showtimeID
 func (c *RedisSeatCache) InitSeatMap(
 	ctx context.Context,
 	showtimeID vo.ShowtimeID,
-	hallLayout []cinema.Seat,
+	hallLayout []*cinema.Seat,
 	bookedSeatIDs []vo.SeatID,
 	expireTime time.Duration) error {
 
@@ -84,6 +84,8 @@ func (c *RedisSeatCache) InitSeatMap(
 	pipe := c.client.Pipeline()
 	pipe.Set(ctx, seatInfoKey, staticJson, expireTime)
 	pipe.Del(ctx, seatBitmapKey) // 确保从干净的位图开始
+	// 预先置位图，保证bookedSeatIDs为空时，该位图仍存在
+	pipe.SetBit(ctx, seatBitmapKey, 0, 0)
 	for _, id := range bookedSeatIDs {
 		if offset, ok := idToOffset[id]; ok {
 			pipe.SetBit(ctx, seatBitmapKey, int64(offset), 1)
@@ -100,7 +102,7 @@ func (c *RedisSeatCache) InitSeatMap(
 	return nil
 }
 
-func (c *RedisSeatCache) GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) ([]cinema.SeatInfo, error) {
+func (c *RedisSeatCache) GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) ([]*cinema.SeatInfo, error) {
 	logger := c.logger.With(applog.String("Method", "GetSeatMap"), applog.Uint("ShowtimeID", uint(showtimeID)))
 	seatInfoKey := cinema.GetShowtimeSeatsInfoKey(showtimeID)
 	seatBitmapKey := cinema.GetShowtimeSeatsBitmapKey(showtimeID)
@@ -125,7 +127,7 @@ func (c *RedisSeatCache) GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeI
 		return nil, fmt.Errorf("redis get seat bitmap error: %w", err)
 	}
 
-	seatInfos := make([]cinema.SeatInfo, len(hallLayout))
+	seatInfos := make([]*cinema.SeatInfo, len(hallLayout))
 	for i, seat := range hallLayout {
 		status := cinema.SeatStatusAvailable
 		offset := uint(i)
@@ -136,7 +138,7 @@ func (c *RedisSeatCache) GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeI
 			status = cinema.SeatStatusLocked
 		}
 
-		seatInfos[i] = cinema.SeatInfo{
+		seatInfos[i] = &cinema.SeatInfo{
 			ID:            seat.ID,
 			RowIdentifier: seat.RowIdentifier,
 			SeatNumber:    seat.SeatNumber,

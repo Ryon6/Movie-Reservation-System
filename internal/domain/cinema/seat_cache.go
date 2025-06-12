@@ -13,8 +13,8 @@ import (
 type SeatCache interface {
 	// LockSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error
 	// ReleaseSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error
-	GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) ([]SeatInfo, error)
-	InitSeatMap(ctx context.Context, showtimeID vo.ShowtimeID, hallLayout []Seat, bookedSeatIDs []vo.SeatID, expireTime time.Duration) error
+	GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) ([]*SeatInfo, error)
+	InitSeatMap(ctx context.Context, showtimeID vo.ShowtimeID, hallLayout []*Seat, bookedSeatIDs []vo.SeatID, expireTime time.Duration) error
 	// DeleteSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error // 自动过期
 }
 
