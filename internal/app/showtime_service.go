@@ -18,6 +18,7 @@ type ShowtimeService interface {
 	UpdateShowtime(ctx context.Context, req *request.UpdateShowtimeRequest) (*response.ShowtimeResponse, error)
 	DeleteShowtime(ctx context.Context, req *request.DeleteShowtimeRequest) error
 	ListShowtimes(ctx context.Context, req *request.ListShowtimesRequest) (*response.PaginatedShowtimeResponse, error)
+	// GetSeatMap(ctx context.Context, req *request.GetSeatMapRequest) (*response.SeatMapResponse, error)
 }
 
 type showtimeService struct {
@@ -227,3 +228,13 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 	}
 	return fn(showtimes), nil
 }
+
+// 获取座位表
+// func (s *showtimeService) GetSeatMap(ctx context.Context, req *request.GetSeatMapRequest) (*response.SeatMapResponse, error) {
+// 	logger := s.logger.With(applog.String("Method", "GetSeatMap"), applog.Uint("showtime_id", req.ShowtimeID))
+// 	seatMap, err := s.showCache.GetSeatMap(ctx, req.ShowtimeID)
+// 	if err != nil {
+// 		logger.Error("failed to get seat map", applog.Error(err))
+// 		return nil, err
+// 	}
+// }
