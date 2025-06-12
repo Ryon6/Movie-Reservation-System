@@ -1,4 +1,6 @@
 // TODO: 缓存中过期时间在领域层声明常量
+// TODO: 列表缓存中，若列表中元素已删除，会返回missingcache，需要访问MySQL。但是若查询不到，应该返回已有结果，而不是返回错误
+// TODO: 初始化SeatMap时 退避重试逻辑问题 获取锁失败后应该从缓存中获取
 package main
 
 import (
