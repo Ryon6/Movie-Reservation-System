@@ -11,11 +11,11 @@ import (
 
 // 座位缓存接口
 type SeatCache interface {
-	// LockSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error
-	// ReleaseSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error
+	LockSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error
+	ReleaseSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error
 	GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) ([]*SeatInfo, error)
 	InitSeatMap(ctx context.Context, showtimeID vo.ShowtimeID, hallLayout []*Seat, bookedSeatIDs []vo.SeatID, expireTime time.Duration) error
-	// DeleteSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error // 自动过期
+	InvalidateSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error // 失效座位表（大多数情况下，座位表会自动过期，但若修改座位时需要手动失效）
 }
 
 const (
