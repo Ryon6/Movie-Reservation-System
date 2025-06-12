@@ -16,4 +16,5 @@ var (
 	ErrSeatRowNumberConflict = errors.New("seat row/number conflict")
 	ErrInvalidSeatType       = errors.New("invalid seat type")
 	ErrSeatNotAvailable      = errors.New("seat not available for showtime")
+	ErrSeatAlreadyLocked     = errors.New("seat already locked")
 )
