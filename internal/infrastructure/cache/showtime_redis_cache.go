@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mrs/internal/domain/shared"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/domain/showtime"
 	applog "mrs/pkg/log"
 	"sort"
@@ -84,9 +85,9 @@ func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, showtime *showtime
 }
 
 // GetShowtime 获取单个放映的缓存
-func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID uint) (*showtime.Showtime, error) {
-	logger := c.logger.With(applog.String("Method", "GetShowtime"), applog.Uint("showtime_id", showtimeID))
-	key := c.showtimeKey(showtimeID)
+func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID vo.ShowtimeID) (*showtime.Showtime, error) {
+	logger := c.logger.With(applog.String("Method", "GetShowtime"), applog.Uint("showtime_id", uint(showtimeID)))
+	key := c.showtimeKey(uint(showtimeID))
 
 	valBytes, err := c.redisClient.Get(ctx, key).Bytes()
 	if err != nil {
@@ -107,9 +108,9 @@ func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID uint) (
 	return &showtime, nil
 }
 
-func (c *RedisShowtimeCache) DeleteShowtime(ctx context.Context, showtimeID uint) error {
-	logger := c.logger.With(applog.String("Method", "DeleteShowtime"), applog.Uint("showtime_id", showtimeID))
-	key := c.showtimeKey(showtimeID)
+func (c *RedisShowtimeCache) DeleteShowtime(ctx context.Context, showtimeID vo.ShowtimeID) error {
+	logger := c.logger.With(applog.String("Method", "DeleteShowtime"), applog.Uint("showtime_id", uint(showtimeID)))
+	key := c.showtimeKey(uint(showtimeID))
 	if err := c.redisClient.Del(ctx, key).Err(); err != nil {
 		// 如果缓存不存在，则返回错误
 		if err == redis.Nil {
@@ -227,7 +228,7 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, options *showt
 	pipe := c.redisClient.Pipeline()
 	showtimeCmds := make([]*redis.StringCmd, len(result.AllShowtimeIDs))
 	for i, id := range result.AllShowtimeIDs {
-		showtimeCmds[i] = pipe.Get(ctx, c.showtimeKey(id))
+		showtimeCmds[i] = pipe.Get(ctx, c.showtimeKey(uint(id)))
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
@@ -243,8 +244,8 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, options *showt
 		if err != nil {
 			logger.Warn("failed to get showtime details",
 				applog.Error(err),
-				applog.Uint("showtime_id", showtimeID))
-			missingIDs[showtimeID] = struct{}{}
+				applog.Uint("showtime_id", uint(showtimeID)))
+			missingIDs[uint(showtimeID)] = struct{}{}
 			continue
 		}
 
@@ -252,8 +253,8 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, options *showt
 		if err := json.Unmarshal(showtimeBytes, &showtime); err != nil {
 			logger.Warn("failed to unmarshal showtime",
 				applog.Error(err),
-				applog.Uint("showtime_id", showtimeID))
-			missingIDs[showtimeID] = struct{}{}
+				applog.Uint("showtime_id", uint(showtimeID)))
+			missingIDs[uint(showtimeID)] = struct{}{}
 			continue
 		}
 		result.Showtimes = append(result.Showtimes, &showtime)
@@ -261,9 +262,9 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, options *showt
 
 	// 将缺失的ID转换为切片并排序
 	if len(missingIDs) > 0 {
-		result.MissingShowtimeIDs = make([]uint, 0, len(missingIDs))
+		result.MissingShowtimeIDs = make([]vo.ShowtimeID, 0, len(missingIDs))
 		for id := range missingIDs {
-			result.MissingShowtimeIDs = append(result.MissingShowtimeIDs, id)
+			result.MissingShowtimeIDs = append(result.MissingShowtimeIDs, vo.ShowtimeID(id))
 		}
 		sort.Slice(result.MissingShowtimeIDs, func(i, j int) bool {
 			return result.MissingShowtimeIDs[i] < result.MissingShowtimeIDs[j]
