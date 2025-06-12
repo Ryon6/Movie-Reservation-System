@@ -25,6 +25,9 @@ type RedisClient interface {
 	SMembers(ctx context.Context, key string) *redis.StringSliceCmd
 	// Key operations
 	Exists(ctx context.Context, keys ...string) *redis.IntCmd
+	// Hash operations
+	HGetAll(ctx context.Context, key string) *redis.StringStringMapCmd
+	HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd
 	// Ping(ctx context.Context) *redis.StatusCmd // If needed for health checks by cache layer
 }
 
