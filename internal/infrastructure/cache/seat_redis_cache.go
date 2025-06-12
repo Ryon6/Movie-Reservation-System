@@ -102,6 +102,7 @@ func (c *RedisSeatCache) InitSeatMap(
 	return nil
 }
 
+// 获取座位表
 func (c *RedisSeatCache) GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) ([]*cinema.SeatInfo, error) {
 	logger := c.logger.With(applog.String("Method", "GetSeatMap"), applog.Uint("ShowtimeID", uint(showtimeID)))
 	seatInfoKey := cinema.GetShowtimeSeatsInfoKey(showtimeID)
@@ -148,4 +149,100 @@ func (c *RedisSeatCache) GetSeatMap(ctx context.Context, showtimeID vo.ShowtimeI
 	}
 	logger.Info("get seat map success")
 	return seatInfos, nil
+}
+
+// 检查座位是否已被锁定
+var lockSeatScript = redis.NewScript(`
+	for i=1, #ARGV do
+		if redis.call("getbit", KEYS[1], ARGV[i]) == 1 then
+			return 0
+		end
+	end
+	for i=1, #ARGV do
+		redis.call("setbit", KEYS[1], ARGV[i], 1)
+	end
+	return 1
+`)
+
+// 锁定座位
+func (c *RedisSeatCache) LockSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error {
+	logger := c.logger.With(applog.String("Method", "LockSeats"), applog.Uint("ShowtimeID", uint(showtimeID)))
+	seatBitmapKey := cinema.GetShowtimeSeatsBitmapKey(showtimeID)
+
+	// 获取座位表及座位ID到偏移量的映射
+	_, idToOffset, err := c.getHallLayoutAndMapping(ctx, showtimeID)
+	if err != nil {
+		logger.Error("get hall layout and mapping error", applog.Error(err))
+		return fmt.Errorf("get hall layout and mapping error: %w", err)
+	}
+
+	// 检查座位ID是否存在，不存在则返回错误
+	offsetArgs := make([]interface{}, 0, len(seatIDs))
+	for _, seatID := range seatIDs {
+		offset, ok := idToOffset[seatID]
+		if !ok {
+			logger.Error("seat id not found in redis", applog.Uint("SeatID", uint(seatID)))
+			return fmt.Errorf("seat id not found in redis: %w", shared.ErrCacheMissing)
+		}
+		offsetArgs = append(offsetArgs, offset)
+	}
+
+	res, err := lockSeatScript.Run(ctx, c.client.(*redis.Client), []string{seatBitmapKey}, offsetArgs...).Int()
+	if err != nil {
+		logger.Error("redis eval error", applog.Error(err))
+		return fmt.Errorf("redis eval error: %w", err)
+	}
+	if res == 0 {
+		logger.Error("redis lock seat error", applog.Error(cinema.ErrSeatAlreadyLocked))
+		return fmt.Errorf("redis lock seat error: %w", cinema.ErrSeatAlreadyLocked)
+	}
+
+	logger.Info("lock seats successfully")
+	return nil
+}
+
+// 释放座位
+func (c *RedisSeatCache) ReleaseSeats(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error {
+	logger := c.logger.With(applog.String("Method", "ReleaseSeats"), applog.Uint("ShowtimeID", uint(showtimeID)))
+	seatBitmapKey := cinema.GetShowtimeSeatsBitmapKey(showtimeID)
+
+	// 获取座位表及座位ID到偏移量的映射
+	_, idToOffset, err := c.getHallLayoutAndMapping(ctx, showtimeID)
+	if err != nil {
+		logger.Error("get hall layout and mapping error", applog.Error(err))
+		return fmt.Errorf("get hall layout and mapping error: %w", err)
+	}
+
+	pipe := c.client.Pipeline()
+	for _, seatID := range seatIDs {
+		offset, ok := idToOffset[seatID]
+		if !ok {
+			logger.Warn("seat id not found in redis", applog.Uint("SeatID", uint(seatID)))
+			continue // 座位不存在，忽略
+		}
+		pipe.SetBit(ctx, seatBitmapKey, int64(offset), 0)
+	}
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		logger.Error("redis exec pipe error", applog.Error(err))
+		return fmt.Errorf("redis exec pipe error: %w", err)
+	}
+
+	logger.Info("release seats successfully")
+	return nil
+}
+
+// 失效座位表
+func (c *RedisSeatCache) InvalidateSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error {
+	logger := c.logger.With(applog.String("Method", "InvalidateSeatMap"), applog.Uint("ShowtimeID", uint(showtimeID)))
+	seatBitmapKey := cinema.GetShowtimeSeatsBitmapKey(showtimeID)
+	seatInfoKey := cinema.GetShowtimeSeatsInfoKey(showtimeID)
+
+	if err := c.client.Del(ctx, seatBitmapKey, seatInfoKey).Err(); err != nil {
+		logger.Error("redis del error", applog.Error(err))
+		return fmt.Errorf("redis del error: %w", err)
+	}
+
+	logger.Info("invalidate seat map successfully")
+	return nil
 }
