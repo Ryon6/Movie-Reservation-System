@@ -1,3 +1,4 @@
+// TODO: 缓存中过期时间在领域层声明常量
 package main
 
 import (
@@ -113,6 +114,8 @@ func main() {
 	showtimeRepo := appmysql.NewGormShowtimeRepository(db, logger)
 	movieCache := cache.NewRedisMovieCache(rdb.(*redis.Client), logger, time.Second*30) // 后续可以改为配置中获取
 	showtimeCache := cache.NewRedisShowtimeCache(rdb.(*redis.Client), logger, time.Second*30)
+	seatCache := cache.NewRedisSeatCache(rdb.(*redis.Client), logger, time.Second*30)
+	lockProvider := cache.NewRedisLockProvider(rdb.(*redis.Client), logger)
 
 	uow := appmysql.NewGormUnitOfWork(db, logger)
 
@@ -121,7 +124,7 @@ func main() {
 	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
 	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
 	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
-	showtimeService := app.NewShowtimeService(uow, showtimeRepo, showtimeCache, logger)
+	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, showtimeCache, seatCache, lockProvider, logger)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
