@@ -13,6 +13,21 @@ const (
 	SeatTypeWheelchair = "WHEELCHAIR"
 )
 
+// 座位状态枚举
+type SeatStatus int
+
+const (
+	SeatStatusAvailable SeatStatus = iota // 可用
+	SeatStatusLocked                      // 已锁定
+)
+
+// 座位完整信息
+type SeatWithStatus struct {
+	Seat
+	Status SeatStatus
+	Price  float64
+}
+
 // 注意：座位的可用性通常与特定的Showtime相关，而不是座位本身的静态属性。
 type Seat struct {
 	ID vo.SeatID
