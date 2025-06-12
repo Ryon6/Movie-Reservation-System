@@ -1,10 +1,15 @@
 package booking
 
+import (
+	"context"
+	"mrs/internal/domain/shared/vo"
+)
+
 type BookingRepository interface {
-	CreateBooking(booking *Booking) (*Booking, error)
-	GetBookingByID(id uint) (*Booking, error)
-	GetBookingsByUserID(userID uint) ([]*Booking, error)
-	GetBookingsByShowtimeID(showtimeID uint) ([]*Booking, error)
-	UpdateBooking(booking *Booking) (*Booking, error)
-	DeleteBooking(id uint) error
+	CreateBooking(ctx context.Context, booking *Booking) (*Booking, error)
+	GetBookingByID(ctx context.Context, id vo.BookingID) (*Booking, error)
+	GetBookingsByUserID(ctx context.Context, userID vo.UserID) ([]*Booking, error)
+	GetBookingsByShowtimeID(ctx context.Context, showtimeID vo.ShowtimeID) ([]*Booking, error)
+	UpdateBooking(ctx context.Context, booking *Booking) error
+	DeleteBooking(ctx context.Context, id vo.BookingID) error
 }
