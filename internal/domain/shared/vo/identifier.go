@@ -14,3 +14,7 @@ type CinemaHallID uint
 type ShowtimeID uint
 
 type SeatID uint
+
+type BookingID uint
+
+type BookedSeatID uint
