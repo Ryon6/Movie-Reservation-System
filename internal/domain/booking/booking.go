@@ -1,6 +1,7 @@
 package booking
 
 import (
+	"mrs/internal/domain/shared/vo"
 	"time"
 )
 
@@ -15,16 +16,16 @@ const (
 
 // Booking 表示一个电影票订单
 type Booking struct {
-	ID          uint
-	UserID      uint
-	ShowtimeID  uint
+	ID          vo.BookingID
+	UserID      vo.UserID
+	ShowtimeID  vo.ShowtimeID
 	BookedSeats []BookedSeat
 	TotalAmount float64
 	BookingTime time.Time
 	Status      BookingStatus
 }
 
-func NewBooking(userID uint, showtimeID uint, bookedSeats []BookedSeat, totalAmount float64) *Booking {
+func NewBooking(userID vo.UserID, showtimeID vo.ShowtimeID, bookedSeats []BookedSeat, totalAmount float64) *Booking {
 	return &Booking{
 		UserID:      userID,
 		ShowtimeID:  showtimeID,
