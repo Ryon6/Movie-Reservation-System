@@ -78,8 +78,8 @@ type ListShowtimesRequest struct {
 
 func (r *ListShowtimesRequest) ToDomain() *showtime.ShowtimeQueryOptions {
 	return &showtime.ShowtimeQueryOptions{
-		MovieID:      r.MovieID,
-		CinemaHallID: r.CinemaHallID,
+		MovieID:      vo.MovieID(r.MovieID),
+		CinemaHallID: vo.CinemaHallID(r.CinemaHallID),
 		Date:         r.Date,
 		Page:         r.Page,
 		PageSize:     r.PageSize,

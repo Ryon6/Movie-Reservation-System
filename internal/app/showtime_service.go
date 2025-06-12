@@ -64,7 +64,7 @@ func (s *showtimeService) CreateShowtime(ctx context.Context, req *request.Creat
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		var err error
 		showtimeRepo := provider.GetShowtimeRepository()
-		overlap, err := showtimeRepo.CheckOverlap(ctx, uint(st.CinemaHallID), st.StartTime, st.EndTime)
+		overlap, err := showtimeRepo.CheckOverlap(ctx, st.CinemaHallID, st.StartTime, st.EndTime)
 		if err != nil {
 			logger.Error("failed to check overlap", applog.Error(err))
 			return err
@@ -92,7 +92,7 @@ func (s *showtimeService) CreateShowtime(ctx context.Context, req *request.Creat
 
 func (s *showtimeService) GetShowtime(ctx context.Context, req *request.GetShowtimeRequest) (*response.ShowtimeResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetShowtime"), applog.Uint("showtime_id", req.ID))
-	showtime, err := s.showCache.GetShowtime(ctx, req.ID)
+	showtime, err := s.showCache.GetShowtime(ctx, vo.ShowtimeID(req.ID))
 	if err != nil {
 		logger.Warn("failed to get showtime", applog.Error(err))
 	} else {
@@ -100,7 +100,7 @@ func (s *showtimeService) GetShowtime(ctx context.Context, req *request.GetShowt
 		return response.ToShowtimeResponse(showtime), nil
 	}
 
-	showtime, err = s.showRepo.FindByID(ctx, req.ID)
+	showtime, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(req.ID))
 	if err != nil {
 		logger.Error("failed to get showtime", applog.Error(err))
 		return nil, err
@@ -120,7 +120,7 @@ func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.Updat
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		showtimeRepo := provider.GetShowtimeRepository()
 		// 检查是否重叠
-		overlap, err := showtimeRepo.CheckOverlap(ctx, uint(st.CinemaHallID), st.StartTime, st.EndTime, uint(st.ID))
+		overlap, err := showtimeRepo.CheckOverlap(ctx, st.CinemaHallID, st.StartTime, st.EndTime, st.ID)
 		if err != nil {
 			logger.Error("failed to check overlap", applog.Error(err))
 			return err
@@ -156,7 +156,7 @@ func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.Updat
 func (s *showtimeService) DeleteShowtime(ctx context.Context, req *request.DeleteShowtimeRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteShowtime"), applog.Uint("showtime_id", req.ID))
 	// 单条场次删除，不需要事务
-	err := s.showRepo.Delete(ctx, req.ID)
+	err := s.showRepo.Delete(ctx, vo.ShowtimeID(req.ID))
 	if err != nil {
 		// 如果场次不存在，则返回错误(仓库底层实现会根据RowAffected判断记录是否存在)
 		if errors.Is(err, showtime.ErrShowtimeNotFound) {
