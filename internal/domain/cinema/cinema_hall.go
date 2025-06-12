@@ -10,6 +10,8 @@ type CinemaHall struct {
 	Name        string          // 影厅名称
 	ScreenType  string          // 屏幕类型
 	SoundSystem string          // 音响系统
+	RowCount    int             // 行数
+	ColCount    int             // 列数
 
 	// 多对多关系
 	Seats []*Seat // 聚合内部可以直接持有同一聚合内其他实体的引用

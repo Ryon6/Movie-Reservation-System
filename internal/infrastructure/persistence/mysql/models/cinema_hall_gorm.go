@@ -13,6 +13,8 @@ type CinemaHallGorm struct {
 	Name        string `gorm:"type:varchar(50);uniqueIndex;not null;"` // 影厅名称 (例如: "1号厅", "IMAX厅")。
 	ScreenType  string `gorm:"type:varchar(50)"`                       // 屏幕类型，如 "2D", "3D", "IMAX"
 	SoundSystem string `gorm:"type:varchar(100)"`                      // 音响系统
+	RowCount    int    `gorm:"type:int;not null;"`                     // 行数
+	ColCount    int    `gorm:"type:int;not null;"`                     // 列数
 
 	Seats []SeatGorm `gorm:"foreignKey:CinemaHallID;OnDelete:CASCADE"`
 }
@@ -35,6 +37,8 @@ func (c *CinemaHallGorm) ToDomain() *cinema.CinemaHall {
 		Name:        c.Name,
 		ScreenType:  c.ScreenType,
 		SoundSystem: c.SoundSystem,
+		RowCount:    c.RowCount,
+		ColCount:    c.ColCount,
 		Seats:       seats,
 	}
 }
@@ -46,5 +50,7 @@ func CinemaHallGormFromDomain(c *cinema.CinemaHall) *CinemaHallGorm {
 		Name:        c.Name,
 		ScreenType:  c.ScreenType,
 		SoundSystem: c.SoundSystem,
+		RowCount:    c.RowCount,
+		ColCount:    c.ColCount,
 	}
 }
