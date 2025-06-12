@@ -85,3 +85,8 @@ func (r *ListShowtimesRequest) ToDomain() *showtime.ShowtimeQueryOptions {
 		PageSize:     r.PageSize,
 	}
 }
+
+// 获取指定放映场次的座位表（包含座位状态）
+type GetSeatMapRequest struct {
+	ShowtimeID uint
+}
