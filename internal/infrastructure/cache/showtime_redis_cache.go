@@ -92,7 +92,7 @@ func (c *RedisShowtimeCache) GetShowtime(ctx context.Context, showtimeID uint) (
 	if err != nil {
 		if err == redis.Nil {
 			logger.Info("showtime not found in redis", applog.String("key", key))
-			return nil, fmt.Errorf("%w: %w", shared.ErrKeyNotFound, err)
+			return nil, fmt.Errorf("%w: %w", shared.ErrCacheMissing, err)
 		}
 		logger.Error("failed to get showtime from redis", applog.Error(err))
 		return nil, fmt.Errorf("failed to get showtime from redis: %w", err)
@@ -114,7 +114,7 @@ func (c *RedisShowtimeCache) DeleteShowtime(ctx context.Context, showtimeID uint
 		// 如果缓存不存在，则返回错误
 		if err == redis.Nil {
 			logger.Info("showtime not found in redis", applog.String("key", key))
-			return fmt.Errorf("%w: %w", shared.ErrKeyNotFound, err)
+			return fmt.Errorf("%w: %w", shared.ErrCacheMissing, err)
 		}
 		logger.Error("failed to delete showtime", applog.Error(err))
 		return fmt.Errorf("failed to delete showtime: %w", err)
@@ -206,7 +206,7 @@ func (c *RedisShowtimeCache) GetShowtimeList(ctx context.Context, options *showt
 	if err != nil {
 		if err == redis.Nil {
 			logger.Info("showtime_id list not found in redis", applog.String("key", listKey))
-			return nil, fmt.Errorf("%w: %w", shared.ErrKeyNotFound, err)
+			return nil, fmt.Errorf("%w: %w", shared.ErrCacheMissing, err)
 		}
 		logger.Error("failed to get showtime_id list from redis", applog.Error(err))
 		return nil, fmt.Errorf("failed to get showtime_id list from redis: %w", err)

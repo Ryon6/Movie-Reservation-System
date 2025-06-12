@@ -13,7 +13,8 @@ var (
 
 // 缓存错误
 var (
-	ErrKeyNotFound = errors.New("key not found")
+	ErrCacheMissing        = errors.New("cache missing")
+	ErrCacheNotInitialized = errors.New("cache not initialized")
 )
 
 var (

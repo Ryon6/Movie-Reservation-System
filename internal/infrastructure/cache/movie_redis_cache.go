@@ -95,7 +95,7 @@ func (c *RedisMovieCache) DeleteMovie(ctx context.Context, movieID uint) error {
 	if err := c.redisClient.Del(ctx, key).Err(); err != nil {
 		if err == redis.Nil {
 			logger.Warn("movie not found in redis", applog.String("key", key))
-			return fmt.Errorf("%w: %w", shared.ErrKeyNotFound, err)
+			return fmt.Errorf("%w: %w", shared.ErrCacheMissing, err)
 		}
 		logger.Error("failed to delete movie from redis", applog.Error(err))
 		return fmt.Errorf("failed to delete movie from redis: %w", err)
@@ -114,7 +114,7 @@ func (c *RedisMovieCache) GetMovie(ctx context.Context, movieID uint) (*movie.Mo
 	if err != nil {
 		if err == redis.Nil {
 			logger.Info("movie not found in redis", applog.String("key", key))
-			return nil, fmt.Errorf("%w: %w", shared.ErrKeyNotFound, err)
+			return nil, fmt.Errorf("%w: %w", shared.ErrCacheMissing, err)
 		}
 		logger.Error("failed to get movie from redis", applog.Error(err))
 		return nil, fmt.Errorf("failed to get movie from redis: %w", err)
@@ -217,7 +217,7 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.Movie
 	if err != nil {
 		if err == redis.Nil {
 			logger.Info("movie_id list not found in redis", applog.String("key", listKey))
-			return nil, fmt.Errorf("%w: %w", shared.ErrKeyNotFound, err)
+			return nil, fmt.Errorf("%w: %w", shared.ErrCacheMissing, err)
 		}
 		logger.Error("failed to get movie_id list from redis", applog.Error(err))
 		return nil, fmt.Errorf("failed to get movie_id list from redis: %w", err)
