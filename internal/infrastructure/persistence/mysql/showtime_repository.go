@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/domain/showtime"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
@@ -41,15 +42,15 @@ func (r *gormShowtimeRepository) Create(ctx context.Context, st *showtime.Showti
 }
 
 // 预加载 Movie 和 CinemaHall
-func (r *gormShowtimeRepository) FindByID(ctx context.Context, id uint) (*showtime.Showtime, error) {
+func (r *gormShowtimeRepository) FindByID(ctx context.Context, id vo.ShowtimeID) (*showtime.Showtime, error) {
 	logger := r.logger.With(
 		applog.String("Method", "FindByID"),
-		applog.Uint("showtime_id", id))
+		applog.Uint("showtime_id", uint(id)))
 	var showtimeGorm models.ShowtimeGorm
 	if err := r.db.WithContext(ctx).
 		Preload("Movie").
 		Preload("CinemaHall").
-		First(&showtimeGorm, id).Error; err != nil {
+		First(&showtimeGorm, uint(id)).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("showtime id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", showtime.ErrShowtimeNotFound, err)
@@ -62,13 +63,18 @@ func (r *gormShowtimeRepository) FindByID(ctx context.Context, id uint) (*showti
 	return showtimeGorm.ToDomain(), nil
 }
 
-func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []uint) ([]*showtime.Showtime, error) {
+func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []vo.ShowtimeID) ([]*showtime.Showtime, error) {
 	logger := r.logger.With(
 		applog.String("method", "FindByIDs"),
 		applog.Int("count", len(ids)),
 	)
+	// 将 ShowtimeID 切片转换为 uint 切片
+	uintIDs := make([]uint, len(ids))
+	for i, id := range ids {
+		uintIDs[i] = uint(id)
+	}
 	var showtimesGorms []*models.ShowtimeGorm
-	if err := r.db.WithContext(ctx).Where("id IN (?)", ids).
+	if err := r.db.WithContext(ctx).Where("id IN (?)", uintIDs).
 		Preload("Movie").
 		Preload("CinemaHall").
 		Find(&showtimesGorms).Error; err != nil {
@@ -170,13 +176,13 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 	return nil
 }
 
-func (r *gormShowtimeRepository) Delete(ctx context.Context, id uint) error {
+func (r *gormShowtimeRepository) Delete(ctx context.Context, id vo.ShowtimeID) error {
 	logger := r.logger.With(
 		applog.String("Method", "Delete"),
-		applog.Uint("showtime_id", id),
+		applog.Uint("showtime_id", uint(id)),
 	)
 
-	result := r.db.WithContext(ctx).Delete(&models.ShowtimeGorm{}, id)
+	result := r.db.WithContext(ctx).Delete(&models.ShowtimeGorm{}, uint(id))
 	if result.Error != nil {
 		logger.Error("database delete showtime error", applog.Error(result.Error))
 		return fmt.Errorf("database delete showtime error: %w", result.Error)
@@ -193,28 +199,33 @@ func (r *gormShowtimeRepository) Delete(ctx context.Context, id uint) error {
 
 // CheckOverlap 检查指定影厅在给定时间段内是否存在与其他放映计划（可排除特定ID）的重叠。
 // excludeShowtimeID 是一个可选参数，用于在更新场景下排除当前正在更新的放映计划自身。
-func (r *gormShowtimeRepository) CheckOverlap(ctx context.Context, hallID uint,
-	startTime, endTime time.Time, excludeShowtimeID ...uint) (bool, error) {
+func (r *gormShowtimeRepository) CheckOverlap(ctx context.Context, hallID vo.CinemaHallID,
+	startTime, endTime time.Time, excludeShowtimeID ...vo.ShowtimeID) (bool, error) {
 	logger := r.logger.With(
 		applog.String("method", "CheckOverlap"),
-		applog.Uint("hall_id", hallID),
+		applog.Uint("hall_id", uint(hallID)),
 		applog.Time("start_time", startTime),
 		applog.Time("end_time", endTime),
 	)
 	if len(excludeShowtimeID) > 0 {
-		logger = logger.With(applog.Uint("exclude_showtime_id", excludeShowtimeID[0]))
+		logger = logger.With(applog.Uint("exclude_showtime_id", uint(excludeShowtimeID[0])))
+	}
+
+	uintExcludeShowtimeID := make([]uint, len(excludeShowtimeID))
+	for i, id := range excludeShowtimeID {
+		uintExcludeShowtimeID[i] = uint(id)
 	}
 
 	var count int64
 	query := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).
-		Where("cinema_hall_id = ?", hallID).
+		Where("cinema_hall_id = ?", uint(hallID)).
 		// 核心重叠逻辑:
 		// 新场次的开始时间在新场次结束之前 AND 新场次的结束时间在现有场次开始之后
 		Where("start_time < ?", endTime). // Existing showtime starts before new one ends
 		Where("end_time > ?", startTime)  // Existing showtime ends after new one starts
 
-	if len(excludeShowtimeID) > 0 && excludeShowtimeID[0] > 0 {
-		query = query.Where("id != ?", excludeShowtimeID[0])
+	if len(uintExcludeShowtimeID) > 0 && uintExcludeShowtimeID[0] > 0 {
+		query = query.Where("id != ?", uintExcludeShowtimeID[0])
 	}
 
 	if err := query.Count(&count).Error; err != nil {
@@ -232,11 +243,11 @@ func (r *gormShowtimeRepository) CheckOverlap(ctx context.Context, hallID uint,
 }
 
 // 查询指定电影在日期范围内的所有场次
-func (r *gormShowtimeRepository) FindShowtimesByMovieAndDateRanges(ctx context.Context, movieID uint,
+func (r *gormShowtimeRepository) FindShowtimesByMovieAndDateRanges(ctx context.Context, movieID vo.MovieID,
 	startDate, endDate time.Time) ([]*showtime.Showtime, error) {
 	logger := r.logger.With(
 		applog.String("method", "FindShowtimesByMovieAndDateRange"),
-		applog.Uint("movie_id", movieID),
+		applog.Uint("movie_id", uint(movieID)),
 		applog.Time("start_date", startDate),
 		applog.Time("end_date", endDate),
 	)
@@ -268,18 +279,18 @@ func (r *gormShowtimeRepository) FindShowtimesByMovieAndDateRanges(ctx context.C
 }
 
 // 查询指定影厅在日期范围内的所有场次
-func (r *gormShowtimeRepository) FindShowtimesByHallAndDateRanges(ctx context.Context, hallID uint,
+func (r *gormShowtimeRepository) FindShowtimesByHallAndDateRanges(ctx context.Context, hallID vo.CinemaHallID,
 	startDate, endDate time.Time) ([]*showtime.Showtime, error) {
 	logger := r.logger.With(
 		applog.String("method", "FindShowtimesByHallAndDateRange"),
-		applog.Uint("hall_id", hallID),
+		applog.Uint("hall_id", uint(hallID)),
 		applog.Time("start_date", startDate),
 		applog.Time("end_date", endDate),
 	)
 	var showtimesGorms []*models.ShowtimeGorm
 
 	err := r.db.WithContext(ctx).
-		Where("cinema_hall_id = ?", hallID).
+		Where("cinema_hall_id = ?", uint(hallID)).
 		Where("start_time BETWEEN ? AND ?").
 		Order("start_time ASC").
 		Preload("Movie").
