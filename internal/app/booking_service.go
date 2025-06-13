@@ -79,8 +79,8 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 
 	// 在缓存中锁定座位（防止超额预订）
 	if err := s.seatCache.LockSeats(ctx, vo.ShowtimeID(req.ShowtimeID), seatIDs); err != nil {
-		if errors.Is(err, cinema.ErrSeatAlreadyLocked) {
-			logger.Warn("seat already locked", applog.Error(err))
+		if errors.Is(err, booking.ErrBookingSeatAlreadyLocked) {
+			logger.Warn("booked seats already locked", applog.Error(err))
 			return nil, err
 		}
 		logger.Error("failed to lock seats", applog.Error(err))
@@ -88,7 +88,7 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 	}
 
 	// 创建预订，需要createBookedSeats和createBooking两个操作
-	// TODO: 使用事务，确保两个操作要么都成功，要么都失败
+	// TODO: 使用事务，确保两个操作要么都成功，要么都失败(先创建订单，再将订单ID写入bookedSeats)
 	bookedSeats := make([]booking.BookedSeat, len(seatIDs))
 	for i, seatID := range seatIDs {
 		bookedSeats[i] = booking.BookedSeat{
