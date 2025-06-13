@@ -21,8 +21,8 @@ func NewGormBookingRepository(db *gorm.DB, logger applog.Logger) booking.Booking
 	return &gormBookingRepository{db: db, logger: logger.With(applog.String("Repository", "gormBookingRepository"))}
 }
 
-// CreateBooking 创建一个 booking
-func (r *gormBookingRepository) CreateBooking(ctx context.Context, booking *booking.Booking) (*booking.Booking, error) {
+// Create 创建一个 booking
+func (r *gormBookingRepository) Create(ctx context.Context, booking *booking.Booking) (*booking.Booking, error) {
 	logger := r.logger.With(applog.String("Method", "CreateBooking"),
 		applog.Uint("booking_id", uint(booking.ID)))
 
@@ -36,8 +36,8 @@ func (r *gormBookingRepository) CreateBooking(ctx context.Context, booking *book
 	return bookingGorm.ToDomain(), nil
 }
 
-// GetBookingByID 根据 booking id 获取 booking
-func (r *gormBookingRepository) GetBookingByID(ctx context.Context, id vo.BookingID) (*booking.Booking, error) {
+// FindByID 根据 booking id 获取 booking
+func (r *gormBookingRepository) FindByID(ctx context.Context, id vo.BookingID) (*booking.Booking, error) {
 	logger := r.logger.With(applog.String("Method", "GetBookingByID"),
 		applog.Uint("booking_id", uint(id)))
 
@@ -55,8 +55,8 @@ func (r *gormBookingRepository) GetBookingByID(ctx context.Context, id vo.Bookin
 	return bookingGorm.ToDomain(), nil
 }
 
-// GetBookingsByUserID 根据 user id 获取 booking
-func (r *gormBookingRepository) GetBookingsByUserID(ctx context.Context, userID vo.UserID) ([]*booking.Booking, error) {
+// FindByUserID 根据 user id 获取 booking
+func (r *gormBookingRepository) FindByUserID(ctx context.Context, userID vo.UserID) ([]*booking.Booking, error) {
 	logger := r.logger.With(applog.String("Method", "GetBookingsByUserID"),
 		applog.Uint("user_id", uint(userID)))
 
@@ -79,8 +79,8 @@ func (r *gormBookingRepository) GetBookingsByUserID(ctx context.Context, userID 
 	return bks, nil
 }
 
-// GetBookingsByShowtimeID 根据 showtime id 获取 booking
-func (r *gormBookingRepository) GetBookingsByShowtimeID(ctx context.Context, showtimeID vo.ShowtimeID) ([]*booking.Booking, error) {
+// FindByShowtimeID 根据 showtime id 获取 booking
+func (r *gormBookingRepository) FindByShowtimeID(ctx context.Context, showtimeID vo.ShowtimeID) ([]*booking.Booking, error) {
 	logger := r.logger.With(applog.String("Method", "GetBookingsByShowtimeID"),
 		applog.Uint("showtime_id", uint(showtimeID)))
 
@@ -103,8 +103,59 @@ func (r *gormBookingRepository) GetBookingsByShowtimeID(ctx context.Context, sho
 	return bks, nil
 }
 
-// UpdateBooking 更新 booking
-func (r *gormBookingRepository) UpdateBooking(ctx context.Context, bk *booking.Booking) error {
+// List 查询订单
+func (r *gormBookingRepository) List(ctx context.Context, options *booking.BookingQueryOptions) ([]*booking.Booking, int64, error) {
+	logger := r.logger.With(applog.String("Method", "ListBookings"))
+
+	var bookingGorms []models.BookingGorm
+	var totalCount int64
+	query := r.db.WithContext(ctx)
+	countQuery := r.db.WithContext(ctx)
+
+	// 用户ID过滤
+	if options.UserID != 0 {
+		query = query.Where("user_id = ?", options.UserID)
+		countQuery = countQuery.Where("user_id = ?", options.UserID)
+		logger = logger.With(applog.Uint("query_user_id", uint(options.UserID)))
+	}
+
+	// 状态过滤
+	if options.Status != "" {
+		query = query.Where("status = ?", options.Status)
+		countQuery = countQuery.Where("status = ?", options.Status)
+		logger = logger.With(applog.String("query_status", string(options.Status)))
+	}
+
+	// 分页
+	offset := (options.Page - 1) * options.PageSize
+	query = query.Offset(offset).Limit(options.PageSize)
+
+	if err := countQuery.Count(&totalCount).Error; err != nil {
+		logger.Error("database count bookings error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database count bookings error: %w", err)
+	}
+
+	if totalCount == 0 {
+		logger.Info("No bookings found matching criteria")
+		return nil, 0, nil // 返回空列表和0计数
+	}
+
+	if err := query.Find(&bookingGorms).Error; err != nil {
+		logger.Error("database list bookings error", applog.Error(err))
+		return nil, 0, fmt.Errorf("database list bookings error: %w", err)
+	}
+
+	bks := make([]*booking.Booking, len(bookingGorms))
+	for i, bookingGorm := range bookingGorms {
+		bks[i] = bookingGorm.ToDomain()
+	}
+
+	logger.Info("list bookings successfully")
+	return bks, totalCount, nil
+}
+
+// Update 更新 booking
+func (r *gormBookingRepository) Update(ctx context.Context, bk *booking.Booking) error {
 	logger := r.logger.With(applog.String("Method", "UpdateBooking"),
 		applog.Uint("booking_id", uint(bk.ID)))
 
@@ -125,8 +176,8 @@ func (r *gormBookingRepository) UpdateBooking(ctx context.Context, bk *booking.B
 	return nil
 }
 
-// DeleteBooking 删除 booking
-func (r *gormBookingRepository) DeleteBooking(ctx context.Context, id vo.BookingID) error {
+// Delete 删除 booking
+func (r *gormBookingRepository) Delete(ctx context.Context, id vo.BookingID) error {
 	logger := r.logger.With(applog.String("Method", "DeleteBooking"),
 		applog.Uint("booking_id", uint(id)))
 

@@ -6,13 +6,13 @@ import (
 )
 
 type BookingRepository interface {
-	CreateBooking(ctx context.Context, booking *Booking) (*Booking, error)
-	GetBookingByID(ctx context.Context, id vo.BookingID) (*Booking, error)
-	GetBookingsByUserID(ctx context.Context, userID vo.UserID) ([]*Booking, error)
-	GetBookingsByShowtimeID(ctx context.Context, showtimeID vo.ShowtimeID) ([]*Booking, error)
-	ListBookings(ctx context.Context, options *BookingQueryOptions) ([]*Booking, int64, error)
-	UpdateBooking(ctx context.Context, booking *Booking) error
-	DeleteBooking(ctx context.Context, id vo.BookingID) error
+	Create(ctx context.Context, booking *Booking) (*Booking, error)
+	FindByID(ctx context.Context, id vo.BookingID) (*Booking, error)
+	FindByUserID(ctx context.Context, userID vo.UserID) ([]*Booking, error)
+	FindByShowtimeID(ctx context.Context, showtimeID vo.ShowtimeID) ([]*Booking, error)
+	List(ctx context.Context, options *BookingQueryOptions) ([]*Booking, int64, error)
+	Update(ctx context.Context, booking *Booking) error
+	Delete(ctx context.Context, id vo.BookingID) error
 }
 
 // BookingQueryOptions 表示查询订单的选项
