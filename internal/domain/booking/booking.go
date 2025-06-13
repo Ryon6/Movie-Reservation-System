@@ -19,13 +19,13 @@ type Booking struct {
 	ID          vo.BookingID
 	UserID      vo.UserID
 	ShowtimeID  vo.ShowtimeID
-	BookedSeats []BookedSeat
+	BookedSeats []*BookedSeat
 	TotalAmount float64
 	BookingTime time.Time
 	Status      BookingStatus
 }
 
-func NewBooking(userID vo.UserID, showtimeID vo.ShowtimeID, bookedSeats []BookedSeat, totalAmount float64) *Booking {
+func NewBooking(userID vo.UserID, showtimeID vo.ShowtimeID, bookedSeats []*BookedSeat, totalAmount float64) *Booking {
 	return &Booking{
 		UserID:      userID,
 		ShowtimeID:  showtimeID,
