@@ -7,4 +7,5 @@ var (
 	ErrBookingAlreadyExists    = errors.New("booking already exists")
 	ErrBookedSeatAlreadyLocked = errors.New("booked seat already locked")
 	ErrBookedSeatNotFound      = errors.New("booked seat not found")
+	ErrBookingNotPending       = errors.New("booking is not pending")
 )
