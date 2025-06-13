@@ -131,6 +131,8 @@ func main() {
 		&models.CinemaHallGorm{},
 		&models.SeatGorm{},
 		&models.ShowtimeGorm{},
+		&models.BookingGorm{},
+		&models.BookedSeatGorm{},
 	)
 
 	if err != nil {
