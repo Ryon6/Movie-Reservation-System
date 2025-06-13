@@ -7,6 +7,7 @@ import (
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/booking"
 	"mrs/internal/domain/cinema"
+	"mrs/internal/domain/shared"
 	"mrs/internal/domain/shared/lock"
 	"mrs/internal/domain/shared/vo"
 	"mrs/internal/domain/showtime"
@@ -18,6 +19,7 @@ type BookingService interface {
 }
 
 type bookingService struct {
+	uow           shared.UnitOfWork
 	bookingRepo   booking.BookingRepository
 	showtimeRepo  showtime.ShowtimeRepository
 	seatCache     cinema.SeatCache
@@ -27,6 +29,7 @@ type bookingService struct {
 }
 
 func NewBookingService(
+	uow shared.UnitOfWork,
 	bookingRepo booking.BookingRepository,
 	showtimeRepo showtime.ShowtimeRepository,
 	seatCache cinema.SeatCache,
@@ -35,6 +38,7 @@ func NewBookingService(
 	logger applog.Logger) BookingService {
 
 	return &bookingService{
+		uow:           uow,
 		bookingRepo:   bookingRepo,
 		showtimeRepo:  showtimeRepo,
 		seatCache:     seatCache,
@@ -44,6 +48,7 @@ func NewBookingService(
 	}
 }
 
+// CreateBooking 创建订单
 func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateBookingRequest) (*response.BookingResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateBooking"))
 	lockKey := cinema.GetShowtimeSeatsLockKey(vo.ShowtimeID(req.ShowtimeID))
@@ -79,7 +84,7 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 
 	// 在缓存中锁定座位（防止超额预订）
 	if err := s.seatCache.LockSeats(ctx, vo.ShowtimeID(req.ShowtimeID), seatIDs); err != nil {
-		if errors.Is(err, booking.ErrBookingSeatAlreadyLocked) {
+		if errors.Is(err, booking.ErrBookedSeatAlreadyLocked) {
 			logger.Warn("booked seats already locked", applog.Error(err))
 			return nil, err
 		}
@@ -87,24 +92,44 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 		return nil, err
 	}
 
-	// 创建预订，需要createBookedSeats和createBooking两个操作
-	// TODO: 使用事务，确保两个操作要么都成功，要么都失败(先创建订单，再将订单ID写入bookedSeats)
-	bookedSeats := make([]booking.BookedSeat, len(seatIDs))
+	// 创建已预订的座位
+	bookedSeats := make([]*booking.BookedSeat, len(seatIDs))
 	for i, seatID := range seatIDs {
-		bookedSeats[i] = booking.BookedSeat{
-			SeatID: seatID,
-			Price:  st.Price,
-		}
+		bookedSeats[i] = booking.NewBookedSeat(vo.ShowtimeID(req.ShowtimeID), seatID, st.Price)
 	}
 
+	// 创建订单
 	totalPrice := float64(len(seatIDs)) * st.Price
 	booking := booking.NewBooking(vo.UserID(req.UserID), vo.ShowtimeID(req.ShowtimeID), bookedSeats, totalPrice)
-	if _, err := s.bookingRepo.CreateBooking(ctx, booking); err != nil {
-		logger.Error("failed to create booking", applog.Error(err))
+
+	// 使用事务，确保两个操作要么都成功，要么都失败(先创建订单，再将订单ID写入bookedSeats)
+	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		bookingRepo := provider.GetBookingRepository()
+		bookedSeatRepo := provider.GetBookedSeatRepository()
+		booking, err = bookingRepo.CreateBooking(ctx, booking)
+		if err != nil {
+			logger.Error("failed to create booking", applog.Error(err))
+			return err
+		}
+
+		// 将订单ID写入已预订的座位
+		for i := range bookedSeats {
+			bookedSeats[i].BookingID = booking.ID
+		}
+
+		// 创建已预订的座位
+		bookedSeats, err = bookedSeatRepo.CreateBookedSeats(ctx, bookedSeats)
+		if err != nil {
+			logger.Error("failed to create booked seats", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Error("transaction error", applog.Error(err))
 		return nil, err
 	}
-
-	// TODO: 确认订单经过支付后，更新订单状态
 
 	logger.Info("create booking successfully", applog.Float64("total_price", totalPrice))
 	return response.ToBookingResponse(booking), nil
