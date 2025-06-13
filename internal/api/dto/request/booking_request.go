@@ -12,6 +12,10 @@ type CreateBookingRequest struct {
 	SeatIDs    []uint `json:"seat_ids"`
 }
 
+type GetBookingRequest struct {
+	ID uint
+}
+
 // 查询订单请求
 type ListBookingsRequest struct {
 	PaginationRequest
@@ -26,4 +30,14 @@ func (r *ListBookingsRequest) ToDomain() *booking.BookingQueryOptions {
 		Page:     r.Page,
 		PageSize: r.PageSize,
 	}
+}
+
+// 取消订单请求
+type CancelBookingRequest struct {
+	ID uint
+}
+
+// 确认订单请求
+type ConfirmBookingRequest struct {
+	ID uint
 }
