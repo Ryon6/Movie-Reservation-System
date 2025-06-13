@@ -16,6 +16,7 @@ func SetupRouter(
 	movieHandler *handlers.MovieHandler,
 	cinemaHandler *handlers.CinemaHandler,
 	showtimeHandler *handlers.ShowtimeHandler,
+	bookingHandler *handlers.BookingHandler,
 	authMiddleware gin.HandlerFunc,
 	adminMiddleware gin.HandlerFunc,
 	// ... 其他处理器 ...
@@ -106,5 +107,15 @@ func SetupRouter(
 		showtimeAdminRoutes.DELETE("/:id", showtimeHandler.DeleteShowtime)
 	}
 
+	// 订单管理路由
+	bookingRoutes := apiV1.Group("/bookings")
+	bookingRoutes.Use(authMiddleware)
+	{
+		bookingRoutes.POST("", bookingHandler.CreateBooking)
+		bookingRoutes.GET("", bookingHandler.ListBookings)
+		bookingRoutes.GET("/:id", bookingHandler.GetBooking)
+		bookingRoutes.POST("/:id/cancel", bookingHandler.CancelBooking)
+		bookingRoutes.POST("/:id/confirm", bookingHandler.ConfirmBooking)
+	}
 	return router
 }
