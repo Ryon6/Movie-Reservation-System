@@ -194,8 +194,8 @@ func (c *RedisSeatCache) LockSeats(ctx context.Context, showtimeID vo.ShowtimeID
 		return fmt.Errorf("redis eval error: %w", err)
 	}
 	if res == 0 {
-		logger.Error("redis lock seat error", applog.Error(booking.ErrBookingSeatAlreadyLocked))
-		return fmt.Errorf("redis lock seat error: %w", booking.ErrBookingSeatAlreadyLocked)
+		logger.Error("redis lock seat error", applog.Error(booking.ErrBookedSeatAlreadyLocked))
+		return fmt.Errorf("redis lock seat error: %w", booking.ErrBookedSeatAlreadyLocked)
 	}
 
 	logger.Info("lock seats successfully")
