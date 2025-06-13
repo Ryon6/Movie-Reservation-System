@@ -114,6 +114,7 @@ func main() {
 	cinemaRepo := appmysql.NewGormCinemaHallRepository(db, logger)
 	seatRepo := appmysql.NewGormSeatRepository(db, logger)
 	showtimeRepo := appmysql.NewGormShowtimeRepository(db, logger)
+	bookingRepo := appmysql.NewGormBookingRepository(db, logger)
 	movieCache := cache.NewRedisMovieCache(rdb.(*redis.Client), logger, time.Second*30) // 后续可以改为配置中获取
 	showtimeCache := cache.NewRedisShowtimeCache(rdb.(*redis.Client), logger, time.Second*30)
 	seatCache := cache.NewRedisSeatCache(rdb.(*redis.Client), logger, time.Second*30)
@@ -127,6 +128,7 @@ func main() {
 	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
 	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
 	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, showtimeCache, seatCache, lockProvider, logger)
+	bookingService := app.NewBookingService(uow, bookingRepo, showtimeRepo, seatCache, showtimeCache, showtimeService, lockProvider, logger)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
@@ -135,6 +137,7 @@ func main() {
 	movieHandler := handlers.NewMovieHandler(movieService, logger)
 	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
 	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
+	bookingHandler := handlers.NewBookingHandler(bookingService, logger)
 
 	r := api.SetupRouter(healthHandler,
 		authHandler,
@@ -142,6 +145,7 @@ func main() {
 		movieHandler,
 		cinemaHandler,
 		showtimeHandler,
+		bookingHandler,
 		middleware.AuthMiddleware(jwtManager, logger),
 		middleware.AdminMiddleware(jwtManager, logger))
 
