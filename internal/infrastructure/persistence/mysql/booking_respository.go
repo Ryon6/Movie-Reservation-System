@@ -1,4 +1,3 @@
-// TODO: 实现 BookingRepository 接口并将 NewGormBookingRepository 返回值改为 BookingRepository 接口
 package mysql
 
 import (
@@ -18,7 +17,7 @@ type gormBookingRepository struct {
 	logger applog.Logger
 }
 
-func NewGormBookingRepository(db *gorm.DB, logger applog.Logger) *gormBookingRepository {
+func NewGormBookingRepository(db *gorm.DB, logger applog.Logger) booking.BookingRepository {
 	return &gormBookingRepository{db: db, logger: logger.With(applog.String("Repository", "gormBookingRepository"))}
 }
 
