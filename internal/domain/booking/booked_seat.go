@@ -14,3 +14,12 @@ type BookedSeat struct {
 }
 
 // 约束：对于(ShowtimeID, SeatID)组合应有唯一约束
+
+// NewBookedSeat 创建一个已预订的座位
+func NewBookedSeat(showtimeID vo.ShowtimeID, seatID vo.SeatID, price float64) *BookedSeat {
+	return &BookedSeat{
+		ShowtimeID: showtimeID,
+		SeatID:     seatID,
+		Price:      price,
+	}
+}
