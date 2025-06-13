@@ -42,7 +42,7 @@ func (r *gormBookingRepository) FindByID(ctx context.Context, id vo.BookingID) (
 		applog.Uint("booking_id", uint(id)))
 
 	var bookingGorm models.BookingGorm
-	if err := r.db.WithContext(ctx).First(&bookingGorm, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("BookedSeats").First(&bookingGorm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("booking id not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(id): %w", booking.ErrBookingNotFound, err)
@@ -61,7 +61,7 @@ func (r *gormBookingRepository) FindByUserID(ctx context.Context, userID vo.User
 		applog.Uint("user_id", uint(userID)))
 
 	var bookingGorms []models.BookingGorm
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&bookingGorms).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("BookedSeats").Where("user_id = ?", userID).Find(&bookingGorms).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("bookings not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(user_id): %w", booking.ErrBookingNotFound, err)
@@ -85,7 +85,7 @@ func (r *gormBookingRepository) FindByShowtimeID(ctx context.Context, showtimeID
 		applog.Uint("showtime_id", uint(showtimeID)))
 
 	var bookingGorms []models.BookingGorm
-	if err := r.db.WithContext(ctx).Where("showtime_id = ?", showtimeID).Find(&bookingGorms).Error; err != nil {
+	if err := r.db.WithContext(ctx).Preload("BookedSeats").Where("showtime_id = ?", showtimeID).Find(&bookingGorms).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn("bookings not found", applog.Error(err))
 			return nil, fmt.Errorf("%w(showtime_id): %w", booking.ErrBookingNotFound, err)
