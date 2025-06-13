@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"mrs/internal/domain/booking"
 	"mrs/internal/domain/cinema"
 	"mrs/internal/domain/movie"
 	"mrs/internal/domain/showtime"
@@ -18,6 +19,8 @@ type RepositoryProvider interface {
 	GetShowtimeRepository() showtime.ShowtimeRepository
 	GetCinemaHallRepository() cinema.CinemaHallRepository
 	GetSeatRepository() cinema.SeatRepository
+	GetBookingRepository() booking.BookingRepository
+	GetBookedSeatRepository() booking.BookedSeatRepository
 }
 
 // UnitOfWork 定义了单元工作的接口。

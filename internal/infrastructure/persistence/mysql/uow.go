@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"mrs/internal/domain/booking"
 	"mrs/internal/domain/cinema"
 	"mrs/internal/domain/movie"
 	"mrs/internal/domain/shared"
@@ -47,6 +48,14 @@ func (p *gormRepositoryProvider) GetCinemaHallRepository() cinema.CinemaHallRepo
 
 func (p *gormRepositoryProvider) GetSeatRepository() cinema.SeatRepository {
 	return NewGormSeatRepository(p.tx, p.logger)
+}
+
+func (p *gormRepositoryProvider) GetBookingRepository() booking.BookingRepository {
+	return NewGormBookingRepository(p.tx, p.logger)
+}
+
+func (p *gormRepositoryProvider) GetBookedSeatRepository() booking.BookedSeatRepository {
+	return NewGormBookedSeatRepository(p.tx, p.logger)
 }
 
 // gormUnitOfWork 实现了 shared.UnitOfWork 接口。
