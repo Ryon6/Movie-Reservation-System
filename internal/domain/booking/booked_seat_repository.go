@@ -6,9 +6,9 @@ import (
 )
 
 type BookedSeatRepository interface {
-	CreateBookedSeats(ctx context.Context, bookedSeats []BookedSeat) ([]*BookedSeat, error)
+	CreateBookedSeats(ctx context.Context, bookedSeats []*BookedSeat) ([]*BookedSeat, error)
 	GetBookedSeatByID(ctx context.Context, id vo.BookedSeatID) (*BookedSeat, error)
 	GetBookedSeatsByBookingID(ctx context.Context, bookingID vo.BookingID) ([]*BookedSeat, error)
-	UpdateBookedSeats(ctx context.Context, bookedSeats []BookedSeat) error
+	UpdateBookedSeat(ctx context.Context, bookedSeat *BookedSeat) error
 	DeleteBookedSeat(ctx context.Context, id vo.BookedSeatID) error
 }
