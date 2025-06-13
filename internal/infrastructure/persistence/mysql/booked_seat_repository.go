@@ -21,8 +21,8 @@ func NewGormBookedSeatRepository(db *gorm.DB, logger applog.Logger) booking.Book
 	return &gormBookedSeatRepository{db: db, logger: logger.With(applog.String("Repository", "gormBookedSeatRepository"))}
 }
 
-// CreateBookedSeats 创建已预订的座位
-func (r *gormBookedSeatRepository) CreateBookedSeats(ctx context.Context, bookedSeats []*booking.BookedSeat) ([]*booking.BookedSeat, error) {
+// CreateBatch 创建已预订的座位
+func (r *gormBookedSeatRepository) CreateBatch(ctx context.Context, bookedSeats []*booking.BookedSeat) ([]*booking.BookedSeat, error) {
 	logger := r.logger.With(applog.String("Method", "CreateBookedSeats"))
 
 	bookedSeatGorms := make([]*models.BookedSeatGorm, len(bookedSeats))
@@ -48,8 +48,8 @@ func (r *gormBookedSeatRepository) CreateBookedSeats(ctx context.Context, booked
 	return domainBookedSeats, nil
 }
 
-// GetBookedSeatByID 根据ID获取已预订的座位
-func (r *gormBookedSeatRepository) GetBookedSeatByID(ctx context.Context, id vo.BookedSeatID) (*booking.BookedSeat, error) {
+// FindByID 根据ID获取已预订的座位
+func (r *gormBookedSeatRepository) FindByID(ctx context.Context, id vo.BookedSeatID) (*booking.BookedSeat, error) {
 	logger := r.logger.With(applog.String("Method", "GetBookedSeatByID"), applog.Uint("booked_seat_id", uint(id)))
 
 	var bookedSeatGorm models.BookedSeatGorm
@@ -66,8 +66,8 @@ func (r *gormBookedSeatRepository) GetBookedSeatByID(ctx context.Context, id vo.
 	return bookedSeatGorm.ToDomain(), nil
 }
 
-// GetBookedSeatsByBookingID 根据bookingID获取已预订的座位
-func (r *gormBookedSeatRepository) GetBookedSeatsByBookingID(ctx context.Context, bookingID vo.BookingID) ([]*booking.BookedSeat, error) {
+// FindByBookingID 根据bookingID获取已预订的座位
+func (r *gormBookedSeatRepository) FindByBookingID(ctx context.Context, bookingID vo.BookingID) ([]*booking.BookedSeat, error) {
 	logger := r.logger.With(applog.String("Method", "GetBookedSeatsByBookingID"), applog.Uint("booking_id", uint(bookingID)))
 
 	var bookedSeatGorms []models.BookedSeatGorm
@@ -89,8 +89,8 @@ func (r *gormBookedSeatRepository) GetBookedSeatsByBookingID(ctx context.Context
 	return domainBookedSeats, nil
 }
 
-// UpdateBookedSeat 更新已预订的座位
-func (r *gormBookedSeatRepository) UpdateBookedSeat(ctx context.Context, bookedSeat *booking.BookedSeat) error {
+// Update 更新已预订的座位
+func (r *gormBookedSeatRepository) Update(ctx context.Context, bookedSeat *booking.BookedSeat) error {
 	logger := r.logger.With(applog.String("Method", "UpdateBookedSeat"))
 
 	bookedSeatGorm := models.BookedSeatGormFromDomain(bookedSeat)
@@ -113,8 +113,8 @@ func (r *gormBookedSeatRepository) UpdateBookedSeat(ctx context.Context, bookedS
 	return nil
 }
 
-// DeleteBookedSeat 删除已预订的座位
-func (r *gormBookedSeatRepository) DeleteBookedSeat(ctx context.Context, id vo.BookedSeatID) error {
+// Delete 删除已预订的座位
+func (r *gormBookedSeatRepository) Delete(ctx context.Context, id vo.BookedSeatID) error {
 	logger := r.logger.With(applog.String("Method", "DeleteBookedSeat"), applog.Uint("booked_seat_id", uint(id)))
 
 	result := r.db.WithContext(ctx).Delete(&models.BookedSeatGorm{}, id)
