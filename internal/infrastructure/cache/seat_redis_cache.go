@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mrs/internal/domain/booking"
 	"mrs/internal/domain/cinema"
 	"mrs/internal/domain/shared"
 	"mrs/internal/domain/shared/vo"
@@ -193,8 +194,8 @@ func (c *RedisSeatCache) LockSeats(ctx context.Context, showtimeID vo.ShowtimeID
 		return fmt.Errorf("redis eval error: %w", err)
 	}
 	if res == 0 {
-		logger.Error("redis lock seat error", applog.Error(cinema.ErrSeatAlreadyLocked))
-		return fmt.Errorf("redis lock seat error: %w", cinema.ErrSeatAlreadyLocked)
+		logger.Error("redis lock seat error", applog.Error(booking.ErrBookingSeatAlreadyLocked))
+		return fmt.Errorf("redis lock seat error: %w", booking.ErrBookingSeatAlreadyLocked)
 	}
 
 	logger.Info("lock seats successfully")
