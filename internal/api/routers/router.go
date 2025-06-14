@@ -1,5 +1,5 @@
 // internal/api/router.go
-package api
+package routers
 
 import (
 	"mrs/internal/api/handlers"

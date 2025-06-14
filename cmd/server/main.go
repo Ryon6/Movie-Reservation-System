@@ -6,9 +6,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"mrs/internal/api"
 	"mrs/internal/api/handlers"
 	"mrs/internal/api/middleware"
+	"mrs/internal/api/routers"
 	"mrs/internal/app"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
@@ -139,7 +139,7 @@ func main() {
 	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
 	bookingHandler := handlers.NewBookingHandler(bookingService, logger)
 
-	r := api.SetupRouter(healthHandler,
+	r := routers.SetupRouter(healthHandler,
 		authHandler,
 		userHandler,
 		movieHandler,
