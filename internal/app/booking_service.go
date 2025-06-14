@@ -185,6 +185,7 @@ func (s *bookingService) CancelBooking(ctx context.Context, req *request.CancelB
 	// 使用事务，保证操作的原子性
 	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		bookingRepo := provider.GetBookingRepository()
+		bookedSeatRepo := provider.GetBookedSeatRepository()
 		bk, err = bookingRepo.FindByID(ctx, vo.BookingID(req.ID))
 		if err != nil {
 			logger.Error("failed to get booking", applog.Error(err))
@@ -203,15 +204,20 @@ func (s *bookingService) CancelBooking(ctx context.Context, req *request.CancelB
 			seatIDs[i] = bookedSeat.SeatID
 		}
 
-		// 释放座位锁
-		if err = s.seatCache.ReleaseSeats(ctx, vo.ShowtimeID(req.ID), seatIDs); err != nil {
-			logger.Error("failed to release seats", applog.Error(err))
-			return err
-		}
-
 		bk.Cancel()
 		if err = bookingRepo.Update(ctx, bk); err != nil {
 			logger.Error("failed to update booking", applog.Error(err))
+			return err
+		}
+
+		if err = bookedSeatRepo.DeleteByBookingID(ctx, vo.BookingID(req.ID)); err != nil {
+			logger.Error("failed to delete booked seats", applog.Error(err))
+			return err
+		}
+
+		// 释放座位锁
+		if err = s.seatCache.ReleaseSeats(ctx, vo.ShowtimeID(req.ID), seatIDs); err != nil {
+			logger.Error("failed to release seats", applog.Error(err))
 			return err
 		}
 		return nil
