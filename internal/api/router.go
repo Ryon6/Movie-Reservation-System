@@ -99,6 +99,7 @@ func SetupRouter(
 	{
 		showtimeRoutes.GET("", showtimeHandler.ListShowtimes)
 		showtimeRoutes.GET("/:id", showtimeHandler.GetShowtime)
+		showtimeRoutes.GET("/:id/seatmap", showtimeHandler.GetSeatMap)
 	}
 	showtimeAdminRoutes := adminRoutes.Group("/showtimes")
 	{

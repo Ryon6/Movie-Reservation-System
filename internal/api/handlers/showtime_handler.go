@@ -142,3 +142,24 @@ func (h *ShowtimeHandler) DeleteShowtime(ctx *gin.Context) {
 	logger.Info("showtime deleted successfully", applog.Uint("showtime_id", uint(req.ID)))
 	ctx.JSON(http.StatusNoContent, nil)
 }
+
+// 获取放映场次座位表 GET /api/v1/showtimes/:id/seatmap
+func (h *ShowtimeHandler) GetSeatMap(ctx *gin.Context) {
+	logger := h.logger.With(applog.String("Method", "GetSeatMap"))
+	id, err := getIDFromPath(ctx)
+	if err != nil {
+		logger.Error("failed to get id from path", applog.Error(err))
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req := request.GetSeatMapRequest{ShowtimeID: id}
+
+	seatMapResp, err := h.showtimeService.GetSeatMap(ctx, &req)
+	if err != nil {
+		logger.Error("failed to get seat map", applog.Error(err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	logger.Info("seat map retrieved successfully", applog.Uint("showtime_id", id))
+	ctx.JSON(http.StatusOK, seatMapResp)
+}
