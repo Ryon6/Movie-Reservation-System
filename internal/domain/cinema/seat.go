@@ -23,12 +23,13 @@ type Seat struct {
 	Type          SeatType
 }
 
-func GenerateDefaultSeats() []*Seat {
+func GenerateDefaultSeats(cinemaHallID vo.CinemaHallID) []*Seat {
 	rows, columns := 10, 10
 	seats := make([]*Seat, 0, rows*columns)
 	for i := 0; i < rows; i++ {
 		for j := 1; j <= columns; j++ {
 			seats = append(seats, &Seat{
+				CinemaHallID:  cinemaHallID,
 				RowIdentifier: string(rune('A' + i)),
 				SeatNumber:    fmt.Sprintf("%02d", j),
 				Type:          SeatTypeStandard,

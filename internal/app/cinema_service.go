@@ -45,14 +45,11 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 	logger := s.logger.With(applog.String("Method", "CreateCinemaHall"), applog.String("cinema_hall_name", req.Name))
 
 	cinemaHall := req.ToDomain()
-	if len(cinemaHall.Seats) == 0 {
-		cinemaHall.Seats = cinema.GenerateDefaultSeats()
-	}
 
 	// 创建影厅时，需要创建座位，所以需要使用事务
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
-		var err error
-		cinemaHall, err = provider.GetCinemaHallRepository().Create(ctx, cinemaHall)
+		// 创建影厅，得到创建后的影厅ID
+		createdCinemaHall, err := provider.GetCinemaHallRepository().Create(ctx, cinemaHall)
 		if err != nil {
 			if errors.Is(err, cinema.ErrCinemaHallAlreadyExists) {
 				logger.Warn("cinema hall already exists", applog.Error(err))
@@ -61,6 +58,16 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 			logger.Error("failed to create cinema hall", applog.Error(err))
 			return err
 		}
+
+		// 如果请求中没有座位，则生成默认座位
+		if len(cinemaHall.Seats) == 0 {
+			cinemaHall.Seats = cinema.GenerateDefaultSeats(createdCinemaHall.ID)
+		} else {
+			for i := range cinemaHall.Seats {
+				cinemaHall.Seats[i].CinemaHallID = createdCinemaHall.ID
+			}
+		}
+		cinemaHall.ID = createdCinemaHall.ID
 
 		seats, err := provider.GetSeatRepository().CreateBatch(ctx, cinemaHall.Seats)
 		if err != nil {
