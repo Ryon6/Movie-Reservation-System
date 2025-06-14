@@ -155,6 +155,8 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 	// 因此，这里不进行业务逻辑的判断，直接更新数据库
 	// 如果需要业务逻辑的判断，应该在服务层进行
 
+	showtimeGorm := models.ShowtimeGormFromDomain(st)
+
 	var exist int64
 	if err := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Count(&exist).Error; err != nil {
 		logger.Error("database check showtime exist error", applog.Error(err))
@@ -166,7 +168,7 @@ func (r *gormShowtimeRepository) Update(ctx context.Context, st *showtime.Showti
 		return fmt.Errorf("%w(id): %v", showtime.ErrShowtimeNotFound, st.ID)
 	}
 
-	if err := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Updates(st).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&models.ShowtimeGorm{}).Where("id = ?", st.ID).Updates(showtimeGorm).Error; err != nil {
 		logger.Error("database update showtime error", applog.Error(err))
 		return fmt.Errorf("database update showtime error: %w", err)
 	}
