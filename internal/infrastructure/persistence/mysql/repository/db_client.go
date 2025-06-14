@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"mrs/internal/infrastructure/config"
-	"mrs/internal/infrastructure/persistence"
+	"mrs/internal/infrastructure/persistence/dbFactory"
 	applog "mrs/pkg/log"
 	"os"
 	"time"
@@ -18,7 +18,7 @@ type mysqlDBFactary struct {
 	logger applog.Logger
 }
 
-func NewMysqlDBFactory(logger applog.Logger) persistence.DBConnectionFactory {
+func NewMysqlDBFactory(logger applog.Logger) dbFactory.DBConnectionFactory {
 	return &mysqlDBFactary{
 		logger: logger,
 	}

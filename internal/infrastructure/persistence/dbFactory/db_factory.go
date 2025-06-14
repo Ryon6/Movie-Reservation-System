@@ -1,4 +1,4 @@
-package persistence
+package dbFactory
 
 import (
 	"mrs/internal/infrastructure/config"
