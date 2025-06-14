@@ -95,6 +95,18 @@ func (r *gormBookedSeatRepository) Update(ctx context.Context, bookedSeat *booki
 
 	bookedSeatGorm := models.BookedSeatGormFromDomain(bookedSeat)
 
+	// 先执行一个轻量级检查，如果座位不存在，则返回错误
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.BookedSeatGorm{}).Where("id = ?", bookedSeatGorm.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check booked seat exist error", applog.Error(err))
+		return fmt.Errorf("database check booked seat exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("booked seat not found")
+		return fmt.Errorf("%w(id): %v", booking.ErrBookedSeatNotFound, bookedSeatGorm.ID)
+	}
+
 	result := r.db.WithContext(ctx).Model(&models.BookedSeatGorm{}).
 		Where("id = ?", bookedSeatGorm.ID).
 		Updates(bookedSeatGorm)
@@ -104,11 +116,7 @@ func (r *gormBookedSeatRepository) Update(ctx context.Context, bookedSeat *booki
 		return fmt.Errorf("database update booked seat error: %w", err)
 	}
 
-	if result.RowsAffected == 0 {
-		logger.Warn("booked seat not found", applog.Error(booking.ErrBookedSeatNotFound))
-		return fmt.Errorf("%w", booking.ErrBookedSeatNotFound)
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update booked seat successfully")
 	return nil
 }

@@ -160,18 +160,25 @@ func (r *gormBookingRepository) Update(ctx context.Context, bk *booking.Booking)
 		applog.Uint("booking_id", uint(bk.ID)))
 
 	bookingGorm := models.BookingGormFromDomain(bk)
+
+	var exist int64
+	if err := r.db.WithContext(ctx).Model(&models.BookingGorm{}).Where("id = ?", bk.ID).Count(&exist).Error; err != nil {
+		logger.Error("database check booking exist error", applog.Error(err))
+		return fmt.Errorf("database check booking exist error: %w", err)
+	}
+
+	if exist == 0 {
+		logger.Warn("booking not found")
+		return fmt.Errorf("%w(id): %v", booking.ErrBookingNotFound, bk.ID)
+	}
+
 	result := r.db.WithContext(ctx).Model(&models.BookingGorm{}).Where("id = ?", bk.ID).Updates(bookingGorm)
 	if result.Error != nil {
 		logger.Error("database update booking error", applog.Error(result.Error))
 		return fmt.Errorf("database update booking error: %w", result.Error)
 	}
 
-	// 未更新任何数据，说明 booking id 不存在
-	if result.RowsAffected == 0 {
-		logger.Warn("booking id not found", applog.Error(booking.ErrBookingNotFound))
-		return fmt.Errorf("%w(id): %v", booking.ErrBookingNotFound, bk.ID)
-	}
-
+	// 无论是否真正造成更新，都返回成功
 	logger.Info("update booking successfully")
 	return nil
 }
