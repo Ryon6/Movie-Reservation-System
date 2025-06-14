@@ -139,3 +139,22 @@ func (r *gormBookedSeatRepository) Delete(ctx context.Context, id vo.BookedSeatI
 	logger.Info("delete booked seat successfully")
 	return nil
 }
+
+// DeleteByBookingID 根据bookingID删除已预订的座位
+func (r *gormBookedSeatRepository) DeleteByBookingID(ctx context.Context, bookingID vo.BookingID) error {
+	logger := r.logger.With(applog.String("Method", "DeleteBookedSeatsByBookingID"), applog.Uint("booking_id", uint(bookingID)))
+
+	result := r.db.WithContext(ctx).Delete(&models.BookedSeatGorm{}, "booking_id = ?", bookingID)
+	if err := result.Error; err != nil {
+		logger.Error("database delete booked seats by booking id error", applog.Error(err))
+		return fmt.Errorf("database delete booked seats by booking id error: %w", err)
+	}
+
+	if result.RowsAffected == 0 {
+		logger.Warn("booked seats not found by booking id", applog.Error(booking.ErrBookedSeatNotFound))
+		return fmt.Errorf("%w(booking_id): %v", booking.ErrBookedSeatNotFound, bookingID)
+	}
+
+	logger.Info("delete booked seats by booking id successfully")
+	return nil
+}

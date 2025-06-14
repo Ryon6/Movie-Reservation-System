@@ -11,4 +11,5 @@ type BookedSeatRepository interface {
 	FindByBookingID(ctx context.Context, bookingID vo.BookingID) ([]*BookedSeat, error)
 	Update(ctx context.Context, bookedSeat *BookedSeat) error
 	Delete(ctx context.Context, id vo.BookedSeatID) error
+	DeleteByBookingID(ctx context.Context, bookingID vo.BookingID) error
 }
