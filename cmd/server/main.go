@@ -12,7 +12,7 @@ import (
 	"mrs/internal/app"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
-	appmysql "mrs/internal/infrastructure/persistence/mysql"
+	appmysql "mrs/internal/infrastructure/persistence/mysql/repository"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"os"

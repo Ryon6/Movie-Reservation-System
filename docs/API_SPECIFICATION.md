@@ -262,7 +262,7 @@
     *   **响应体**: `预订详情响应` (状态: confirmed 已确认)
     *   **调用服务**: `BookingService.ConfirmPayment(bookingId, paymentDetails)`
 
-### 管理员端点:
+### 管理员端点（无需实现）:
 
 *   **`GET /api/v1/admin/bookings`**
     *   **描述**: 列出所有用户的全部预订 (分页)。
