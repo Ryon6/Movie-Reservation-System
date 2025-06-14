@@ -30,6 +30,9 @@ type CinemaHallSimpleResponse struct {
 }
 
 func ToCinemaHallSimpleResponse(hall *cinema.CinemaHall) *CinemaHallSimpleResponse {
+	if hall == nil {
+		return nil
+	}
 	return &CinemaHallSimpleResponse{
 		ID:          uint(hall.ID),
 		Name:        hall.Name,
@@ -55,6 +58,9 @@ func ToSeatResponses(seats []*cinema.Seat) []*SeatResponse {
 }
 
 func ToSeatResponse(seat *cinema.Seat) *SeatResponse {
+	if seat == nil {
+		return nil
+	}
 	return &SeatResponse{
 		ID:            uint(seat.ID),
 		RowIdentifier: seat.RowIdentifier,
@@ -68,6 +74,9 @@ type ListAllCinemaHallsResponse struct {
 }
 
 func ToListAllCinemaHallsResponse(halls []*cinema.CinemaHall) *ListAllCinemaHallsResponse {
+	if halls == nil {
+		return nil
+	}
 	cinemaHallResponses := make([]*CinemaHallSimpleResponse, len(halls))
 	for i, hall := range halls {
 		cinemaHallResponses[i] = ToCinemaHallSimpleResponse(hall)

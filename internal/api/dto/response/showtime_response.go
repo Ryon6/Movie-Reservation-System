@@ -17,6 +17,9 @@ type ShowtimeResponse struct {
 }
 
 func ToShowtimeResponse(showtime *showtime.Showtime) *ShowtimeResponse {
+	if showtime == nil {
+		return nil
+	}
 	return &ShowtimeResponse{
 		ID:         uint(showtime.ID),
 		Movie:      ToMovieSimpleResponse(showtime.Movie),

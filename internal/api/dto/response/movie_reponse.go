@@ -22,6 +22,9 @@ type MovieResponse struct {
 }
 
 func ToMovieResponse(movie *movie.Movie) *MovieResponse {
+	if movie == nil {
+		return nil
+	}
 	genres := make([]*GenreResponse, 0, len(movie.Genres))
 	for _, genre := range movie.Genres {
 		genres = append(genres, ToGenreResponse(genre))
@@ -53,6 +56,9 @@ type MovieSimpleResponse struct {
 }
 
 func ToMovieSimpleResponse(movie *movie.Movie) *MovieSimpleResponse {
+	if movie == nil {
+		return nil
+	}
 	return &MovieSimpleResponse{
 		ID:        uint(movie.ID),
 		Title:     movie.Title,

@@ -16,6 +16,9 @@ type BookingResponse struct {
 }
 
 func ToBookingResponse(booking *booking.Booking) *BookingResponse {
+	if booking == nil {
+		return nil
+	}
 	return &BookingResponse{
 		ID:          uint(booking.ID),
 		TotalAmount: booking.TotalAmount,
@@ -32,6 +35,9 @@ type ListBookingsResponse struct {
 
 // ToListBookingsResponse 将domain层的订单列表转换为API层的订单列表
 func ToListBookingsResponse(bookings []*booking.Booking, totalCount int, req *request.PaginationRequest) *ListBookingsResponse {
+	if bookings == nil {
+		return nil
+	}
 	response := make([]*BookingResponse, len(bookings))
 	for i, booking := range bookings {
 		response[i] = ToBookingResponse(booking)

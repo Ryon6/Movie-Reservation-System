@@ -13,6 +13,9 @@ type UserProfileResponse struct {
 }
 
 func ToUserProfileResponse(user *user.User) *UserProfileResponse {
+	if user == nil {
+		return nil
+	}
 	return &UserProfileResponse{
 		// ID:       uint(user.ID),
 		Username: user.Username,
@@ -30,6 +33,9 @@ type UserResponse struct {
 }
 
 func ToUserResponse(user *user.User) *UserResponse {
+	if user == nil {
+		return nil
+	}
 	return &UserResponse{
 		ID:       uint(user.ID),
 		Username: user.Username,
@@ -45,6 +51,9 @@ type ListUserResponse struct {
 }
 
 func ToListUserResponse(users []*user.User) *ListUserResponse {
+	if users == nil {
+		return nil
+	}
 	userResponses := make([]*UserResponse, 0, len(users))
 	for _, user := range users {
 		userResponses = append(userResponses, ToUserResponse(user))
@@ -62,6 +71,9 @@ type RoleResponse struct {
 }
 
 func ToRoleResponse(role *user.Role) *RoleResponse {
+	if role == nil {
+		return nil
+	}
 	return &RoleResponse{
 		ID:          uint(role.ID),
 		Name:        role.Name,
@@ -75,6 +87,9 @@ type ListRoleResponse struct {
 }
 
 func ToListRoleResponse(roles []*user.Role) *ListRoleResponse {
+	if roles == nil {
+		return nil
+	}
 	roleResponses := make([]*RoleResponse, 0, len(roles))
 	for _, role := range roles {
 		roleResponses = append(roleResponses, ToRoleResponse(role))
