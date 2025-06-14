@@ -71,9 +71,9 @@ func (r *DeleteShowtimeRequest) ToDomain() *showtime.Showtime {
 // 获取放映列表
 type ListShowtimesRequest struct {
 	PaginationRequest
-	MovieID      uint      `json:"movie_id" binding:"omitempty,min=1"`
-	CinemaHallID uint      `json:"cinema_hall_id" binding:"omitempty,min=1"`
-	Date         time.Time `json:"date" binding:"omitempty"`
+	MovieID      uint      `json:"movie_id" form:"movie_id" binding:"omitempty,min=1"`
+	CinemaHallID uint      `json:"cinema_hall_id" form:"cinema_hall_id" binding:"omitempty,min=1"`
+	Date         time.Time `json:"date" form:"date" binding:"omitempty"`
 }
 
 func (r *ListShowtimesRequest) ToDomain() *showtime.ShowtimeQueryOptions {
