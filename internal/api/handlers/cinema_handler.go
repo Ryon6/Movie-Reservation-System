@@ -37,7 +37,7 @@ func (h *CinemaHandler) CreateCinemaHall(ctx *gin.Context) {
 		return
 	}
 	logger.Info("cinema hall created successfully", applog.Uint("cinema_hall_id", uint(cinemaHallResp.ID)))
-	ctx.JSON(http.StatusOK, cinemaHallResp)
+	ctx.JSON(http.StatusCreated, cinemaHallResp)
 }
 
 // 获取影厅 GET /api/v1/cinema-halls/:id

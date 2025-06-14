@@ -49,7 +49,7 @@ func (h *UserHandler) Register(ctx *gin.Context) {
 	}
 
 	logger.Info("user registered successfully")
-	ctx.JSON(http.StatusOK, userResp)
+	ctx.JSON(http.StatusCreated, userResp)
 }
 
 // 用户获取自身信息
@@ -246,7 +246,7 @@ func (h *UserHandler) CreateRole(ctx *gin.Context) {
 	}
 
 	logger.Info("role created successfully")
-	ctx.JSON(http.StatusOK, roleResp)
+	ctx.JSON(http.StatusCreated, roleResp)
 }
 
 // 获取角色列表
@@ -332,5 +332,5 @@ func (h *UserHandler) AssignRoleToUser(ctx *gin.Context) {
 	}
 
 	logger.Info("role assigned to user successfully")
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.JSON(http.StatusOK, nil)
 }

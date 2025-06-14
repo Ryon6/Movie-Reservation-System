@@ -47,7 +47,7 @@ func (h *MovieHandler) CreateMovie(ctx *gin.Context) {
 		return
 	}
 	logger.Info("movie created successfully", applog.Uint("movie_id", uint(movieResp.ID)))
-	ctx.JSON(http.StatusOK, movieResp)
+	ctx.JSON(http.StatusCreated, movieResp)
 }
 
 // 获取电影 GET /api/v1/movies/{movieId}
@@ -161,7 +161,7 @@ func (h *MovieHandler) CreateGenre(ctx *gin.Context) {
 	}
 
 	logger.Info("genre created successfully", applog.String("genre_name", genreResp.Name))
-	ctx.JSON(http.StatusOK, genreResp)
+	ctx.JSON(http.StatusCreated, genreResp)
 }
 
 // 更新类型(根据ID更新Name) PUT /api/v1/admin/genres/{genreId}

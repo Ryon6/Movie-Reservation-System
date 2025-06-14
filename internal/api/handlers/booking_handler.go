@@ -38,7 +38,7 @@ func (h *BookingHandler) CreateBooking(ctx *gin.Context) {
 	}
 
 	logger.Info("create booking successfully", applog.Uint("booking_id", uint(bookingResp.ID)))
-	ctx.JSON(http.StatusOK, bookingResp)
+	ctx.JSON(http.StatusCreated, bookingResp)
 }
 
 // 查询订单列表 GET /api/v1/bookings

@@ -37,7 +37,7 @@ func (h *ShowtimeHandler) CreateShowtime(ctx *gin.Context) {
 		return
 	}
 	logger.Info("showtime created successfully", applog.Uint("showtime_id", uint(showtimeResp.ID)))
-	ctx.JSON(http.StatusOK, showtimeResp)
+	ctx.JSON(http.StatusCreated, showtimeResp)
 }
 
 // 获取放映场次（详情） GET /api/v1/showtimes/:id
