@@ -1,0 +1,46 @@
+server:
+  port: "8080"
+  host: "localhost"
+
+database:
+  # dsn: "ryon:123456@tcp(127.0.0.1:3306)/movie_reservation_system?charset=utf8mb4&parseTime=True&loc=Local"
+  user: "peng"
+  password: "123456"
+  host: "172.27.17.118"
+  port: "3306"
+  name: "movie_reservation_system"
+  charset: "utf8mb4"
+  logMode: true
+  maxOpenConnections: 10
+  maxIdleConnections: 5
+
+redis:
+  address: 172.27.17.118:6379
+  password: "" # 默认不需要
+  db: 0        # 数据库编号
+  poolSize: 10
+  minIdleConns: 5
+
+jwt:
+  secretKey: "Rome will return like lightning"
+  accessTokenDuration: 1h
+  refreshTokenDuration: 72h
+  issuer: "Peng"
+
+log:
+  level: debug
+  outputPaths: ["stdout", "./var/log/app.log"]
+  errorOutputPaths: ["stderr", "./var/log/error.log"]
+  encoding: json
+  development_mode: true
+  disableCaller: true
+  disableStacktrace: true
+
+auth:
+  defaultRoleName: "USER"
+  hasherCost: 10
+
+admin:
+  username: "admin"
+  email: "admin@example.com"
+  password: "admin123"
