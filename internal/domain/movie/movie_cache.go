@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	DefaultExpiration = 10 * time.Minute
+)
+
 // MovieCache 电影缓存接口
 type MovieCache interface {
 	GetMovie(ctx context.Context, movieID vo.MovieID) (*Movie, error)

@@ -88,7 +88,13 @@ func (s *movieService) CreateMovie(ctx context.Context,
 		return nil, err
 	}
 
-	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
+	// 设置电影缓存(完整记录)
+	mv, err = s.movieRepo.FindByID(ctx, mv.ID)
+	if err != nil {
+		logger.Error("failed to find movie", applog.Error(err))
+		return nil, err
+	}
+	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
@@ -167,7 +173,13 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 		return err
 	}
 
-	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
+	// 设置电影缓存(完整记录)
+	mv, err = s.movieRepo.FindByID(ctx, mv.ID)
+	if err != nil {
+		logger.Error("failed to find movie", applog.Error(err))
+		return err
+	}
+	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
@@ -201,7 +213,7 @@ func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieReques
 		return nil, err
 	}
 
-	if err := s.movieCache.SetMovie(ctx, mv, 0); err != nil {
+	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
