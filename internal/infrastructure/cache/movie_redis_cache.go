@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"mrs/internal/domain/movie"
 	"mrs/internal/domain/shared"
+	"mrs/internal/domain/shared/vo"
 	applog "mrs/pkg/log"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -21,12 +21,6 @@ type RedisMovieCache struct {
 	defaultExpiration time.Duration
 }
 
-// 电影缓存键前缀
-const (
-	movieKeyPrefix     = "movie:"
-	movieListKeyPrefix = "movies:list:"
-)
-
 // 创建一个RedisMovieCache实例
 func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) movie.MovieCache {
 	return &RedisMovieCache{
@@ -36,33 +30,10 @@ func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultEx
 	}
 }
 
-// movieKey 生成单个电影的缓存键
-func (c *RedisMovieCache) movieKey(movieID uint) string {
-	return fmt.Sprintf("%s%d", movieKeyPrefix, movieID)
-}
-
-// movieListKey 生成电影列表的缓存键
-func (c *RedisMovieCache) movieListKey(options *movie.MovieQueryOptions) string {
-	if options == nil {
-		return movieListKeyPrefix + "all"
-	}
-
-	// 规范化参数以确保键的一致性
-	var sb strings.Builder
-	sb.WriteString(movieListKeyPrefix)
-	sb.WriteString(fmt.Sprintf("%s=%v:", "title", options.Title))              // 构建器追加字符串
-	sb.WriteString(fmt.Sprintf("%s=%v:", "release_year", options.ReleaseYear)) // 构建器追加字符串
-	sb.WriteString(fmt.Sprintf("%s=%v:", "genre_name", options.GenreName))     // 构建器追加字符串
-	sb.WriteString(fmt.Sprintf("%s=%v:", "page", options.Page))                // 构建器追加字符串
-	sb.WriteString(fmt.Sprintf("%s=%v:", "page_size", options.PageSize))       // 构建器追加字符串
-
-	return strings.TrimRight(sb.String(), ":") // 移除字符串右侧的:符号
-}
-
 // SetMovie 设置单个电影的缓存
 func (c *RedisMovieCache) SetMovie(ctx context.Context, mv *movie.Movie, expiration time.Duration) error {
 	logger := c.logger.With(applog.String("Method", "SetMovie"), applog.Uint("movie_id", uint(mv.ID)))
-	key := c.movieKey(uint(mv.ID))
+	key := movie.GetMovieKey(mv.ID)
 	data, err := json.Marshal(mv)
 
 	if err != nil {
@@ -84,14 +55,14 @@ func (c *RedisMovieCache) SetMovie(ctx context.Context, mv *movie.Movie, expirat
 }
 
 // DeleteMovie 从缓存中删除单个电影及其相关的列表缓存
-func (c *RedisMovieCache) DeleteMovie(ctx context.Context, movieID uint) error {
+func (c *RedisMovieCache) DeleteMovie(ctx context.Context, movieID vo.MovieID) error {
 	logger := c.logger.With(
 		applog.String("Method", "DeleteMovie"),
-		applog.Uint("movie_id", movieID),
+		applog.Uint("movie_id", uint(movieID)),
 	)
 
 	// 删除电影缓存
-	key := c.movieKey(movieID)
+	key := movie.GetMovieKey(movieID)
 	if err := c.redisClient.Del(ctx, key).Err(); err != nil {
 		if err == redis.Nil {
 			logger.Warn("movie not found in redis", applog.String("key", key))
@@ -106,9 +77,9 @@ func (c *RedisMovieCache) DeleteMovie(ctx context.Context, movieID uint) error {
 }
 
 // GetMovie 获取单个电影缓存
-func (c *RedisMovieCache) GetMovie(ctx context.Context, movieID uint) (*movie.Movie, error) {
-	logger := c.logger.With(applog.String("Method", "GetMovie"), applog.Uint("movie_id", movieID))
-	key := c.movieKey(movieID)
+func (c *RedisMovieCache) GetMovie(ctx context.Context, movieID vo.MovieID) (*movie.Movie, error) {
+	logger := c.logger.With(applog.String("Method", "GetMovie"), applog.Uint("movie_id", uint(movieID)))
+	key := movie.GetMovieKey(movieID)
 
 	valBytes, err := c.redisClient.Get(ctx, key).Bytes()
 	if err != nil {
@@ -139,13 +110,13 @@ func (c *RedisMovieCache) SetMovies(ctx context.Context, movies []*movie.Movie, 
 		expiration = c.defaultExpiration
 	}
 
-	for _, movie := range movies {
-		data, err := json.Marshal(movie)
+	for _, mv := range movies {
+		data, err := json.Marshal(mv)
 		if err != nil {
 			logger.Error("failed to marshal movie", applog.Error(err))
 			continue
 		}
-		pipe.Set(ctx, c.movieKey(uint(movie.ID)), data, expiration)
+		pipe.Set(ctx, movie.GetMovieKey(mv.ID), data, expiration)
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -182,7 +153,7 @@ func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movi
 	}
 
 	// 设置列表缓存（仅包含ID）
-	listKey := c.movieListKey(options)
+	listKey := movie.GetMovieListKey(options)
 	if err := c.redisClient.Set(ctx, listKey, data, expiration).Err(); err != nil {
 		logger.Error("failed to set movie ID list", applog.Error(err))
 		return fmt.Errorf("failed to set movie ID list: %w", err)
@@ -212,7 +183,7 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.Movie
 	}
 
 	// 获取ID列表
-	listKey := c.movieListKey(options)
+	listKey := movie.GetMovieListKey(options)
 	valBytes, err := c.redisClient.Get(ctx, listKey).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -237,7 +208,7 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.Movie
 	pipe := c.redisClient.Pipeline()
 	movieCmds := make([]*redis.StringCmd, len(result.AllMovieIDs))
 	for i, id := range result.AllMovieIDs {
-		movieCmds[i] = pipe.Get(ctx, c.movieKey(id))
+		movieCmds[i] = pipe.Get(ctx, movie.GetMovieKey(id))
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil && err != redis.Nil {
@@ -253,8 +224,8 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.Movie
 		if err != nil {
 			logger.Warn("failed to get movie details",
 				applog.Error(err),
-				applog.Uint("movie_id", movieID))
-			missingIDs[movieID] = struct{}{}
+				applog.Uint("movie_id", uint(movieID)))
+			missingIDs[uint(movieID)] = struct{}{}
 			continue
 		}
 
@@ -262,8 +233,8 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.Movie
 		if err := json.Unmarshal(movieBytes, &movie); err != nil {
 			logger.Warn("failed to unmarshal movie",
 				applog.Error(err),
-				applog.Uint("movie_id", movieID))
-			missingIDs[movieID] = struct{}{}
+				applog.Uint("movie_id", uint(movieID)))
+			missingIDs[uint(movieID)] = struct{}{}
 			continue
 		}
 		result.Movies = append(result.Movies, &movie)
@@ -271,9 +242,9 @@ func (c *RedisMovieCache) GetMovieList(ctx context.Context, options *movie.Movie
 
 	// 将缺失的ID转换为切片并排序
 	if len(missingIDs) > 0 {
-		result.MissingMovieIDs = make([]uint, 0, len(missingIDs))
+		result.MissingMovieIDs = make([]vo.MovieID, 0, len(missingIDs))
 		for id := range missingIDs {
-			result.MissingMovieIDs = append(result.MissingMovieIDs, id)
+			result.MissingMovieIDs = append(result.MissingMovieIDs, vo.MovieID(id))
 		}
 		sort.Slice(result.MissingMovieIDs, func(i, j int) bool {
 			return result.MissingMovieIDs[i] < result.MissingMovieIDs[j]

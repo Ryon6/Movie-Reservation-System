@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -41,8 +42,8 @@ func (r *gormMovieRepository) Create(ctx context.Context, mv *movie.Movie) (*mov
 }
 
 // 应支持预加载Genres
-func (r *gormMovieRepository) FindByID(ctx context.Context, id uint) (*movie.Movie, error) {
-	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("movie_id", id))
+func (r *gormMovieRepository) FindByID(ctx context.Context, id vo.MovieID) (*movie.Movie, error) {
+	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("movie_id", uint(id)))
 	var mvGorm models.MovieGorm
 	if err := r.db.WithContext(ctx).Preload("Genres").First(&mvGorm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -56,7 +57,7 @@ func (r *gormMovieRepository) FindByID(ctx context.Context, id uint) (*movie.Mov
 	return mvGorm.ToDomain(), nil
 }
 
-func (r *gormMovieRepository) FindByIDs(ctx context.Context, ids []uint) ([]*movie.Movie, error) {
+func (r *gormMovieRepository) FindByIDs(ctx context.Context, ids []vo.MovieID) ([]*movie.Movie, error) {
 	logger := r.logger.With(applog.String("Method", "FindByIDs"), applog.Int("count", len(ids)))
 	var mvGorms []*models.MovieGorm
 	if err := r.db.WithContext(ctx).Preload("Genres").Where("id IN (?)", ids).Find(&mvGorms).Error; err != nil {
@@ -179,8 +180,8 @@ func (r *gormMovieRepository) Update(ctx context.Context, mv *movie.Movie) error
 }
 
 // 删除电影
-func (r *gormMovieRepository) Delete(ctx context.Context, id uint) error {
-	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("movie_id", id))
+func (r *gormMovieRepository) Delete(ctx context.Context, id vo.MovieID) error {
+	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("movie_id", uint(id)))
 
 	result := r.db.WithContext(ctx).Delete(&models.MovieGorm{}, id)
 	if err := result.Error; err != nil {

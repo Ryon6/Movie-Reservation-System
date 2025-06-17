@@ -122,7 +122,7 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		movieRepo := provider.GetMovieRepository()
 		// 先检查电影是否存在
-		_, err := movieRepo.FindByID(ctx, uint(mv.ID))
+		_, err := movieRepo.FindByID(ctx, mv.ID)
 		if err != nil {
 			if errors.Is(err, movie.ErrMovieNotFound) {
 				logger.Info("movie not found")
@@ -179,13 +179,13 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieRequest) (*response.MovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetMovie"), applog.Uint("movie_id", req.ID))
 
-	mv, err := s.movieCache.GetMovie(ctx, req.ID)
+	mv, err := s.movieCache.GetMovie(ctx, vo.MovieID(req.ID))
 	if err == nil {
 		logger.Info("get movie from cache successfully")
 		return response.ToMovieResponse(mv), nil
 	}
 
-	mv, err = s.movieRepo.FindByID(ctx, req.ID)
+	mv, err = s.movieRepo.FindByID(ctx, vo.MovieID(req.ID))
 	if err != nil {
 		if errors.Is(err, movie.ErrMovieNotFound) {
 			logger.Info("movie not found")
@@ -215,7 +215,7 @@ func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovie
 
 	// 无需显式检查电影是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
 	// 单条电影删除，不需要事务
-	if err := s.movieRepo.Delete(ctx, req.ID); err != nil {
+	if err := s.movieRepo.Delete(ctx, vo.MovieID(req.ID)); err != nil {
 		// 如果电影不存在，则返回错误(仓库底层实现会根据RowAffected判断记录是否存在)
 		if errors.Is(err, movie.ErrMovieNotFound) {
 			logger.Warn("movie not found")
@@ -225,7 +225,7 @@ func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovie
 		return err
 	}
 
-	if err := s.movieCache.DeleteMovie(ctx, req.ID); err != nil {
+	if err := s.movieCache.DeleteMovie(ctx, vo.MovieID(req.ID)); err != nil {
 		logger.Error("failed to delete movie from cache", applog.Error(err))
 	}
 
