@@ -180,6 +180,8 @@ func (s *showtimeService) DeleteShowtime(ctx context.Context, req *request.Delet
 		logger.Error("failed to delete showtime", applog.Error(err))
 		return err
 	}
+	// 删除缓存
+	s.showCache.DeleteShowtime(ctx, vo.ShowtimeID(req.ID))
 	logger.Info("delete showtime successfully", applog.Uint("showtime_id", req.ID))
 	return nil
 }
