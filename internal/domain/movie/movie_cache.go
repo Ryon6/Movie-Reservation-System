@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	DefaultExpiration = 10 * time.Minute
+	DefaultMovieExpiration = 10 * time.Minute
+	DefaultListExpiration  = time.Minute
 )
 
 // MovieCache 电影缓存接口

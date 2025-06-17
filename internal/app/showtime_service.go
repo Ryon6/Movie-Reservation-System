@@ -91,7 +91,7 @@ func (s *showtimeService) CreateShowtime(ctx context.Context, req *request.Creat
 		logger.Error("failed to find showtime", applog.Error(err))
 		return nil, err
 	}
-	s.showCache.SetShowtime(ctx, st, 0)
+	s.showCache.SetShowtime(ctx, st, showtime.DefaultShowtimeExpiration)
 
 	logger.Info("create showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
 	return response.ToShowtimeResponse(st), nil
@@ -99,23 +99,23 @@ func (s *showtimeService) CreateShowtime(ctx context.Context, req *request.Creat
 
 func (s *showtimeService) GetShowtime(ctx context.Context, req *request.GetShowtimeRequest) (*response.ShowtimeResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetShowtime"), applog.Uint("showtime_id", req.ID))
-	showtime, err := s.showCache.GetShowtime(ctx, vo.ShowtimeID(req.ID))
+	st, err := s.showCache.GetShowtime(ctx, vo.ShowtimeID(req.ID))
 	if err != nil {
 		logger.Warn("failed to get showtime", applog.Error(err))
 	} else {
-		logger.Info("get showtime from cache successfully", applog.Uint("showtime_id", uint(showtime.ID)))
-		return response.ToShowtimeResponse(showtime), nil
+		logger.Info("get showtime from cache successfully", applog.Uint("showtime_id", uint(st.ID)))
+		return response.ToShowtimeResponse(st), nil
 	}
 
-	showtime, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(req.ID))
+	st, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(req.ID))
 	if err != nil {
 		logger.Error("failed to get showtime", applog.Error(err))
 		return nil, err
 	}
 
-	s.showCache.SetShowtime(ctx, showtime, 0)
-	logger.Info("get showtime successfully", applog.Uint("showtime_id", uint(showtime.ID)))
-	return response.ToShowtimeResponse(showtime), nil
+	s.showCache.SetShowtime(ctx, st, showtime.DefaultShowtimeExpiration)
+	logger.Info("get showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
+	return response.ToShowtimeResponse(st), nil
 }
 
 // 更新场次
@@ -160,7 +160,7 @@ func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.Updat
 		logger.Error("failed to find showtime", applog.Error(err))
 		return nil, err
 	}
-	s.showCache.SetShowtime(ctx, st, 0)
+	s.showCache.SetShowtime(ctx, st, showtime.DefaultShowtimeExpiration)
 
 	logger.Info("update showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
 	return response.ToShowtimeResponse(st), nil
@@ -252,7 +252,7 @@ func (s *showtimeService) ListShowtimes(ctx context.Context,
 
 	logger.Info("list showtimes successfully", applog.Int("total", int(len(showtimes))))
 
-	if err := s.showCache.SetShowtimeList(ctx, showtimes, options, 0); err != nil {
+	if err := s.showCache.SetShowtimeList(ctx, showtimes, options, showtime.DefaultListExpiration); err != nil {
 		logger.Error("failed to set showtime list to cache", applog.Error(err))
 	}
 	return fn(showtimes), nil

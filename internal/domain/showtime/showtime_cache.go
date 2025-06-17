@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	DefaultExpiration = 10 * time.Minute
+	DefaultShowtimeExpiration = 10 * time.Minute
+	DefaultListExpiration     = time.Minute
 )
 
 // ShowtimeCache 放映缓存接口

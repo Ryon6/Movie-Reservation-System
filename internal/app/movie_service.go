@@ -94,7 +94,7 @@ func (s *movieService) CreateMovie(ctx context.Context,
 		logger.Error("failed to find movie", applog.Error(err))
 		return nil, err
 	}
-	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultExpiration); err != nil {
+	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultMovieExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
@@ -179,7 +179,7 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 		logger.Error("failed to find movie", applog.Error(err))
 		return err
 	}
-	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultExpiration); err != nil {
+	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultMovieExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
@@ -203,7 +203,7 @@ func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieReques
 			logger.Info("movie not found")
 			// 构造一个空的movie并设置到缓存中,防止缓存穿透
 			emptyMovie := &movie.Movie{ID: vo.MovieID(req.ID)}
-			if err := s.movieCache.SetMovie(ctx, emptyMovie, 0); err != nil {
+			if err := s.movieCache.SetMovie(ctx, emptyMovie, movie.DefaultMovieExpiration); err != nil {
 				logger.Error("failed to set empty movie to cache", applog.Error(err))
 			}
 			logger.Info("set empty movie to cache successfully")
@@ -213,7 +213,7 @@ func (s *movieService) GetMovie(ctx context.Context, req *request.GetMovieReques
 		return nil, err
 	}
 
-	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultExpiration); err != nil {
+	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultMovieExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
@@ -309,7 +309,7 @@ func (s *movieService) ListMovies(ctx context.Context, req *request.ListMovieReq
 
 	logger.Info("list movies successfully", applog.Int("total", len(movies)))
 
-	if err := s.movieCache.SetMovieList(ctx, movies, options, 0); err != nil {
+	if err := s.movieCache.SetMovieList(ctx, movies, options, movie.DefaultListExpiration); err != nil {
 		logger.Error("failed to set movie list to cache", applog.Error(err))
 	}
 	return fn(movies), nil
