@@ -84,6 +84,13 @@ func (s *showtimeService) CreateShowtime(ctx context.Context, req *request.Creat
 		logger.Error("failed to create showtime", applog.Error(err))
 		return nil, err
 	}
+
+	// 需要将完整信息设置到缓存中
+	st, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(st.ID))
+	if err != nil {
+		logger.Error("failed to find showtime", applog.Error(err))
+		return nil, err
+	}
 	s.showCache.SetShowtime(ctx, st, 0)
 
 	logger.Info("create showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
@@ -147,8 +154,15 @@ func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.Updat
 		return nil, err
 	}
 
-	logger.Info("update showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
+	// 缓存中需要包含完整内容
+	st, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(req.ID))
+	if err != nil {
+		logger.Error("failed to find showtime", applog.Error(err))
+		return nil, err
+	}
 	s.showCache.SetShowtime(ctx, st, 0)
+
+	logger.Info("update showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
 	return response.ToShowtimeResponse(st), nil
 }
 
