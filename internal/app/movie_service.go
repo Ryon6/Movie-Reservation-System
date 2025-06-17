@@ -347,7 +347,7 @@ func (s *movieService) DeleteGenre(ctx context.Context, req *request.DeleteGenre
 	logger := s.logger.With(applog.String("Method", "DeleteGenre"), applog.Uint("genre_id", req.ID))
 
 	// 无需先检查类型是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
-	if err := s.genreRepo.Delete(ctx, req.ID); err != nil {
+	if err := s.genreRepo.Delete(ctx, vo.GenreID(req.ID)); err != nil {
 		// 如果类型被引用，则返回错误
 		if errors.Is(err, movie.ErrGenreReferenced) {
 			logger.Warn("genre is referenced by movie", applog.Uint("genre_id", req.ID))

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -39,8 +40,8 @@ func (r *gormGenreRepository) Create(ctx context.Context, genre *movie.Genre) (*
 	return genreGorm.ToDomain(), nil
 }
 
-func (r *gormGenreRepository) FindByID(ctx context.Context, id uint) (*movie.Genre, error) {
-	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("genre_id", id))
+func (r *gormGenreRepository) FindByID(ctx context.Context, id vo.GenreID) (*movie.Genre, error) {
+	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("genre_id", uint(id)))
 	var genreGorm models.GenreGorm
 	if err := r.db.WithContext(ctx).First(&genreGorm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -121,8 +122,8 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 	return nil
 }
 
-func (r *gormGenreRepository) Delete(ctx context.Context, id uint) error {
-	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("genre_id", id))
+func (r *gormGenreRepository) Delete(ctx context.Context, id vo.GenreID) error {
+	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("genre_id", uint(id)))
 
 	result := r.db.WithContext(ctx).Delete(&models.GenreGorm{}, id)
 	if err := result.Error; err != nil {
