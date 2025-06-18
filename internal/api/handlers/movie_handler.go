@@ -63,6 +63,11 @@ func (h *MovieHandler) GetMovie(ctx *gin.Context) {
 
 	movieResp, err := h.movieService.GetMovie(ctx, &request.GetMovieRequest{ID: uint(movieID)})
 	if err != nil {
+		if errors.Is(err, movie.ErrMovieNotFound) {
+			logger.Warn("movie not found", applog.Error(err))
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to get movie", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -91,14 +96,15 @@ func (h *MovieHandler) UpdateMovie(ctx *gin.Context) {
 	}
 	req.ID = uint(movieID)
 
-	if err := h.movieService.UpdateMovie(ctx, &req); err != nil {
+	movieResp, err := h.movieService.UpdateMovie(ctx, &req)
+	if err != nil {
 		logger.Error("failed to update movie", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	logger.Info("movie updated successfully", applog.Uint("movie_id", uint(req.ID)))
-	ctx.JSON(http.StatusOK, gin.H{"message": "movie updated successfully"})
+	ctx.JSON(http.StatusOK, movieResp)
 }
 
 // 删除电影 DELETE /api/v1/admin/movies/{movieId}
@@ -206,6 +212,11 @@ func (h *MovieHandler) DeleteGenre(ctx *gin.Context) {
 	}
 
 	if err := h.movieService.DeleteGenre(ctx, &request.DeleteGenreRequest{ID: uint(genreID)}); err != nil {
+		if errors.Is(err, movie.ErrGenreReferenced) {
+			logger.Warn("genre has movies", applog.Error(err))
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to delete genre", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
