@@ -206,7 +206,7 @@ func (h *UserHandler) DeleteUser(ctx *gin.Context) {
 func (h *UserHandler) ListUsers(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListUsers"))
 	var req request.ListUserRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	if err := ctx.ShouldBindQuery(&req); err != nil {
 		logger.Warn("failed to bind list users request", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
 		return

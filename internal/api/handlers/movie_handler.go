@@ -126,7 +126,7 @@ func (h *MovieHandler) DeleteMovie(ctx *gin.Context) {
 func (h *MovieHandler) ListMovies(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListMovies"))
 	var req request.ListMovieRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	if err := ctx.ShouldBindQuery(&req); err != nil {
 		logger.Warn("failed to bind list movie request", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

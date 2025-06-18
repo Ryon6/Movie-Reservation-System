@@ -73,9 +73,9 @@ type DeleteMovieRequest struct {
 
 type ListMovieRequest struct {
 	PaginationRequest
-	Title       string `json:"title" binding:"omitempty,min=1,max=255"`
-	GenreName   string `json:"genre_name" binding:"omitempty,min=1,max=255"`
-	ReleaseYear int    `json:"release_year" binding:"omitempty,min=1900,max=2100"` // 按上映年份过滤
+	Title       string `json:"title" form:"title" binding:"omitempty,min=1,max=255"`
+	GenreName   string `json:"genre_name" form:"genre_name" binding:"omitempty,min=1,max=255"`
+	ReleaseYear int    `json:"release_year" form:"release_year" binding:"omitempty,min=1900,max=2100"` // 按上映年份过滤
 }
 
 func (r *ListMovieRequest) ToDomain() *movie.MovieQueryOptions {
