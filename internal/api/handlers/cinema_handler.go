@@ -46,11 +46,6 @@ func (h *CinemaHandler) GetCinemaHall(ctx *gin.Context) {
 	var req request.GetCinemaHallRequest
 	id, err := getIDFromPath(ctx)
 	if err != nil {
-		if errors.Is(err, cinema.ErrCinemaHallNotFound) {
-			logger.Warn("cinema hall not found")
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
 		logger.Error("failed to get id from path", applog.Error(err))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -59,6 +54,11 @@ func (h *CinemaHandler) GetCinemaHall(ctx *gin.Context) {
 
 	cinemaHallResp, err := h.cinemaService.GetCinemaHall(ctx, &req)
 	if err != nil {
+		if errors.Is(err, cinema.ErrCinemaHallNotFound) {
+			logger.Warn("cinema hall not found")
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to get cinema hall", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
