@@ -92,6 +92,19 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 	return userGorm.ToDomain(), nil
 }
 
+// 检查是否存在任何“活跃的”用户关联到这个角色
+func (r *gormUserRepository) CheckRoleReferenced(ctx context.Context, roleID uint) (bool, error) {
+	logger := r.logger.With(applog.String("Method", "CheckRoleReferenced"), applog.Uint("role_id", roleID))
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("role_id = ?", roleID).Count(&count).Error; err != nil {
+		logger.Error("database check role referenced error", applog.Error(err))
+		return false, fmt.Errorf("database check role referenced error: %w", err)
+	}
+
+	logger.Info("check role referenced successfully", applog.Int64("count", count))
+	return count > 0, nil
+}
+
 // Update 更新用户信息
 func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 	logger := r.logger.With(applog.String("Method", "Update"), applog.Uint("user_id", uint(usr.ID)))
