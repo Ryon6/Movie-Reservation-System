@@ -49,8 +49,26 @@ func SetupRouter(
 		authUserRoutes := userRoutes.Group("")
 		authUserRoutes.Use(authMiddleware)
 		{
-			authUserRoutes.GET("/me", userHandler.GetUserProfile) // 获取个人信息
+			authUserRoutes.GET("/me", userHandler.GetUserProfile)    // 获取个人信息
+			authUserRoutes.PUT("/me", userHandler.UpdateUserProfile) // 更新个人信息
 		}
+	}
+	userAdminRoutes := adminRoutes.Group("/users")
+	{
+		userAdminRoutes.GET("", userHandler.ListUsers)               // 获取所有用户
+		userAdminRoutes.GET("/:id", userHandler.GetUser)             // 获取单个用户
+		userAdminRoutes.PUT("/:id", userHandler.UpdateUser)          // 更新用户
+		userAdminRoutes.DELETE("/:id", userHandler.DeleteUser)       // 删除用户
+		userAdminRoutes.POST("/roles", userHandler.AssignRoleToUser) // 分配角色到用户
+	}
+
+	// 角色管理路由
+	roleAdminRoutes := adminRoutes.Group("/roles")
+	{
+		roleAdminRoutes.GET("", userHandler.ListRoles)         // 获取所有角色
+		roleAdminRoutes.POST("", userHandler.CreateRole)       // 创建角色
+		roleAdminRoutes.PUT("/:id", userHandler.UpdateRole)    // 更新角色
+		roleAdminRoutes.DELETE("/:id", userHandler.DeleteRole) // 删除角色
 	}
 
 	// 电影管理路由
