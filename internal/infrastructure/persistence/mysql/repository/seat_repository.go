@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mrs/internal/domain/cinema"
 	"mrs/internal/domain/shared"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -44,8 +45,8 @@ func (r *gormSeatRepository) CreateBatch(ctx context.Context, seats []*cinema.Se
 	return domainSeats, nil
 }
 
-func (r *gormSeatRepository) FindByID(ctx context.Context, id uint) (*cinema.Seat, error) {
-	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("seat_id", id))
+func (r *gormSeatRepository) FindByID(ctx context.Context, id vo.SeatID) (*cinema.Seat, error) {
+	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("seat_id", uint(id)))
 	var seatGorm models.SeatGorm
 	if err := r.db.WithContext(ctx).First(&seatGorm, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -60,8 +61,8 @@ func (r *gormSeatRepository) FindByID(ctx context.Context, id uint) (*cinema.Sea
 	return seatGorm.ToDomain(), nil
 }
 
-func (r *gormSeatRepository) FindByHallID(ctx context.Context, hallID uint) ([]*cinema.Seat, error) {
-	logger := r.logger.With(applog.String("Method", "FindByHallID"), applog.Uint("hall_id", hallID))
+func (r *gormSeatRepository) FindByHallID(ctx context.Context, hallID vo.CinemaHallID) ([]*cinema.Seat, error) {
+	logger := r.logger.With(applog.String("Method", "FindByHallID"), applog.Uint("hall_id", uint(hallID)))
 	var seatsGorms []*models.SeatGorm
 
 	if err := r.db.WithContext(ctx).Where("cinema_hall_id = ?", hallID).Find(&seatsGorms).Error; err != nil {
@@ -81,7 +82,7 @@ func (r *gormSeatRepository) FindByHallID(ctx context.Context, hallID uint) ([]*
 	return seats, nil
 }
 
-func (r *gormSeatRepository) GetSeatsByIDs(ctx context.Context, seatIDs []uint) ([]*cinema.Seat, error) {
+func (r *gormSeatRepository) GetSeatsByIDs(ctx context.Context, seatIDs []vo.SeatID) ([]*cinema.Seat, error) {
 	logger := r.logger.With(applog.String("Method", "GetSeatsByIDs"), applog.Int("seat count", len(seatIDs)))
 	var seatsGorms []*models.SeatGorm
 	if err := r.db.WithContext(ctx).Where("id IN ?", seatIDs).Find(&seatsGorms).Error; err != nil {
@@ -132,8 +133,8 @@ func (r *gormSeatRepository) Update(ctx context.Context, seat *cinema.Seat) erro
 }
 
 // 删除座位
-func (r *gormSeatRepository) Delete(ctx context.Context, id uint) error {
-	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("seat_id", id))
+func (r *gormSeatRepository) Delete(ctx context.Context, id vo.SeatID) error {
+	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("seat_id", uint(id)))
 
 	result := r.db.WithContext(ctx).Delete(&models.SeatGorm{}, id)
 	if result.Error != nil {
@@ -151,8 +152,8 @@ func (r *gormSeatRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *gormSeatRepository) DeleteByHallID(ctx context.Context, hallID uint) error {
-	logger := r.logger.With(applog.String("Method", "DeleteByHallID"), applog.Uint("hall_id", hallID))
+func (r *gormSeatRepository) DeleteByHallID(ctx context.Context, hallID vo.CinemaHallID) error {
+	logger := r.logger.With(applog.String("Method", "DeleteByHallID"), applog.Uint("hall_id", uint(hallID)))
 
 	result := r.db.WithContext(ctx).Where("cinema_hall_id = ?", hallID).Delete(&models.SeatGorm{})
 	if err := result.Error; err != nil {

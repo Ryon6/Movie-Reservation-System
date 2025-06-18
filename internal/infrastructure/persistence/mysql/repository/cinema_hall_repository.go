@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mrs/internal/domain/cinema"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
 
@@ -41,8 +42,8 @@ func (r *gormCinemaHallRepository) Create(ctx context.Context, hall *cinema.Cine
 	return cinemaHallGorm.ToDomain(), nil
 }
 
-func (r *gormCinemaHallRepository) FindByID(ctx context.Context, id uint) (*cinema.CinemaHall, error) {
-	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("hall_id", id))
+func (r *gormCinemaHallRepository) FindByID(ctx context.Context, id vo.CinemaHallID) (*cinema.CinemaHall, error) {
+	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("hall_id", uint(id)))
 	var hallGorm models.CinemaHallGorm
 	if err := r.db.WithContext(ctx).
 		Preload("Seats").
@@ -130,8 +131,8 @@ func (r *gormCinemaHallRepository) Update(ctx context.Context, hall *cinema.Cine
 }
 
 // 删除影厅
-func (r *gormCinemaHallRepository) Delete(ctx context.Context, id uint) error {
-	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("hall_id", id))
+func (r *gormCinemaHallRepository) Delete(ctx context.Context, id vo.CinemaHallID) error {
+	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("hall_id", uint(id)))
 
 	result := r.db.WithContext(ctx).Delete(&models.CinemaHallGorm{}, id)
 	if err := result.Error; err != nil {

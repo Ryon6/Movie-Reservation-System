@@ -307,7 +307,7 @@ func (s *showtimeService) GetSeatMap(ctx context.Context, req *request.GetSeatMa
 	}
 
 	// 获取座位表
-	seats, err := s.seatRepo.FindByHallID(ctx, uint(showtimeResp.CinemaHall.ID))
+	seats, err := s.seatRepo.FindByHallID(ctx, vo.CinemaHallID(showtimeResp.CinemaHall.ID))
 	if err != nil {
 		logger.Error("failed to find seats", applog.Error(err))
 		return nil, err

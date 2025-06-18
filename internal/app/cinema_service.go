@@ -8,6 +8,7 @@ import (
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/cinema"
 	"mrs/internal/domain/shared"
+	"mrs/internal/domain/shared/vo"
 	applog "mrs/pkg/log"
 )
 
@@ -90,7 +91,7 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 func (s *cinemaService) GetCinemaHall(ctx context.Context, req *request.GetCinemaHallRequest) (*response.CinemaHallResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetCinemaHall"), applog.Uint("cinema_hall_id", req.ID))
 
-	cinemaHall, err := s.cinemaHallRepo.FindByID(ctx, req.ID)
+	cinemaHall, err := s.cinemaHallRepo.FindByID(ctx, vo.CinemaHallID(req.ID))
 	if err != nil {
 		if errors.Is(err, cinema.ErrCinemaHallNotFound) {
 			logger.Warn("cinema hall not found", applog.Error(err))
@@ -145,7 +146,7 @@ func (s *cinemaService) DeleteCinemaHall(ctx context.Context, req *request.Delet
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		cinemaHallRepo := provider.GetCinemaHallRepository()
 		// 无需先检查影厅是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
-		if err := cinemaHallRepo.Delete(ctx, req.ID); err != nil {
+		if err := cinemaHallRepo.Delete(ctx, vo.CinemaHallID(req.ID)); err != nil {
 			if errors.Is(err, cinema.ErrCinemaHallNotFound) {
 				logger.Warn("cinema hall not found", applog.Error(err))
 				return fmt.Errorf("%w: %w", cinema.ErrCinemaHallNotFound, err)
