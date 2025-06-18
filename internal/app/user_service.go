@@ -236,13 +236,30 @@ func (s *userService) UpdateRole(ctx context.Context, req *request.UpdateRoleReq
 func (s *userService) DeleteRole(ctx context.Context, req *request.DeleteRoleRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteRole"), applog.Uint("role_id", req.ID))
 
-	err := s.roleRepo.Delete(ctx, req.ID)
-	if err != nil {
-		if errors.Is(err, user.ErrRoleNotFound) {
-			logger.Warn("role not found")
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		roleRepo := provider.GetRoleRepository()
+		userRepo := provider.GetUserRepository()
+
+		referenced, err := userRepo.CheckRoleReferenced(ctx, req.ID)
+		if err != nil {
+			logger.Error("failed to check role referenced", applog.Error(err))
 			return err
 		}
-		logger.Error("failed to delete role in repository", applog.Error(err))
+
+		if referenced {
+			logger.Warn("role is referenced by user")
+			return user.ErrRoleReferenced
+		}
+
+		if err := roleRepo.Delete(ctx, req.ID); err != nil {
+			logger.Error("failed to delete role", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		logger.Error("failed to delete role", applog.Error(err))
 		return err
 	}
 
