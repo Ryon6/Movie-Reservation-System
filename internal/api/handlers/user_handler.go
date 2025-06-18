@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
+	"mrs/internal/api/middleware"
 	"mrs/internal/app"
 	"mrs/internal/domain/user"
 	applog "mrs/pkg/log"
@@ -55,12 +56,7 @@ func (h *UserHandler) Register(ctx *gin.Context) {
 // 用户获取自身信息
 func (h *UserHandler) GetUserProfile(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "GetUserProfile"))
-	id, err := getIDFromPath(ctx)
-	if err != nil {
-		logger.Error("failed to parse user_id", applog.Error(err))
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
+	id := ctx.GetUint(middleware.UserIDKey)
 
 	userResp, err := h.userService.GetUser(ctx, &request.GetUserRequest{ID: id})
 	if err != nil {
@@ -305,6 +301,11 @@ func (h *UserHandler) DeleteRole(ctx *gin.Context) {
 
 	err = h.userService.DeleteRole(ctx, &request.DeleteRoleRequest{ID: id})
 	if err != nil {
+		if errors.Is(err, user.ErrRoleReferenced) {
+			logger.Warn("role is referenced by users")
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Role is referenced by users"})
+			return
+		}
 		logger.Error("failed to delete role", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
