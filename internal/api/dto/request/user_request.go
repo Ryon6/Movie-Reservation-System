@@ -82,6 +82,6 @@ type DeleteRoleRequest struct {
 
 // 为用户分配角色
 type AssignRoleToUserRequest struct {
-	UserID uint
-	RoleID uint
+	UserID uint `json:"user_id" binding:"required"`
+	RoleID uint `json:"role_id" binding:"required"`
 }
