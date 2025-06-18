@@ -10,8 +10,8 @@ import (
 // 类型表
 type GenreGorm struct {
 	gorm.Model
-	Name string `gorm:"type:varchar(100);uniqueIndex;not null"` // 类型名称：科幻...
-	// 只需一方显式定义多对多关系，另一方会自动创建连接表
+	Name   string       `gorm:"type:varchar(100);uniqueIndex;not null"` // 类型名称：科幻...
+	Movies []*MovieGorm `gorm:"many2many:movies_genres;joinForeignKey:genre_id;joinReferences:movie_id;constraint:OnDelete:RESTRICT;"`
 }
 
 // TableName 指定表名
