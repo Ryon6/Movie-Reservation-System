@@ -15,7 +15,7 @@ import (
 
 type MovieService interface {
 	CreateMovie(ctx context.Context, req *request.CreateMovieRequest) (*response.MovieResponse, error)
-	UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error
+	UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) (*response.MovieResponse, error)
 	GetMovie(ctx context.Context, req *request.GetMovieRequest) (*response.MovieResponse, error)
 	DeleteMovie(ctx context.Context, req *request.DeleteMovieRequest) error
 	ListMovies(ctx context.Context, req *request.ListMovieRequest) (*response.PaginatedMovieResponse, error)
@@ -103,25 +103,25 @@ func (s *movieService) CreateMovie(ctx context.Context,
 }
 
 // 更新电影
-func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) error {
+func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovieRequest) (*response.MovieResponse, error) {
 	logger := s.logger.With(applog.String("Method", "UpdateMovie"))
 
 	// 转换为领域对象, gorm.Updates时只更新非空字段
 	mv := req.ToDomain()
 	// 是否需要更新其他字段
-	hasOtherUpdate := req.Title == "" &&
+	hasOtherUpdate := !(req.Title == "" &&
 		req.Description == "" &&
 		req.ReleaseDate.IsZero() &&
 		req.DurationMinutes == 0 &&
 		req.Rating == 0 &&
 		req.PosterURL == "" &&
 		req.AgeRating == "" &&
-		req.Cast == ""
+		req.Cast == "")
 
 	// 根据请求内容，存在是否更新类型字段与是否更新其他字段等四种情况
 	if !hasOtherUpdate && len(req.GenreNames) == 0 {
 		logger.Info("no update")
-		return nil
+		return s.GetMovie(ctx, &request.GetMovieRequest{ID: uint(mv.ID)})
 	}
 
 	// 如果有类型字段更新,先更新类型
@@ -170,21 +170,21 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 
 	if err != nil {
 		logger.Error("failed to update movie", applog.Error(err))
-		return err
+		return nil, err
 	}
 
 	// 设置电影缓存(完整记录)
 	mv, err = s.movieRepo.FindByID(ctx, mv.ID)
 	if err != nil {
 		logger.Error("failed to find movie", applog.Error(err))
-		return err
+		return nil, err
 	}
 	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultMovieExpiration); err != nil {
 		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
 	logger.Info("update movie successfully", applog.Uint("movie_id", uint(mv.ID)))
-	return nil
+	return response.ToMovieResponse(mv), nil
 }
 
 // 获取电影详情
@@ -359,12 +359,28 @@ func (s *movieService) DeleteGenre(ctx context.Context, req *request.DeleteGenre
 	logger := s.logger.With(applog.String("Method", "DeleteGenre"), applog.Uint("genre_id", req.ID))
 
 	// 无需先检查类型是否存在，因为仓库底层实现会根据RowAffected判断记录是否存在
-	if err := s.genreRepo.Delete(ctx, vo.GenreID(req.ID)); err != nil {
-		// 如果类型被引用，则返回错误
-		if errors.Is(err, movie.ErrGenreReferenced) {
-			logger.Warn("genre is referenced by movie", applog.Uint("genre_id", req.ID))
+	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		// 检查是否存在任何“活跃的”电影关联到这个类型
+		referenced, err := provider.GetMovieRepository().CheckGenreReferenced(ctx, vo.GenreID(req.ID))
+		if err != nil {
+			logger.Error("failed to check genre referenced", applog.Error(err))
 			return err
 		}
+
+		// 如果类型被引用，则返回错误
+		if referenced {
+			logger.Warn("genre is referenced by movie", applog.Uint("genre_id", req.ID))
+			return movie.ErrGenreReferenced
+		}
+
+		// 如果类型未被引用，则删除类型
+		if err := provider.GetGenreRepository().Delete(ctx, vo.GenreID(req.ID)); err != nil {
+			logger.Error("failed to delete genre", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		logger.Error("failed to delete genre", applog.Error(err))
 		return err
 	}

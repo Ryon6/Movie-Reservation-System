@@ -125,13 +125,12 @@ func (r *gormGenreRepository) Update(ctx context.Context, genre *movie.Genre) er
 func (r *gormGenreRepository) Delete(ctx context.Context, id vo.GenreID) error {
 	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("genre_id", uint(id)))
 
+	// 在gorm中，当表中包含DeleteAt字段时，默认情况下会使用软删除，在数据库底层，将会执行update语句，将DeleteAt字段设置为当前时间
+	// 此时，数据库在更新时将不会检查外键约束，因此即使存在电影关联的类型也会删除成功。
+	// 修复外键约束失效的错误: 可以使用Unscoped()来强制执行硬删除。
+	// 这里使用在应用层模拟外键约束的方法进行处理
 	result := r.db.WithContext(ctx).Delete(&models.GenreGorm{}, id)
 	if err := result.Error; err != nil {
-		// 是否为外键约束错误，是则返回哨兵错误，有服务层进一步处理
-		if isForeignKeyConstraintError(err) {
-			logger.Warn("cannot delete genre due to foreign key constraint", applog.Error(err))
-			return fmt.Errorf("%w: %w", movie.ErrGenreReferenced, err)
-		}
 		logger.Error("database delete genre error", applog.Error(err))
 		return fmt.Errorf("database delete genre error: %w", err)
 	}
