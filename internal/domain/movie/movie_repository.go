@@ -12,6 +12,7 @@ type MovieRepository interface {
 	FindByID(ctx context.Context, id vo.MovieID) (*Movie, error)
 	FindByIDs(ctx context.Context, ids []vo.MovieID) ([]*Movie, error)
 	FindByTitle(ctx context.Context, title string) (*Movie, error)
+	CheckGenreReferenced(ctx context.Context, genreID vo.GenreID) (bool, error)
 	// 分页和过滤，返回总数
 	List(ctx context.Context, options *MovieQueryOptions) ([]*Movie, int64, error)
 	Update(ctx context.Context, movie *Movie) error

@@ -88,6 +88,23 @@ func (r *gormMovieRepository) FindByTitle(ctx context.Context, title string) (*m
 	return mvGorm.ToDomain(), nil
 }
 
+// 检查是否存在任何“活跃的”电影关联到这个类型
+func (r *gormMovieRepository) CheckGenreReferenced(ctx context.Context, genreID vo.GenreID) (bool, error) {
+	logger := r.logger.With(applog.String("Method", "CheckGenreReferenced"), applog.Uint("genre_id", uint(genreID)))
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&models.MovieGorm{}).
+		Joins("JOIN movies_genres ON movies_genres.movie_id = movies.id").
+		Where("movies_genres.genre_id = ?", genreID).
+		Count(&count).Error; err != nil {
+		logger.Error("database check genre referenced error", applog.Error(err))
+		return false, fmt.Errorf("database check genre referenced error: %w", err)
+	}
+
+	logger.Info("check genre referenced successfully", applog.Int64("count", count))
+	return count > 0, nil
+}
+
 // List 从数据库中获取电影列表，支持分页和过滤。
 func (r *gormMovieRepository) List(ctx context.Context, options *movie.MovieQueryOptions) ([]*movie.Movie, int64, error) {
 	logger := r.logger.With(applog.String("Method", "List"), applog.Any("options", options))
