@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/domain/user"
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	applog "mrs/pkg/log"
@@ -41,8 +42,8 @@ func (r *gormUserRepository) Create(ctx context.Context, usr *user.User) error {
 }
 
 // 通过ID获取用户，使用场景需要完整的用户信息，包括关联的角色信息。
-func (r *gormUserRepository) FindByID(ctx context.Context, id uint) (*user.User, error) {
-	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("user_id", id))
+func (r *gormUserRepository) FindByID(ctx context.Context, id vo.UserID) (*user.User, error) {
+	logger := r.logger.With(applog.String("Method", "FindByID"), applog.Uint("user_id", uint(id)))
 	var userGorm models.UserGorm
 	// Preload("Role") 会根据 User 结构体中的 Role 字段和外键 RoleID 加载关联的角色信息。
 	if err := r.db.WithContext(ctx).Preload("Role").First(&userGorm, id).Error; err != nil {
@@ -93,8 +94,8 @@ func (r *gormUserRepository) FindByEmail(ctx context.Context, email string) (*us
 }
 
 // 检查是否存在任何“活跃的”用户关联到这个角色
-func (r *gormUserRepository) CheckRoleReferenced(ctx context.Context, roleID uint) (bool, error) {
-	logger := r.logger.With(applog.String("Method", "CheckRoleReferenced"), applog.Uint("role_id", roleID))
+func (r *gormUserRepository) CheckRoleReferenced(ctx context.Context, roleID vo.RoleID) (bool, error) {
+	logger := r.logger.With(applog.String("Method", "CheckRoleReferenced"), applog.Uint("role_id", uint(roleID)))
 	var count int64
 	if err := r.db.WithContext(ctx).Model(&models.UserGorm{}).Where("role_id = ?", roleID).Count(&count).Error; err != nil {
 		logger.Error("database check role referenced error", applog.Error(err))
@@ -134,8 +135,8 @@ func (r *gormUserRepository) Update(ctx context.Context, usr *user.User) error {
 }
 
 // Delete 删除用户
-func (r *gormUserRepository) Delete(ctx context.Context, id uint) error {
-	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("user_id", id))
+func (r *gormUserRepository) Delete(ctx context.Context, id vo.UserID) error {
+	logger := r.logger.With(applog.String("Method", "Delete"), applog.Uint("user_id", uint(id)))
 	result := r.db.WithContext(ctx).Delete(&models.UserGorm{}, id)
 	if result.Error != nil {
 		logger.Error("database delete user error", applog.Error(result.Error))

@@ -8,6 +8,7 @@ import (
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/shared"
+	"mrs/internal/domain/shared/vo"
 	"mrs/internal/domain/user"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
@@ -102,7 +103,7 @@ func (s *userService) Register(ctx context.Context, req *request.RegisterUserReq
 // 获取用户信息
 func (s *userService) GetUser(ctx context.Context, req *request.GetUserRequest) (*response.UserResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetUserProfile"), applog.Uint("user_id", req.ID))
-	usr, err := s.userRepo.FindByID(ctx, req.ID)
+	usr, err := s.userRepo.FindByID(ctx, vo.UserID(req.ID))
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found")
@@ -145,7 +146,7 @@ func (s *userService) UpdateUser(ctx context.Context, req *request.UpdateUserReq
 func (s *userService) DeleteUser(ctx context.Context, req *request.DeleteUserRequest) error {
 	logger := s.logger.With(applog.String("Method", "DeleteUser"), applog.Uint("user_id", req.ID))
 
-	err := s.userRepo.Delete(ctx, req.ID)
+	err := s.userRepo.Delete(ctx, vo.UserID(req.ID))
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found")
@@ -240,7 +241,7 @@ func (s *userService) DeleteRole(ctx context.Context, req *request.DeleteRoleReq
 		roleRepo := provider.GetRoleRepository()
 		userRepo := provider.GetUserRepository()
 
-		referenced, err := userRepo.CheckRoleReferenced(ctx, req.ID)
+		referenced, err := userRepo.CheckRoleReferenced(ctx, vo.RoleID(req.ID))
 		if err != nil {
 			logger.Error("failed to check role referenced", applog.Error(err))
 			return err
@@ -278,7 +279,7 @@ func (s *userService) AssignRoleToUser(ctx context.Context, req *request.AssignR
 		roleRepo := provider.GetRoleRepository()
 
 		// 先检查用户和角色是否存在
-		existingUser, err := userRepo.FindByID(ctx, uint(req.UserID))
+		existingUser, err := userRepo.FindByID(ctx, vo.UserID(req.UserID))
 		if err != nil {
 			if errors.Is(err, user.ErrUserNotFound) {
 				logger.Warn("user not found")
