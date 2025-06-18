@@ -24,8 +24,7 @@ var (
 	ErrRoleAlreadyExists = errors.New("role already exists")
 
 	// 操作错误
-	ErrRoleInUse           = errors.New("role is in use by users")
-	ErrDefaultRoleDeletion = errors.New("cannot delete default role")
+	ErrRoleReferenced = errors.New("role is referenced by users")
 
 	// 权限错误
 	ErrRolePermissionDenied        = errors.New("role permission denied")
