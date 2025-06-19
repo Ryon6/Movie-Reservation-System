@@ -20,7 +20,7 @@ type GetBookingRequest struct {
 type ListBookingsRequest struct {
 	PaginationRequest
 	UserID uint
-	Status string `json:"status" binding:"omitempty,min=1,max=255"`
+	Status string `json:"status" form:"status" binding:"omitempty,min=1,max=255"`
 }
 
 func (r *ListBookingsRequest) ToDomain() *booking.BookingQueryOptions {
