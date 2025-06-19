@@ -12,6 +12,7 @@ import (
 	"mrs/internal/domain/shared/vo"
 	"mrs/internal/domain/showtime"
 	applog "mrs/pkg/log"
+	"time"
 )
 
 type BookingService interface {
@@ -55,6 +56,7 @@ func NewBookingService(
 	}
 }
 
+// TODO: 创建订单时，若发生错误cache not initialized，则需要初始化cache再重试
 // CreateBooking 创建订单
 func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateBookingRequest) (*response.BookingResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateBooking"))
@@ -84,7 +86,8 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 	}
 
 	// 在缓存中锁定座位（防止超额预订）
-	if err = s.seatCache.LockSeats(ctx, vo.ShowtimeID(req.ShowtimeID), seatIDs); err != nil {
+	err = s.lockSeatsWithRetry(ctx, vo.ShowtimeID(req.ShowtimeID), seatIDs)
+	if err != nil {
 		if errors.Is(err, booking.ErrBookedSeatAlreadyLocked) {
 			logger.Warn("booked seats already locked", applog.Error(err))
 			return nil, err
@@ -141,6 +144,52 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 
 	logger.Info("create booking successfully", applog.Float64("total_price", totalPrice))
 	return response.ToBookingResponse(booking), nil
+}
+
+// lockSeatsWithRetry 尝试锁定座位，如果缓存未初始化则初始化后重试
+func (s *bookingService) lockSeatsWithRetry(ctx context.Context, showtimeID vo.ShowtimeID, seatIDs []vo.SeatID) error {
+	logger := s.logger.With(applog.String("Method", "lockSeatsWithRetry"))
+
+	err := s.seatCache.LockSeats(ctx, showtimeID, seatIDs)
+	if err == nil {
+		return nil
+	}
+
+	// 如果不是缓存未初始化错误，直接返回错误
+	if !errors.Is(err, shared.ErrCacheNotInitialized) {
+		return err
+	}
+
+	// 初始化座位表
+	if err := s.showtimeService.InitSeatMap(ctx, showtimeID); err != nil {
+		// 如果是锁已被其他进程占用，则进入退避重试逻辑
+		if errors.Is(err, lock.ErrLockAlreadyAcquired) {
+			logger.Warn("another process is initializing the seat map, will retry locking seats...",
+				applog.Uint("showtimeID", uint(showtimeID)))
+
+			for i := 0; i < lock.DefaultMaxRetries; i++ {
+				time.Sleep(lock.DefaultBackoff)
+				if err := s.seatCache.LockSeats(ctx, showtimeID, seatIDs); err == nil {
+					logger.Info("successfully locked seats after waiting",
+						applog.Uint("showtimeID", uint(showtimeID)))
+					return nil
+				}
+			}
+
+			// 如果重试多次后仍然失败
+			logger.Error("failed to lock seats after retries",
+				applog.Uint("showtimeID", uint(showtimeID)),
+				applog.Int("retries", lock.DefaultMaxRetries))
+			return lock.ErrRetryLockFailed
+		}
+
+		// 如果是其他初始化错误，则直接返回
+		logger.Error("failed to init seat map", applog.Error(err))
+		return err
+	}
+
+	// 初始化成功后，再次尝试锁定座位
+	return s.seatCache.LockSeats(ctx, showtimeID, seatIDs)
 }
 
 // ListBookings 查询订单列表
