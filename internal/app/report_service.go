@@ -31,7 +31,6 @@ func NewReportService(
 
 func (s *reportService) GenerateSalesReport(ctx context.Context, req *request.GenerateSalesReportRequest) (*response.GenerateSalesReportResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GenerateSalesReport"))
-	logger.Info("开始生成销售报告")
 
 	// 1. 准备查询选项
 	options := &booking.SalesQueryOptions{
@@ -44,27 +43,20 @@ func (s *reportService) GenerateSalesReport(ctx context.Context, req *request.Ge
 	// 2. 获取销售统计数据
 	stats, err := s.bookingRepo.GetSalesStatistics(ctx, options)
 	if err != nil {
-		logger.Error("获取销售统计数据失败", applog.Error(err))
-		return nil, fmt.Errorf("获取销售统计数据失败: %w", err)
+		logger.Error("failed to get sales statistics", applog.Error(err))
+		return nil, fmt.Errorf("failed to get sales statistics: %w", err)
 	}
 
 	// 3. 构建响应
 	now := time.Now()
 	resp := &response.GenerateSalesReportResponse{
-		ReportDate:         now.Format("2006-01-02 15:04:05"),
-		StartDate:          req.StartDate.Format("2006-01-02"),
-		EndDate:            req.EndDate.Format("2006-01-02"),
-		TotalRevenue:       stats.TotalRevenue,
-		TotalBookings:      stats.TotalBookings,
-		TotalTickets:       stats.TotalTickets,
-		AverageTicketPrice: 0,
+		ReportDate:    now.Format("2006-01-02 15:04:05"),
+		StartDate:     req.StartDate.Format("2006-01-02"),
+		EndDate:       req.EndDate.Format("2006-01-02"),
+		TotalRevenue:  stats.TotalRevenue,
+		TotalBookings: stats.TotalBookings,
 	}
 
-	// 计算平均票价
-	if stats.TotalTickets > 0 {
-		resp.AverageTicketPrice = stats.TotalRevenue / float64(stats.TotalTickets)
-	}
-
-	logger.Info("销售报告生成成功")
+	logger.Info("generate sales report successfully")
 	return resp, nil
 }
