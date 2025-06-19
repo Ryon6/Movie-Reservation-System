@@ -234,24 +234,17 @@ func (r *gormBookingRepository) GetSalesStatistics(ctx context.Context, options 
 	// 添加影院ID条件
 	if options.CinemaID != 0 {
 		logger = logger.With(applog.Uint("cinema_id", options.CinemaID))
-		query = query.Where("cinema_halls.cinema_id = ?", options.CinemaID)
+		query = query.Where("cinema_halls.id = ?", options.CinemaID)
 	}
 
+	// 查询总收入和总订单数
 	var stats booking.SalesStatistics
 	err := query.Select("COALESCE(SUM(bookings.total_amount), 0) as total_revenue, "+
-		"COUNT(DISTINCT bookings.id) as total_bookings, ").
+		"COUNT(DISTINCT bookings.id) as total_bookings").
 		Row().Scan(&stats.TotalRevenue, &stats.TotalBookings)
 	if err != nil {
-		logger.Error("database get sales statistics error", applog.Error(err))
-		return nil, fmt.Errorf("database get sales statistics error: %w", err)
-	}
-	// 查询总票数
-	err = query.Select("COUNT(booked_seats.id)").
-		Joins("JOIN booked_seats ON bookings.id = booked_seats.booking_id").
-		Row().Scan(&stats.TotalTickets)
-	if err != nil {
-		logger.Error("database get total tickets error", applog.Error(err))
-		return nil, fmt.Errorf("database get total tickets error: %w", err)
+		logger.Error("database get sales total revenue and bookings error", applog.Error(err))
+		return nil, fmt.Errorf("database get sales total revenue and bookings error: %w", err)
 	}
 
 	logger.Info("get sales statistics successfully")

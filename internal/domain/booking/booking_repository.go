@@ -37,5 +37,4 @@ type SalesQueryOptions struct {
 type SalesStatistics struct {
 	TotalRevenue  float64
 	TotalBookings int
-	TotalTickets  int
 }
