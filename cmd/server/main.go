@@ -1,6 +1,4 @@
 // TODO: 列表缓存中，若列表中元素已删除，会返回missingcache，需要访问MySQL。但是若查询不到，应该返回已有结果，而不是返回错误
-// TODO: 初始化SeatMap时 退避重试逻辑问题 获取锁失败后应该从缓存中获取
-// TODO: 将GET方法的请求参数改为Query参数
 package main
 
 import (
@@ -127,7 +125,7 @@ func main() {
 	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
 	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
 	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
-	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, showtimeCache, seatCache, lockProvider, logger)
+	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, bookingRepo, showtimeCache, seatCache, lockProvider, logger)
 	bookingService := app.NewBookingService(uow, bookingRepo, showtimeRepo, seatCache, showtimeCache, showtimeService, lockProvider, logger)
 
 	// 接口层
