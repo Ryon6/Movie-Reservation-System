@@ -7,6 +7,7 @@ import (
 	"math"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
+	"mrs/internal/domain/booking"
 	"mrs/internal/domain/cinema"
 	"mrs/internal/domain/shared"
 	"mrs/internal/domain/shared/lock"
@@ -23,12 +24,14 @@ type ShowtimeService interface {
 	DeleteShowtime(ctx context.Context, req *request.DeleteShowtimeRequest) error
 	ListShowtimes(ctx context.Context, req *request.ListShowtimesRequest) (*response.PaginatedShowtimeResponse, error)
 	GetSeatMap(ctx context.Context, req *request.GetSeatMapRequest) (*response.SeatMapResponse, error)
+	InitSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error
 }
 
 type showtimeService struct {
 	uow          shared.UnitOfWork
 	showRepo     showtime.ShowtimeRepository
 	seatRepo     cinema.SeatRepository
+	bookingRepo  booking.BookingRepository
 	showCache    showtime.ShowtimeCache
 	seatCache    cinema.SeatCache
 	lockProvider lock.LockProvider
@@ -39,6 +42,7 @@ func NewShowtimeService(
 	uow shared.UnitOfWork,
 	showRepo showtime.ShowtimeRepository,
 	seatRepo cinema.SeatRepository,
+	bookingRepo booking.BookingRepository,
 	showCache showtime.ShowtimeCache,
 	seatCache cinema.SeatCache,
 	lockProvider lock.LockProvider,
@@ -48,6 +52,7 @@ func NewShowtimeService(
 		uow:          uow,
 		showRepo:     showRepo,
 		seatRepo:     seatRepo,
+		bookingRepo:  bookingRepo,
 		showCache:    showCache,
 		seatCache:    seatCache,
 		lockProvider: lockProvider,
@@ -271,68 +276,107 @@ func (s *showtimeService) GetSeatMap(ctx context.Context, req *request.GetSeatMa
 		logger.Error("failed to get seat map from cache", applog.Error(err))
 	}
 
-	// 获取分布式锁，防止并发初始化座位表
-	lockKey := cinema.GetShowtimeSeatsInitLockKey(vo.ShowtimeID(req.ShowtimeID))
-	// 获取锁失败，则重试
-	var initLock lock.Lock = nil
-	for i := 0; i < lock.DefaultMaxRetries; i++ {
-		initLock, err = s.lockProvider.Acquire(ctx, lockKey, lock.DefaultLockTTL)
-		if errors.Is(err, lock.ErrLockNotAcquired) {
-			logger.Warn("other process is initializing seat map, retrying...")
-			time.Sleep(lock.DefaultBackoff)
-			continue
+	// 缓存缺失，则初始化座位表
+	if err := s.InitSeatMap(ctx, vo.ShowtimeID(req.ShowtimeID)); err != nil {
+		// 如果是锁已被其他进程占用，则进入退避重试逻辑，尝试从缓存中获取结果
+		if errors.Is(err, lock.ErrLockAlreadyAcquired) {
+			logger.Warn("another process is initializing the seat map, will retry fetching from cache...",
+				applog.Uint("showtimeID", req.ShowtimeID))
+
+			for i := 0; i < lock.DefaultMaxRetries; i++ {
+				time.Sleep(lock.DefaultBackoff)
+				seatInfos, cacheErr := s.seatCache.GetSeatMap(ctx, vo.ShowtimeID(req.ShowtimeID))
+				if cacheErr == nil {
+					logger.Info("successfully got seat map from cache after waiting",
+						applog.Uint("showtimeID", req.ShowtimeID))
+					return &response.SeatMapResponse{Seats: seatInfos}, nil
+				}
+			}
+
+			// 如果重试多次后仍然失败
+			logger.Error("failed to get seat map from cache after retries",
+				applog.Uint("showtimeID", req.ShowtimeID),
+				applog.Int("retries", lock.DefaultMaxRetries))
+			return nil, lock.ErrRetryLockFailed
 		}
-		if err != nil {
-			logger.Error("failed to acquire lock", applog.Error(err))
-			return nil, err
-		}
-		defer initLock.Release(ctx)
-		break
-	}
-	// 若三次获取锁失败，则返回错误
-	if initLock == nil {
-		logger.Error("retry to acquire lock failed", applog.Int("retries", lock.DefaultMaxRetries))
-		return nil, fmt.Errorf("retry to acquire lock failed")
+
+		// 如果是其他初始化错误，则直接返回
+		logger.Error("failed to init seat map", applog.Error(err))
+		return nil, err
 	}
 
+	seatInfos, err = s.seatCache.GetSeatMap(ctx, vo.ShowtimeID(req.ShowtimeID))
+	if err != nil {
+		logger.Error("failed to get seat map from cache", applog.Error(err))
+		return nil, err
+	}
+
+	logger.Info("init seat map successfully", applog.Uint("showtime_id", uint(req.ShowtimeID)))
+	return &response.SeatMapResponse{Seats: seatInfos}, nil
+}
+
+// 初始化座位表
+func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error {
+	logger := s.logger.With(applog.String("Method", "InitSeatMap"), applog.Uint("showtime_id", uint(showtimeID)))
+
+	// 获取分布式锁，防止并发初始化座位表
+	lockKey := cinema.GetShowtimeSeatsInitLockKey(showtimeID)
+	initLock, err := s.lockProvider.Acquire(ctx, lockKey, lock.DefaultLockTTL)
+	// 如果获取锁失败
+	if err != nil {
+		// 如果是锁已被占用，说明有其他进程正在初始化座位图，则等待后直接从缓存获取
+		if errors.Is(err, lock.ErrLockAlreadyAcquired) {
+			logger.Warn("other process is initializing seat map")
+			return err
+		}
+		// 其他类型的锁错误，直接返回
+		logger.Error("failed to acquire lock", applog.Error(err))
+		return err
+	}
+	// 成功获取锁，确保函数退出时释放
+	defer func() {
+		if releaseErr := initLock.Release(ctx); releaseErr != nil {
+			logger.Error("failed to release lock", applog.Error(releaseErr))
+		}
+	}()
+
 	// 获取场次信息（应用层服务，会先从缓存中获取，如果缓存未命中，则从数据库中获取）
-	showtimeResp, err := s.GetShowtime(ctx, &request.GetShowtimeRequest{ID: req.ShowtimeID})
+	showtimeResp, err := s.GetShowtime(ctx, &request.GetShowtimeRequest{ID: uint(showtimeID)})
 	if err != nil {
 		if errors.Is(err, showtime.ErrShowtimeNotFound) {
 			logger.Warn("showtime not found")
-			return nil, err
+			return err
 		}
 		logger.Error("failed to get showtime", applog.Error(err))
-		return nil, err
+		return err
 	}
 
 	// 获取座位表
 	seats, err := s.seatRepo.FindByHallID(ctx, vo.CinemaHallID(showtimeResp.CinemaHall.ID))
 	if err != nil {
 		logger.Error("failed to find seats", applog.Error(err))
-		return nil, err
+		return err
 	}
 
-	// TODO: 获取已售座位 需要booking_repository支持
+	bks, err := s.bookingRepo.FindByShowtimeID(ctx, vo.ShowtimeID(showtimeResp.ID))
+	if err != nil {
+		logger.Error("failed to find booked seats", applog.Error(err))
+		return err
+	}
+	bookedSeatIDs := make([]vo.SeatID, 0, len(bks)*2)
+	for _, bk := range bks {
+		for _, seat := range bk.BookedSeats {
+			bookedSeatIDs = append(bookedSeatIDs, vo.SeatID(seat.ID))
+		}
+	}
 
 	// 座位表缓存过期时间设置为场次结束时间后10分钟
 	expireTime := time.Until(showtimeResp.EndTime.Add(time.Minute * 10))
-	if err := s.seatCache.InitSeatMap(ctx, vo.ShowtimeID(req.ShowtimeID), seats, nil, expireTime); err != nil {
+	if err := s.seatCache.InitSeatMap(ctx, showtimeID, seats, bookedSeatIDs, expireTime); err != nil {
 		logger.Error("failed to init seat map", applog.Error(err))
-		return nil, err
+		return err
 	}
 
-	// 将座位表转换为响应格式
-	seatInfos = make([]*cinema.SeatInfo, 0, len(seats))
-	for _, seat := range seats {
-		seatInfos = append(seatInfos, &cinema.SeatInfo{
-			ID:            seat.ID,
-			Type:          seat.Type,
-			RowIdentifier: seat.RowIdentifier,
-			SeatNumber:    seat.SeatNumber,
-			Status:        cinema.SeatStatusAvailable, // 先默认可用，后续再根据已售座位更新状态
-		})
-	}
-
-	return &response.SeatMapResponse{Seats: seatInfos}, nil
+	logger.Info("init seat map successfully", applog.Uint("showtime_id", uint(showtimeID)))
+	return nil
 }
