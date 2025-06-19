@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/middleware"
 	"mrs/internal/app"
+	"mrs/internal/domain/booking"
 	applog "mrs/pkg/log"
 	"net/http"
 
@@ -29,6 +31,7 @@ func (h *BookingHandler) CreateBooking(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	req.UserID = ctx.GetUint(middleware.UserIDKey)
 
 	bookingResp, err := h.bookingService.CreateBooking(ctx, &req)
 	if err != nil {
@@ -51,14 +54,7 @@ func (h *BookingHandler) ListBookings(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	userID, exists := ctx.Get(middleware.UserIDKey)
-	if !exists {
-		logger.Error("user id not found")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found"})
-		return
-	}
-	req.UserID = userID.(uint)
+	req.UserID = ctx.GetUint(middleware.UserIDKey)
 
 	bookingsResp, err := h.bookingService.ListBookings(ctx, &req)
 	if err != nil {
@@ -109,6 +105,16 @@ func (h *BookingHandler) CancelBooking(ctx *gin.Context) {
 
 	bookingResp, err := h.bookingService.CancelBooking(ctx, &req)
 	if err != nil {
+		if errors.Is(err, booking.ErrBookingNotFound) {
+			logger.Error("booking not found", applog.Error(err))
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, booking.ErrBookingNotPending) {
+			logger.Error("booking status is not pending", applog.Error(err))
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to cancel booking", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
