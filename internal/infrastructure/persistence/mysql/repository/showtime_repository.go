@@ -74,6 +74,7 @@ func (r *gormShowtimeRepository) FindByIDs(ctx context.Context, ids []vo.Showtim
 		uintIDs[i] = uint(id)
 	}
 	var showtimesGorms []*models.ShowtimeGorm
+	// 未查询到时，返回空切片，而不是错误
 	if err := r.db.WithContext(ctx).Where("id IN (?)", uintIDs).
 		Preload("Movie").
 		Preload("CinemaHall").
