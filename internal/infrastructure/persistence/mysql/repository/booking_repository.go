@@ -109,8 +109,8 @@ func (r *gormBookingRepository) List(ctx context.Context, options *booking.Booki
 
 	var bookingGorms []models.BookingGorm
 	var totalCount int64
-	query := r.db.WithContext(ctx)
-	countQuery := r.db.WithContext(ctx)
+	query := r.db.WithContext(ctx).Model(&models.BookingGorm{})
+	countQuery := r.db.WithContext(ctx).Model(&models.BookingGorm{})
 
 	// 用户ID过滤
 	if options.UserID != 0 {
