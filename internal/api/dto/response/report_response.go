@@ -7,8 +7,6 @@ type GenerateSalesReportResponse struct {
 	EndDate    string `json:"end_date"`    // 统计结束日期
 
 	// 总体销售数据
-	TotalRevenue       float64 `json:"total_revenue"`        // 总收入
-	TotalBookings      int     `json:"total_bookings"`       // 总订单数
-	TotalTickets       int     `json:"total_tickets"`        // 总票数
-	AverageTicketPrice float64 `json:"average_ticket_price"` // 平均票价
+	TotalRevenue  float64 `json:"total_revenue"`  // 总收入
+	TotalBookings int     `json:"total_bookings"` // 总订单数
 }
