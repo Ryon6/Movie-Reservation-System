@@ -100,6 +100,7 @@ func NewTestServer(t *testing.T) *TestServer {
 	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
 	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, bookingRepo, showtimeCache, seatCache, lockProvider, logger)
 	bookingService := app.NewBookingService(uow, bookingRepo, showtimeRepo, seatCache, showtimeCache, showtimeService, lockProvider, logger)
+	reportService := app.NewReportService(logger, bookingRepo)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb, logger)
@@ -109,6 +110,7 @@ func NewTestServer(t *testing.T) *TestServer {
 	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
 	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
 	bookingHandler := handlers.NewBookingHandler(bookingService, logger)
+	reportHandler := handlers.NewReportHandler(reportService, logger)
 
 	// 设置路由
 	router := routers.SetupRouter(healthHandler,
@@ -118,6 +120,7 @@ func NewTestServer(t *testing.T) *TestServer {
 		cinemaHandler,
 		showtimeHandler,
 		bookingHandler,
+		reportHandler,
 		middleware.AuthMiddleware(jwtManager, logger),
 		middleware.AdminMiddleware(jwtManager, logger), // 修复 AdminMiddleware 参数
 	)

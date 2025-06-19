@@ -127,6 +127,7 @@ func main() {
 	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
 	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, bookingRepo, showtimeCache, seatCache, lockProvider, logger)
 	bookingService := app.NewBookingService(uow, bookingRepo, showtimeRepo, seatCache, showtimeCache, showtimeService, lockProvider, logger)
+	reportService := app.NewReportService(logger, bookingRepo)
 
 	// 接口层
 	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
@@ -136,6 +137,7 @@ func main() {
 	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
 	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
 	bookingHandler := handlers.NewBookingHandler(bookingService, logger)
+	reportHandler := handlers.NewReportHandler(reportService, logger)
 
 	r := routers.SetupRouter(healthHandler,
 		authHandler,
@@ -144,6 +146,7 @@ func main() {
 		cinemaHandler,
 		showtimeHandler,
 		bookingHandler,
+		reportHandler,
 		middleware.AuthMiddleware(jwtManager, logger),
 		middleware.AdminMiddleware(jwtManager, logger))
 
