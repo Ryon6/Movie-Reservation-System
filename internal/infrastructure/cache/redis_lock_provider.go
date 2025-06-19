@@ -37,7 +37,7 @@ func (p *redisLockProvider) Acquire(ctx context.Context, lockKey string, ttl tim
 	// 如果锁存在，则返回失败
 	if !success {
 		logger.Error("lock provider error", applog.String("lock_key", lockKey))
-		return nil, fmt.Errorf("lock provider error: %w", lock.ErrLockNotAcquired)
+		return nil, fmt.Errorf("lock provider error: %w", lock.ErrLockAlreadyAcquired)
 	}
 
 	renewCtx, cancel := context.WithCancel(ctx)

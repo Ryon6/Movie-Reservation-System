@@ -3,6 +3,6 @@ package lock
 import "errors"
 
 var (
-	ErrLockNotAcquired = errors.New("lock not acquired")
-	ErrLockNotOwned    = errors.New("lock not owned by current process")
+	ErrLockAlreadyAcquired = errors.New("lock already acquired")
+	ErrRetryLockFailed     = errors.New("retry to acquire lock failed")
 )
