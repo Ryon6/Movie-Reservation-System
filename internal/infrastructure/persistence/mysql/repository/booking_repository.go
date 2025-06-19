@@ -203,3 +203,57 @@ func (r *gormBookingRepository) Delete(ctx context.Context, id vo.BookingID) err
 	logger.Info("delete booking successfully")
 	return nil
 }
+
+// GetSalesStatistics 获取销售统计数据
+func (r *gormBookingRepository) GetSalesStatistics(ctx context.Context, options *booking.SalesQueryOptions) (*booking.SalesStatistics, error) {
+	logger := r.logger.With(applog.String("Method", "GetSalesStatistics"))
+
+	// 构建基础查询
+	query := r.db.WithContext(ctx).Model(&models.BookingGorm{}).
+		Joins("JOIN showtimes ON bookings.showtime_id = showtimes.id").
+		Joins("JOIN movies ON showtimes.movie_id = movies.id").
+		Joins("JOIN cinema_halls ON showtimes.cinema_hall_id = cinema_halls.id").
+		Where("bookings.status = ?", booking.BookingStatusConfirmed)
+
+	// 添加时间范围条件
+	if !options.StartDate.IsZero() {
+		logger = logger.With(applog.Time("start_date", options.StartDate))
+		query = query.Where("bookings.created_at >= ?", options.StartDate)
+	}
+	if !options.EndDate.IsZero() {
+		logger = logger.With(applog.Time("end_date", options.EndDate))
+		query = query.Where("bookings.created_at <= ?", options.EndDate)
+	}
+
+	// 添加电影ID条件
+	if options.MovieID != 0 {
+		logger = logger.With(applog.Uint("movie_id", options.MovieID))
+		query = query.Where("movies.id = ?", options.MovieID)
+	}
+
+	// 添加影院ID条件
+	if options.CinemaID != 0 {
+		logger = logger.With(applog.Uint("cinema_id", options.CinemaID))
+		query = query.Where("cinema_halls.cinema_id = ?", options.CinemaID)
+	}
+
+	var stats booking.SalesStatistics
+	err := query.Select("COALESCE(SUM(bookings.total_amount), 0) as total_revenue, "+
+		"COUNT(DISTINCT bookings.id) as total_bookings, ").
+		Row().Scan(&stats.TotalRevenue, &stats.TotalBookings)
+	if err != nil {
+		logger.Error("database get sales statistics error", applog.Error(err))
+		return nil, fmt.Errorf("database get sales statistics error: %w", err)
+	}
+	// 查询总票数
+	err = query.Select("COUNT(booked_seats.id)").
+		Joins("JOIN booked_seats ON bookings.id = booked_seats.booking_id").
+		Row().Scan(&stats.TotalTickets)
+	if err != nil {
+		logger.Error("database get total tickets error", applog.Error(err))
+		return nil, fmt.Errorf("database get total tickets error: %w", err)
+	}
+
+	logger.Info("get sales statistics successfully")
+	return &stats, nil
+}
