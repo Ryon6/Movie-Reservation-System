@@ -56,7 +56,6 @@ func NewBookingService(
 	}
 }
 
-// TODO: 创建订单时，若发生错误cache not initialized，则需要初始化cache再重试
 // CreateBooking 创建订单
 func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateBookingRequest) (*response.BookingResponse, error) {
 	logger := s.logger.With(applog.String("Method", "CreateBooking"))

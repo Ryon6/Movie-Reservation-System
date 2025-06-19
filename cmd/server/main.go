@@ -1,4 +1,3 @@
-// TODO: 列表缓存中，若列表中元素已删除，会返回missingcache，需要访问MySQL。但是若查询不到，应该返回已有结果，而不是返回错误
 package main
 
 import (
