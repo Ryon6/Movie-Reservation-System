@@ -17,6 +17,7 @@ func SetupRouter(
 	cinemaHandler *handlers.CinemaHandler,
 	showtimeHandler *handlers.ShowtimeHandler,
 	bookingHandler *handlers.BookingHandler,
+	reportHandler *handlers.ReportHandler,
 	authMiddleware gin.HandlerFunc,
 	adminMiddleware gin.HandlerFunc,
 	// ... 其他处理器 ...
@@ -135,6 +136,12 @@ func SetupRouter(
 		bookingRoutes.GET("/:id", bookingHandler.GetBooking)
 		bookingRoutes.POST("/:id/cancel", bookingHandler.CancelBooking)
 		bookingRoutes.POST("/:id/confirm", bookingHandler.ConfirmBooking)
+	}
+
+	// 报表管理路由
+	reportRoutes := adminRoutes.Group("/reports")
+	{
+		reportRoutes.GET("/sales", reportHandler.GenerateSalesReport)
 	}
 	return router
 }
