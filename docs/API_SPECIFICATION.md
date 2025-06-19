@@ -286,9 +286,3 @@
     *   **查询参数**: `dateFrom` (起始日期), `dateTo` (结束日期), `movieId` (电影ID), `hallId` (影厅ID)
     *   **响应体**: `销售报告响应`
     *   **调用服务**: `ReportService.GenerateSalesReport(params)`
-
-*   **`GET /api/v1/admin/reports/occupancy`**
-    *   **描述**: 获取上座率报告 (针对场次/影厅)。
-    *   **查询参数**: `dateFrom` (起始日期), `dateTo` (结束日期), `movieId` (电影ID), `hallId` (影厅ID)
-    *   **响应体**: `上座率报告响应`
-    *   **调用服务**: `ReportService.GenerateOccupancyReport(params)`
