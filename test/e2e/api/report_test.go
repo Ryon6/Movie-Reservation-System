@@ -3,9 +3,9 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"mrs/cmd/test/testutils"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
+	"mrs/test/e2e/testutils"
 	"net/http"
 	"testing"
 	"time"

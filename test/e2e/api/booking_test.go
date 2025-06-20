@@ -2,10 +2,10 @@ package test
 
 import (
 	"fmt"
-	"mrs/cmd/test/testutils"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/booking"
+	"mrs/test/e2e/testutils"
 	"net/http"
 	"testing"
 	"time"
