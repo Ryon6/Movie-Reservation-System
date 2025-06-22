@@ -16,7 +16,7 @@ import (
 )
 
 func initConfig() (*config.Config, error) {
-	cfg, err := config.LoadConfig("configs", "app_remote_db", "yaml")
+	cfg, err := config.LoadConfig("config", "app.dev", "yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}

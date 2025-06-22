@@ -9,7 +9,7 @@ import (
 	"mrs/internal/app"
 	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
-	appmysql "mrs/internal/infrastructure/persistence/mysql/repository"
+	repository "mrs/internal/infrastructure/persistence/mysql/repository"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"os"
@@ -22,7 +22,7 @@ import (
 
 // 使用已实现的 LoadConfig 函数加载配置
 func initConfig() (*config.Config, error) {
-	cfg, err := config.LoadConfig("configs", "app_remote_db", "yaml")
+	cfg, err := config.LoadConfig("config", "app.dev", "yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
@@ -72,7 +72,7 @@ func main() {
 	logger.Debug("Logger initialized successfully")
 
 	// 初始化数据库
-	dbFactory := appmysql.NewMysqlDBFactory(logger)
+	dbFactory := repository.NewMysqlDBFactory(logger)
 	db, err = dbFactory.CreateDBConnection(cfg.DatabaseConfig)
 	if err != nil {
 		logger.Fatal("Failed to connect to MySQL", applog.Error(err))
@@ -104,20 +104,20 @@ func main() {
 	}
 
 	// 基础设施层
-	userRepo := appmysql.NewGormUserRepository(db, logger)
-	roleRepo := appmysql.NewGormRoleRepository(db, logger)
-	movieRepo := appmysql.NewGormMovieRepository(db, logger)
-	genreRepo := appmysql.NewGormGenreRepository(db, logger)
-	cinemaRepo := appmysql.NewGormCinemaHallRepository(db, logger)
-	seatRepo := appmysql.NewGormSeatRepository(db, logger)
-	showtimeRepo := appmysql.NewGormShowtimeRepository(db, logger)
-	bookingRepo := appmysql.NewGormBookingRepository(db, logger)
+	userRepo := repository.NewGormUserRepository(db, logger)
+	roleRepo := repository.NewGormRoleRepository(db, logger)
+	movieRepo := repository.NewGormMovieRepository(db, logger)
+	genreRepo := repository.NewGormGenreRepository(db, logger)
+	cinemaRepo := repository.NewGormCinemaHallRepository(db, logger)
+	seatRepo := repository.NewGormSeatRepository(db, logger)
+	showtimeRepo := repository.NewGormShowtimeRepository(db, logger)
+	bookingRepo := repository.NewGormBookingRepository(db, logger)
 	movieCache := cache.NewRedisMovieCache(rdb.(*redis.Client), logger, time.Second*30) // 后续可以改为配置中获取
 	showtimeCache := cache.NewRedisShowtimeCache(rdb.(*redis.Client), logger, time.Second*30)
 	seatCache := cache.NewRedisSeatCache(rdb.(*redis.Client), logger, time.Second*30)
 	lockProvider := cache.NewRedisLockProvider(rdb.(*redis.Client), logger)
 
-	uow := appmysql.NewGormUnitOfWork(db, logger)
+	uow := repository.NewGormUnitOfWork(db, logger)
 
 	// 应用层
 	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, uow, userRepo, roleRepo, hasher, logger)
