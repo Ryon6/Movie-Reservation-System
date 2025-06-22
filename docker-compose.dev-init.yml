@@ -1,0 +1,47 @@
+# 开发环境初始化
+version: '1.0'
+
+services:
+  # 1. MySQL数据库服务
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: mrs_db_root_password
+      MYSQL_DATABASE: mrs_dev
+      MYSQL_USER: mrs_user
+      MYSQL_PASSWORD: mrs_db_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. 数据库迁移服务（包含管理员用户和基础数据预填充）
+  migrate:
+    build: .
+    command: ./migrate
+    environment:
+      - CONFIG_PATH=/app/config
+      - CONFIG_NAME=app.dev
+      - CONFIG_TYPE=yaml
+      - DATABASE_USER=mrs_user
+      - DATABASE_PASSWORD=mrs_db_password
+      - DATABASE_HOST=db
+      - DATABASE_PORT=3306
+      - DATABASE_NAME=mrs_dev
+      - LOG_OUTPUT_PATH=["stdout", "/app/var/log/app.log"]
+      - LOG_ERROR_OUTPUT_PATH=["stderr", "/app/var/log/error.log"]
+    volumes:
+      - ./config:/app/config
+      - ./var/log:/app/var/log
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_dev_data: 

@@ -1,0 +1,73 @@
+# 压力测试环境
+version: '1.0'
+
+services:
+  # MySQL 数据库服务
+  db:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: mrs_db_root_password
+      MYSQL_DATABASE: mrs_stress
+      MYSQL_USER: mrs_user
+      MYSQL_PASSWORD: mrs_db_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_stress_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 服务
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_stress_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 主应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - CONFIG_PATH=/app/config
+      - CONFIG_NAME=app.stress
+      - CONFIG_TYPE=yaml
+      - DATABASE_USER=mrs_user
+      - DATABASE_PASSWORD=mrs_db_password
+      - DATABASE_HOST=db
+      - DATABASE_PORT=3306
+      - DATABASE_NAME=mrs_stress
+      - REDIS_ADDRESS=redis:6379
+      - LOG_OUTPUT_PATH=["stdout", "/app/var/log/app.log"]
+      - LOG_ERROR_OUTPUT_PATH=["stderr", "/app/var/log/error.log"]
+    volumes:
+      - ./config:/app/config
+      - ./var/log:/app/var/log
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_stress_data:
+  redis_stress_data:
