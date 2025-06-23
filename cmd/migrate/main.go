@@ -13,6 +13,7 @@ import (
 	"os"
 
 	"github.com/spf13/viper"
+	"gorm.io/gorm"
 )
 
 func initConfig() (*config.Config, error) {
@@ -94,6 +95,33 @@ func createAdminUser(userRepo user.UserRepository, roleRepo user.RoleRepository,
 	return nil
 }
 
+func dropExistingTables(db *gorm.DB, logger applog.Logger) error {
+	// 定义需要删除的表名
+	tables := []interface{}{
+		&models.BookedSeatGorm{},
+		&models.BookingGorm{},
+		&models.ShowtimeGorm{},
+		&models.SeatGorm{},
+		&models.CinemaHallGorm{},
+		&models.MovieGorm{},
+		&models.GenreGorm{},
+		&models.UserGorm{},
+		&models.RoleGorm{},
+	}
+
+	logger.Info("开始删除已存在的表")
+
+	// 删除表（注意顺序：先删除有外键依赖的表）
+	for _, table := range tables {
+		if err := db.Migrator().DropTable(table); err != nil {
+			return fmt.Errorf("删除表失败: %w", err)
+		}
+	}
+
+	logger.Info("已成功删除所有已存在的表")
+	return nil
+}
+
 func main() {
 	// 初始化配置
 	cfg, err := initConfig()
@@ -120,7 +148,14 @@ func main() {
 		logger.Fatal("数据库连接失败", applog.Error(err))
 	}
 
-	logger.Info("数据库连接成功，开始迁移模型")
+	logger.Info("数据库连接成功")
+
+	// 先删除已存在的表
+	if err := dropExistingTables(db, logger); err != nil {
+		logger.Fatal("删除已存在表失败", applog.Error(err))
+	}
+
+	logger.Info("开始迁移模型")
 
 	// 自动迁移所有模型
 	err = db.AutoMigrate(
