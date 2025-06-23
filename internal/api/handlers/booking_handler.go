@@ -6,6 +6,7 @@ import (
 	"mrs/internal/api/middleware"
 	"mrs/internal/app"
 	"mrs/internal/domain/booking"
+	"mrs/internal/domain/showtime"
 	applog "mrs/pkg/log"
 	"net/http"
 
@@ -35,6 +36,12 @@ func (h *BookingHandler) CreateBooking(ctx *gin.Context) {
 
 	bookingResp, err := h.bookingService.CreateBooking(ctx, &req)
 	if err != nil {
+		// 场次已结束
+		if errors.Is(err, showtime.ErrShowtimeEnded) {
+			logger.Warn("showtime has ended", applog.Error(err))
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to create booking", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

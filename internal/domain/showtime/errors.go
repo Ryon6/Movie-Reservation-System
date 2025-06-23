@@ -9,4 +9,5 @@ var (
 	ErrShowtimeInPast           = errors.New("showtime cannot be scheduled in the past")
 	ErrShowtimeInvalidTimeRange = errors.New("invalid showtime start/end time range")
 	ErrShowtimeNoSeatsAvailable = errors.New("no seats available for this showtime")
+	ErrShowtimeEnded            = errors.New("showtime has ended")
 )

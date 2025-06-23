@@ -70,6 +70,12 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 		return nil, err
 	}
 
+	// 检查场次是否已结束
+	if st.EndTime.Before(time.Now()) {
+		logger.Warn("showtime has ended", applog.String("end_time", st.EndTime.Format(time.DateTime)))
+		return nil, showtime.ErrShowtimeEnded
+	}
+
 	// 获取分布式锁（场次锁）
 	lock, err := s.lockProvider.Acquire(ctx, lockKey, lock.DefaultLockTTL)
 	if err != nil {
