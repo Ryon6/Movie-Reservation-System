@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -10,6 +11,8 @@ import (
 	"mrs/internal/infrastructure/persistence/mysql/models"
 	"mrs/internal/infrastructure/persistence/mysql/repository"
 	applog "mrs/pkg/log"
+	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -17,6 +20,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+// UserCredential 用于存储用户凭证信息
+type UserCredential struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+}
 
 const (
 	// 基础数据量
@@ -67,6 +78,7 @@ func main() {
 		applog.Int("电影数量", numMovies),
 		applog.Int("影厅数量", numCinemaHalls),
 		applog.Int("场次排期天数", 30),
+		applog.String("用户凭证文件", filepath.Join("test", "performance", "data", "user_credentials.json")),
 	)
 }
 
@@ -133,17 +145,25 @@ func seedData(db *gorm.DB, logger applog.Logger) error {
 
 func createUsers(roles []models.RoleGorm) []models.UserGorm {
 	users := make([]models.UserGorm, 0, numUsers)
+	credentials := make([]UserCredential, 0, numUsers)
+
 	for i := 0; i < numUsers; i++ {
+		username := gofakeit.Username()
+		password := gofakeit.Password(true, true, true, true, false, 10)
+		email := gofakeit.Email()
+
 		// 使用较低的哈希成本以降低生成开销
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(gofakeit.Password(true, true, true, true, false, 10)), bcrypt.MinCost)
+		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
 
 		// 99% 的用户是普通用户，1% 是管理员
 		var roleID uint
+		var roleName string
 		if rand.Float32() < 0.99 {
 			// 找到 USER 角色
 			for _, role := range roles {
 				if role.Name == user.UserRoleName {
 					roleID = role.ID
+					roleName = role.Name
 					break
 				}
 			}
@@ -152,20 +172,57 @@ func createUsers(roles []models.RoleGorm) []models.UserGorm {
 			for _, role := range roles {
 				if role.Name == user.AdminRoleName {
 					roleID = role.ID
+					roleName = role.Name
 					break
 				}
 			}
 		}
 
 		user := models.UserGorm{
-			Username:     gofakeit.Username(),
-			Email:        gofakeit.Email(),
+			Username:     username,
+			Email:        email,
 			PasswordHash: string(hashedPassword),
 			RoleID:       roleID,
 		}
 		users = append(users, user)
+
+		// 保存用户凭证
+		credential := UserCredential{
+			Username: username,
+			Password: password,
+			Email:    email,
+			Role:     roleName,
+		}
+		credentials = append(credentials, credential)
 	}
+
+	// 保存用户凭证到文件
+	saveUserCredentials(credentials)
+
 	return users
+}
+
+// saveUserCredentials 将用户凭证保存到文件
+func saveUserCredentials(credentials []UserCredential) {
+	// 确保目录存在
+	dataDir := filepath.Join("test", "performance", "data")
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Printf("创建目录失败: %v", err)
+		return
+	}
+
+	// 将凭证写入文件
+	filePath := filepath.Join(dataDir, "user_credentials.json")
+	data, err := json.MarshalIndent(credentials, "", "  ")
+	if err != nil {
+		log.Printf("序列化用户凭证失败: %v", err)
+		return
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		log.Printf("保存用户凭证失败: %v", err)
+		return
+	}
 }
 
 func createGenres() []models.GenreGorm {
@@ -195,7 +252,7 @@ func createMovies(genres []models.GenreGorm) []models.MovieGorm {
 			Title:       title,
 			Description: gofakeit.Sentence(10),
 			// DurationMinutes: gofakeit.Number(60, 180),
-			ReleaseDate: gofakeit.Date(),
+			ReleaseDate: time.Date(gofakeit.Number(2000, 2025), time.Month(gofakeit.Number(1, 12)), gofakeit.Number(1, 28), 0, 0, 0, 0, time.UTC),
 			Rating:      float32(gofakeit.Float32Range(1, 5)),
 			AgeRating:   "PG-13",
 			Cast:        gofakeit.Name() + ", " + gofakeit.Name(),
