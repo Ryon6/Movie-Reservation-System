@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
 	"mrs/internal/domain/booking"
@@ -284,7 +285,8 @@ func (s *showtimeService) GetSeatMap(ctx context.Context, req *request.GetSeatMa
 				applog.Uint("showtimeID", req.ShowtimeID))
 
 			for i := 0; i < lock.DefaultMaxRetries; i++ {
-				time.Sleep(lock.DefaultBackoff)
+				randomFactor := 1 + 0.1*rand.Float64()
+				time.Sleep(time.Duration(float64(lock.DefaultBackoff) * float64(i+1) * randomFactor))
 				seatInfos, cacheErr := s.seatCache.GetSeatMap(ctx, vo.ShowtimeID(req.ShowtimeID))
 				if cacheErr == nil {
 					logger.Info("successfully got seat map from cache after waiting",
@@ -333,6 +335,7 @@ func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.Showtim
 		logger.Error("failed to acquire lock", applog.Error(err))
 		return err
 	}
+
 	// 成功获取锁，确保函数退出时释放
 	defer func() {
 		if releaseErr := initLock.Release(ctx); releaseErr != nil {
@@ -352,17 +355,28 @@ func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.Showtim
 	}
 
 	// 获取座位表
-	seats, err := s.seatRepo.FindByHallID(ctx, vo.CinemaHallID(showtimeResp.CinemaHall.ID))
+	var seats []*cinema.Seat
+	var bks []*booking.Booking
+	err = s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
+		seats, err = provider.GetSeatRepository().FindByHallID(ctx, vo.CinemaHallID(showtimeResp.CinemaHall.ID))
+		if err != nil {
+			logger.Error("failed to find seats", applog.Error(err))
+			return err
+		}
+
+		bks, err = provider.GetBookingRepository().FindByShowtimeID(ctx, vo.ShowtimeID(showtimeResp.ID))
+		if err != nil {
+			logger.Error("failed to find booked seats", applog.Error(err))
+			return err
+		}
+		return nil
+	})
+
 	if err != nil {
 		logger.Error("failed to find seats", applog.Error(err))
 		return err
 	}
 
-	bks, err := s.bookingRepo.FindByShowtimeID(ctx, vo.ShowtimeID(showtimeResp.ID))
-	if err != nil {
-		logger.Error("failed to find booked seats", applog.Error(err))
-		return err
-	}
 	bookedSeatIDs := make([]vo.SeatID, 0, len(bks)*2)
 	for _, bk := range bks {
 		for _, seat := range bk.BookedSeats {
@@ -372,6 +386,14 @@ func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.Showtim
 
 	// 座位表缓存过期时间设置为场次结束时间后10分钟
 	expireTime := time.Until(showtimeResp.EndTime.Add(time.Minute * 10))
+
+	// 如果场次已经结束，则不应该再为其初始化缓存
+	if expireTime <= 0 {
+		logger.Warn("showtime has already ended, skipping cache initialization",
+			applog.Time("endTime", showtimeResp.EndTime))
+		return fmt.Errorf("ServiceError: %w", showtime.ErrShowtimeEnded)
+	}
+
 	if err := s.seatCache.InitSeatMap(ctx, showtimeID, seats, bookedSeatIDs, expireTime); err != nil {
 		logger.Error("failed to init seat map", applog.Error(err))
 		return err
