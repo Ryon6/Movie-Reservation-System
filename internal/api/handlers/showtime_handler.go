@@ -156,6 +156,11 @@ func (h *ShowtimeHandler) GetSeatMap(ctx *gin.Context) {
 
 	seatMapResp, err := h.showtimeService.GetSeatMap(ctx, &req)
 	if err != nil {
+		if errors.Is(err, showtime.ErrShowtimeEnded) {
+			logger.Warn("showtime has already ended")
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to get seat map", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
