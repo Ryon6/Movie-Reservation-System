@@ -48,7 +48,7 @@ func NewTestServer(t *testing.T) *TestServer {
 	gin.SetMode(gin.TestMode)
 
 	// 初始化配置
-	cfg, err := config.LoadConfig("../fixtures/config", "app_test", "yaml")
+	cfg, err := config.LoadConfig("../fixtures/config", "app.e2e", "yaml")
 	assert.NoError(t, err)
 
 	// 初始化日志
