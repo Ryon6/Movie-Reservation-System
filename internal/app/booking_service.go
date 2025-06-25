@@ -160,8 +160,8 @@ func (s *bookingService) lockSeatsWithRetry(ctx context.Context, showtimeID vo.S
 		return nil
 	}
 
-	// 如果不是缓存未初始化错误，直接返回错误
-	if !errors.Is(err, shared.ErrCacheNotInitialized) {
+	// 如果不是缓存缺失错误，直接返回错误
+	if !errors.Is(err, shared.ErrCacheMissing) {
 		return err
 	}
 
