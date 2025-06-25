@@ -36,8 +36,8 @@ func (c *RedisSeatCache) getHallLayoutAndMapping(ctx context.Context, showtimeID
 
 	seatInfo, err := c.client.Get(ctx, seatInfoKey).Result()
 	if err != nil {
-		logger.Error("redis get seat info error", applog.Error(err))
-		return nil, nil, fmt.Errorf("redis get seat info error: %w", shared.ErrCacheNotInitialized)
+		logger.Error("redis get seat info error", applog.Error(shared.ErrCacheMissing), applog.String("key", seatInfoKey))
+		return nil, nil, fmt.Errorf("redis get seat info error: %w", shared.ErrCacheMissing)
 	}
 
 	var hallLayout []*cinema.Seat
