@@ -40,16 +40,21 @@ func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig) (*go
 	)
 
 	var gormLogLevel logger.LogLevel
-	if dbConfig.LogMode {
+	switch dbConfig.LogLevel {
+	case "info":
 		gormLogLevel = logger.Info
-	} else {
+	case "warn":
+		gormLogLevel = logger.Warn
+	case "error":
+		gormLogLevel = logger.Error
+	default:
 		gormLogLevel = logger.Silent
 	}
 
 	gormLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),
 		logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
+			SlowThreshold:             time.Duration(dbConfig.SlowThreshold) * time.Millisecond,
 			LogLevel:                  gormLogLevel,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  false,

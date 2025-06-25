@@ -37,7 +37,8 @@ type DatabaseConfig struct {
 	Port                   string `mapstructure:"port"`
 	Name                   string `mapstructure:"name"`
 	Charset                string `mapstructure:"charset"`
-	LogMode                bool   `mapstructure:"logMode"` // 是否开启日志模式
+	LogLevel               string `mapstructure:"logLevel"`      // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
+	SlowThreshold          int    `mapstructure:"slowThreshold"` // 慢查询阈值，单位毫秒
 	MaxOpenConnections     int    `mapstructure:"maxOpenConnections"`
 	MaxIdleConnections     int    `mapstructure:"maxIdleConnections"`
 	ConnMaxLifetimeMinutes int    `mapstructure:"connMaxLifetimeMinutes"` // 连接最大生命周期，单位分钟
