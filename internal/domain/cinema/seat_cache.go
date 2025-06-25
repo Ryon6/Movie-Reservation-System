@@ -19,10 +19,10 @@ type SeatCache interface {
 }
 
 const (
-	ShowtimeSeatsBitmapKeyFormat   = "showtime:%d:seats:bitmap"    // 场次座位状态位图
-	ShowtimeSeatsInfoKeyFormat     = "showtime:%d:seats:info"      // 场次座位静态信息
-	ShowtimeSeatsLockKeyFormat     = "showtime:%d:seats:locks"     // 座位临时锁定
-	ShowtimeSeatsInitLockKeyFormat = "showtime:%d:seats:init:lock" // 初始化座位表的锁，防止并发初始化座位表
+	ShowtimeSeatsBitmapKeyFormat   = "seatmap:showtime:%d:bitmap"    // 场次座位状态位图
+	ShowtimeSeatsInfoKeyFormat     = "seatmap:showtime:%d:info"      // 场次座位静态信息
+	ShowtimeSeatsLockKeyFormat     = "seatmap:showtime:%d:locks"     // 座位临时锁定
+	ShowtimeSeatsInitLockKeyFormat = "seatmap:showtime:%d:init:lock" // 初始化座位表的锁，防止并发初始化座位表
 )
 
 // 生成座位临时锁定的缓存键
