@@ -321,6 +321,27 @@ func (s *showtimeService) GetSeatMap(ctx context.Context, req *request.GetSeatMa
 func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.ShowtimeID) error {
 	logger := s.logger.With(applog.String("Method", "InitSeatMap"), applog.Uint("showtime_id", uint(showtimeID)))
 
+	// 获取场次信息（应用层服务，会先从缓存中获取，如果缓存未命中，则从数据库中获取）
+	showtimeResp, err := s.GetShowtime(ctx, &request.GetShowtimeRequest{ID: uint(showtimeID)})
+	if err != nil {
+		if errors.Is(err, showtime.ErrShowtimeNotFound) {
+			logger.Warn("showtime not found")
+			return err
+		}
+		logger.Error("failed to get showtime", applog.Error(err))
+		return err
+	}
+
+	// 座位表缓存过期时间设置为场次结束时间后10分钟
+	expireTime := time.Until(showtimeResp.EndTime.Add(time.Minute * 10))
+
+	// 如果场次已经结束，则不应该再为其初始化缓存
+	if expireTime <= 0 {
+		logger.Warn("showtime has already ended, skipping cache initialization",
+			applog.Time("endTime", showtimeResp.EndTime))
+		return fmt.Errorf("ServiceError: %w", showtime.ErrShowtimeEnded)
+	}
+
 	// 获取分布式锁，防止并发初始化座位表
 	lockKey := cinema.GetShowtimeSeatsInitLockKey(showtimeID)
 	initLock, err := s.lockProvider.Acquire(ctx, lockKey, lock.DefaultLockTTL)
@@ -342,17 +363,6 @@ func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.Showtim
 			logger.Error("failed to release lock", applog.Error(releaseErr))
 		}
 	}()
-
-	// 获取场次信息（应用层服务，会先从缓存中获取，如果缓存未命中，则从数据库中获取）
-	showtimeResp, err := s.GetShowtime(ctx, &request.GetShowtimeRequest{ID: uint(showtimeID)})
-	if err != nil {
-		if errors.Is(err, showtime.ErrShowtimeNotFound) {
-			logger.Warn("showtime not found")
-			return err
-		}
-		logger.Error("failed to get showtime", applog.Error(err))
-		return err
-	}
 
 	// 获取座位表
 	var seats []*cinema.Seat
@@ -382,16 +392,6 @@ func (s *showtimeService) InitSeatMap(ctx context.Context, showtimeID vo.Showtim
 		for _, seat := range bk.BookedSeats {
 			bookedSeatIDs = append(bookedSeatIDs, vo.SeatID(seat.ID))
 		}
-	}
-
-	// 座位表缓存过期时间设置为场次结束时间后10分钟
-	expireTime := time.Until(showtimeResp.EndTime.Add(time.Minute * 10))
-
-	// 如果场次已经结束，则不应该再为其初始化缓存
-	if expireTime <= 0 {
-		logger.Warn("showtime has already ended, skipping cache initialization",
-			applog.Time("endTime", showtimeResp.EndTime))
-		return fmt.Errorf("ServiceError: %w", showtime.ErrShowtimeEnded)
 	}
 
 	if err := s.seatCache.InitSeatMap(ctx, showtimeID, seats, bookedSeatIDs, expireTime); err != nil {
