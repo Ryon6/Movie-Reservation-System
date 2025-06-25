@@ -166,8 +166,7 @@
 ### 需要认证的用户端点:
 
 *   **`GET /api/v1/cinema-halls`**
-    *   **描述**: 列出可用的影厅
-    *   **查询参数**: `page`, `pageSize`
+    *   **描述**: 列出全部的影厅
     *   **响应体**: `分页响应包装器<影厅响应>`
     *   **调用服务**: `CinemaHandler.ListAllCinemaHalls()`
 
