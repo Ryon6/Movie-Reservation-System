@@ -9,25 +9,19 @@ import (
 	"io"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/api/dto/response"
-	"mrs/internal/api/handlers"
-	"mrs/internal/api/middleware"
-	"mrs/internal/api/routers"
-	"mrs/internal/app"
 	"mrs/internal/domain/user"
-	"mrs/internal/infrastructure/cache"
 	"mrs/internal/infrastructure/config"
 	"mrs/internal/infrastructure/persistence/mysql/models"
-	appmysql "mrs/internal/infrastructure/persistence/mysql/repository"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 )
@@ -47,84 +41,26 @@ type TestServer struct {
 func NewTestServer(t *testing.T) *TestServer {
 	gin.SetMode(gin.TestMode)
 
-	// 初始化配置
-	cfg, err := config.LoadConfig("../fixtures/config", "app.e2e", "yaml")
-	assert.NoError(t, err)
+	components, _, err := InitializeTestServer(config.ConfigInput{
+		Path: "../fixtures/config",
+		Name: "app.e2e",
+		Type: "yaml",
+	})
+	if err != nil {
+		t.Fatalf("Failed to initialize test server: %v", err)
+	}
 
-	// 初始化日志
-	logger, err := applog.NewZapLogger(cfg.LogConfig)
-	assert.NoError(t, err)
-
-	// 初始化数据库
-	dbFactory := appmysql.NewMysqlDBFactory(logger)
-	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
-	assert.NoError(t, err)
+	db := components.DB
+	rdb := components.RDB
+	logger := components.Logger
+	hasher := components.Hasher
+	router := components.Router
+	cfg := viper.Get(config.EnvConfig).(*config.Config)
 
 	// 清理并迁移数据库
 	CleanAndMigrateDB(t, db, cfg.AdminConfig, logger)
 
-	// 初始化 Redis
-	rdbClient, err := cache.NewRedisClient(cfg.RedisConfig, logger)
-	assert.NoError(t, err)
-	rdb := rdbClient.(*redis.Client)
 	CleanRedis(t, rdb)
-
-	// 实用工具
-	hasher := utils.NewBcryptHasher(cfg.AuthConfig.HasherCost)
-	jwtManager, err := utils.NewJWTManagerImpl(
-		cfg.JWTConfig.SecretKey,
-		cfg.JWTConfig.Issuer,
-		int64(cfg.JWTConfig.AccessTokenDuration.Hours()),
-	)
-	assert.NoError(t, err)
-
-	// 基础设施层
-	userRepo := appmysql.NewGormUserRepository(db, logger)
-	roleRepo := appmysql.NewGormRoleRepository(db, logger)
-	movieRepo := appmysql.NewGormMovieRepository(db, logger)
-	genreRepo := appmysql.NewGormGenreRepository(db, logger)
-	cinemaRepo := appmysql.NewGormCinemaHallRepository(db, logger)
-	seatRepo := appmysql.NewGormSeatRepository(db, logger)
-	showtimeRepo := appmysql.NewGormShowtimeRepository(db, logger)
-	bookingRepo := appmysql.NewGormBookingRepository(db, logger)
-	movieCache := cache.NewRedisMovieCache(rdb, logger, time.Second*5)
-	showtimeCache := cache.NewRedisShowtimeCache(rdb, logger, time.Second*5)
-	seatCache := cache.NewRedisSeatCache(rdb, logger, time.Second*5)
-	lockProvider := cache.NewRedisLockProvider(rdb, logger)
-	uow := appmysql.NewGormUnitOfWork(db, logger)
-
-	// 应用层
-	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, uow, userRepo, roleRepo, hasher, logger)
-	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
-	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
-	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
-	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, bookingRepo, showtimeCache, seatCache, lockProvider, logger)
-	bookingService := app.NewBookingService(uow, bookingRepo, showtimeRepo, seatCache, showtimeCache, showtimeService, lockProvider, logger)
-	reportService := app.NewReportService(logger, bookingRepo)
-
-	// 接口层
-	healthHandler := handlers.NewHealthHandler(db, rdb, logger)
-	authHandler := handlers.NewAuthHandler(authService, logger)
-	userHandler := handlers.NewUserHandler(userService, logger)
-	movieHandler := handlers.NewMovieHandler(movieService, logger)
-	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
-	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
-	bookingHandler := handlers.NewBookingHandler(bookingService, logger)
-	reportHandler := handlers.NewReportHandler(reportService, logger)
-
-	// 设置路由
-	router := routers.SetupRouter(healthHandler,
-		authHandler,
-		userHandler,
-		movieHandler,
-		cinemaHandler,
-		showtimeHandler,
-		bookingHandler,
-		reportHandler,
-		middleware.AuthMiddleware(jwtManager, logger),
-		middleware.AdminMiddleware(jwtManager, logger),
-		logger,
-	)
 
 	server := httptest.NewServer(router)
 
