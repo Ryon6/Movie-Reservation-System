@@ -30,7 +30,7 @@ type UserCredential struct {
 
 const (
 	// 基础数据量
-	numUsers       = 2000
+	numUsers       = 4000
 	numMovies      = 100
 	numCinemaHalls = 50
 )
