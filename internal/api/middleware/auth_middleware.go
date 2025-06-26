@@ -10,6 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Auth gin.HandlerFunc  // 认证中间件
+type Admin gin.HandlerFunc // 管理员识别中间件
+
 const (
 	AuthorizationHeaderKey = "Authorization"
 	BearerSchema           = "Bearer "
@@ -19,7 +22,7 @@ const (
 )
 
 // AuthMiddleware 检查用户是否已认证
-func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.HandlerFunc {
+func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) Auth {
 	return func(ctx *gin.Context) {
 		inlogger := logger.With(applog.String("middleware", "AuthMiddleware"))
 
@@ -64,7 +67,7 @@ func AuthMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.Handl
 }
 
 // AdminMiddleware 检查用户是否为管理员
-func AdminMiddleware(jwtManager utils.JWTManager, logger applog.Logger) gin.HandlerFunc {
+func AdminMiddleware(jwtManager utils.JWTManager, logger applog.Logger) Admin {
 	return func(ctx *gin.Context) {
 		inlogger := logger.With(applog.String("middleware", "AdminMiddleware"))
 

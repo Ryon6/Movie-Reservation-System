@@ -6,8 +6,6 @@ import (
 	"mrs/internal/api/middleware"
 
 	"github.com/gin-gonic/gin"
-
-	applog "mrs/pkg/log"
 )
 
 // SetupRouter 配置并返回 Gin 引擎。
@@ -21,14 +19,14 @@ func SetupRouter(
 	showtimeHandler *handlers.ShowtimeHandler,
 	bookingHandler *handlers.BookingHandler,
 	reportHandler *handlers.ReportHandler,
-	authMiddleware gin.HandlerFunc,
-	adminMiddleware gin.HandlerFunc,
-	logger applog.Logger,
+	authMiddleware middleware.Auth,
+	adminMiddleware middleware.Admin,
+	loggerMiddleware middleware.Logger,
 	// ... 其他处理器 ...
 ) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(middleware.LoggerMiddleware(logger))
+	router.Use(gin.HandlerFunc(loggerMiddleware))
 
 	// 健康检查路由
 	router.GET("/health", healthHandler.CheckHealth)
@@ -37,8 +35,8 @@ func SetupRouter(
 
 	// 管理员路由，必须通过认证和权限验证
 	adminRoutes := apiV1.Group("/admin")
-	adminRoutes.Use(authMiddleware)
-	adminRoutes.Use(adminMiddleware)
+	adminRoutes.Use(gin.HandlerFunc(authMiddleware))
+	adminRoutes.Use(gin.HandlerFunc(adminMiddleware))
 
 	// 认证路由
 	authRoutes := apiV1.Group("/auth")
@@ -54,7 +52,7 @@ func SetupRouter(
 
 		// 需要认证的用户路由
 		authUserRoutes := userRoutes.Group("")
-		authUserRoutes.Use(authMiddleware)
+		authUserRoutes.Use(gin.HandlerFunc(authMiddleware))
 		{
 			authUserRoutes.GET("/me", userHandler.GetUserProfile)    // 获取个人信息
 			authUserRoutes.PUT("/me", userHandler.UpdateUserProfile) // 更新个人信息
@@ -80,7 +78,7 @@ func SetupRouter(
 
 	// 电影管理路由
 	movieRoutes := apiV1.Group("/movies")
-	movieRoutes.Use(authMiddleware)
+	movieRoutes.Use(gin.HandlerFunc(authMiddleware))
 	{
 		movieRoutes.GET("", movieHandler.ListMovies)
 		movieRoutes.GET("/:id", movieHandler.GetMovie) // 获取单个电影
@@ -93,7 +91,7 @@ func SetupRouter(
 	}
 
 	genreRoutes := apiV1.Group("/genres")
-	genreRoutes.Use(authMiddleware)
+	genreRoutes.Use(gin.HandlerFunc(authMiddleware))
 	{
 		genreRoutes.GET("", movieHandler.ListAllGenres)
 	}
@@ -106,7 +104,7 @@ func SetupRouter(
 
 	// 影厅管理路由
 	cinemaHallRoutes := apiV1.Group("/cinema-halls")
-	cinemaHallRoutes.Use(authMiddleware)
+	cinemaHallRoutes.Use(gin.HandlerFunc(authMiddleware))
 	{
 		cinemaHallRoutes.GET("", cinemaHandler.ListAllCinemaHalls)
 		cinemaHallRoutes.GET("/:id", cinemaHandler.GetCinemaHall)
@@ -120,7 +118,7 @@ func SetupRouter(
 
 	// 放映场次管理路由
 	showtimeRoutes := apiV1.Group("/showtimes")
-	showtimeRoutes.Use(authMiddleware)
+	showtimeRoutes.Use(gin.HandlerFunc(authMiddleware))
 	{
 		showtimeRoutes.GET("", showtimeHandler.ListShowtimes)
 		showtimeRoutes.GET("/:id", showtimeHandler.GetShowtime)
@@ -135,7 +133,7 @@ func SetupRouter(
 
 	// 订单管理路由
 	bookingRoutes := apiV1.Group("/bookings")
-	bookingRoutes.Use(authMiddleware)
+	bookingRoutes.Use(gin.HandlerFunc(authMiddleware))
 	{
 		bookingRoutes.POST("", bookingHandler.CreateBooking)
 		bookingRoutes.GET("", bookingHandler.ListBookings)

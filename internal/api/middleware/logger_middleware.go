@@ -7,7 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func LoggerMiddleware(logger applog.Logger) gin.HandlerFunc {
+type Logger gin.HandlerFunc // 日志中间件
+
+func LoggerMiddleware(logger applog.Logger) Logger {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
