@@ -17,7 +17,7 @@ import (
 
 // RedisShowtimeCache 放映缓存实现
 type RedisShowtimeCache struct {
-	redisClient       RedisClient
+	redisClient       *redis.Client
 	logger            applog.Logger
 	defaultExpiration time.Duration
 }
@@ -29,7 +29,7 @@ const (
 )
 
 // 创建一个RedisShowtimeCache实例
-func NewRedisShowtimeCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) showtime.ShowtimeCache {
+func NewRedisShowtimeCache(redisClient *redis.Client, logger applog.Logger, defaultExpiration time.Duration) showtime.ShowtimeCache {
 	return &RedisShowtimeCache{
 		redisClient:       redisClient,
 		logger:            logger.With(applog.String("Component", "RedisShowtimeCache")),

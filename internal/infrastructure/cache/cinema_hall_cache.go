@@ -15,11 +15,11 @@ import (
 )
 
 type cinemaHallCache struct {
-	redisClient RedisClient
+	redisClient *redis.Client
 	logger      applog.Logger
 }
 
-func NewCinemaHallCache(redisClient RedisClient, logger applog.Logger) cinema.CinemaHallCache {
+func NewCinemaHallCache(redisClient *redis.Client, logger applog.Logger) cinema.CinemaHallCache {
 	return &cinemaHallCache{
 		redisClient: redisClient,
 		logger:      logger.With(applog.String("Component", "CinemaHallCache")),

@@ -17,12 +17,12 @@ import (
 )
 
 type RedisSeatCache struct {
-	client            RedisClient
+	client            *redis.Client
 	logger            applog.Logger
 	defaultExpiration time.Duration
 }
 
-func NewRedisSeatCache(client RedisClient, logger applog.Logger, defaultExpiration time.Duration) cinema.SeatCache {
+func NewRedisSeatCache(client *redis.Client, logger applog.Logger, defaultExpiration time.Duration) cinema.SeatCache {
 	return &RedisSeatCache{
 		client:            client,
 		logger:            logger.With(applog.String("Component", "RedisSeatCache")),
@@ -188,7 +188,7 @@ func (c *RedisSeatCache) LockSeats(ctx context.Context, showtimeID vo.ShowtimeID
 		offsetArgs = append(offsetArgs, offset)
 	}
 
-	res, err := lockSeatScript.Run(ctx, c.client.(*redis.Client), []string{seatBitmapKey}, offsetArgs...).Int()
+	res, err := lockSeatScript.Run(ctx, c.client, []string{seatBitmapKey}, offsetArgs...).Int()
 	if err != nil {
 		logger.Error("redis eval error", applog.Error(err))
 		return fmt.Errorf("redis eval error: %w", err)

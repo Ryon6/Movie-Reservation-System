@@ -16,13 +16,13 @@ import (
 
 // RedisMovieCache 电影缓存实现
 type RedisMovieCache struct {
-	redisClient       RedisClient
+	redisClient       *redis.Client
 	logger            applog.Logger
 	defaultExpiration time.Duration
 }
 
 // 创建一个RedisMovieCache实例
-func NewRedisMovieCache(redisClient RedisClient, logger applog.Logger, defaultExpiration time.Duration) movie.MovieCache {
+func NewRedisMovieCache(redisClient *redis.Client, logger applog.Logger, defaultExpiration time.Duration) movie.MovieCache {
 	return &RedisMovieCache{
 		redisClient:       redisClient,
 		logger:            logger.With(applog.String("Component", "RedisMovieCache")),
