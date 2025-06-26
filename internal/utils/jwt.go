@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"mrs/internal/infrastructure/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -25,17 +26,18 @@ type JWTManager interface {
 type jwtManagerImpl struct {
 	secretKey       []byte
 	issuer          string
-	expirationHours int64 // 以小时为单位
+	expirationHours time.Duration // 以小时为单位
 }
 
-func NewJWTManagerImpl(secretKey string, issuer string, expirationHours int64) (JWTManager, error) {
-	if secretKey == "" {
+// NewJWTManagerImpl 创建一个新的 JWT 管理器
+func NewJWTManagerImpl(cfg config.JWTConfig) (JWTManager, error) {
+	if cfg.SecretKey == "" {
 		return nil, errors.New("NewJWTManagerImpl: jwt secretKey cannot be empty")
 	}
 	return &jwtManagerImpl{
-		secretKey:       []byte(secretKey),
-		issuer:          issuer,
-		expirationHours: expirationHours,
+		secretKey:       []byte(cfg.SecretKey),
+		issuer:          cfg.Issuer,
+		expirationHours: cfg.AccessTokenDuration,
 	}, nil
 }
 
@@ -50,7 +52,7 @@ func (j *jwtManagerImpl) GenerateToken(userID uint, username string, roleName st
 			Subject:   fmt.Sprintf("%d", userID), // 通常是用户的唯一标识
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(j.expirationHours))),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.expirationHours)),
 		},
 	}
 
