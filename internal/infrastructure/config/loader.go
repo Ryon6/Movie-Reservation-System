@@ -18,24 +18,30 @@ const (
 	EnvConfigType = "CONFIG_TYPE"
 )
 
+type ConfigInput struct {
+	Path string
+	Name string
+	Type string
+}
+
 // LoadConfig 加载配置文件并支持环境变量覆盖
-func LoadConfig(path, name, typ string) (*Config, error) {
+func LoadConfig(input ConfigInput) (*Config, error) {
 	var config Config
 
 	// 优先从环境变量获取配置路径、名称、类型
 	if env := os.Getenv(EnvConfigPath); env != "" {
-		path = env
+		input.Path = env
 	}
 	if env := os.Getenv(EnvConfigName); env != "" {
-		name = env
+		input.Name = env
 	}
 	if env := os.Getenv(EnvConfigType); env != "" {
-		typ = env
+		input.Type = env
 	}
 
-	viper.SetConfigName(name)
-	viper.SetConfigType(typ)
-	viper.AddConfigPath(path)
+	viper.SetConfigName(input.Name)
+	viper.SetConfigType(input.Type)
+	viper.AddConfigPath(input.Path)
 
 	// 支持环境变量自动覆盖（如 DATABASE_USER 覆盖 database.user）
 	viper.AutomaticEnv()
