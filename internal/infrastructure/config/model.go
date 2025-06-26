@@ -20,13 +20,14 @@ type ServerConfig struct {
 }
 
 type LogConfig struct {
-	Level             string   `mapstructure:"level"`             // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
-	OutputPaths       []string `mapstructure:"outputPaths"`       // 日志编码，例如 "json", "console"
-	ErrorOutputPaths  []string `mapstructure:"errorOutputPaths"`  // 日志输出路径，例如 ["stdout", "/var/log/app.log"]
-	Encoding          string   `mapstructure:"encoding"`          // 错误日志输出路径，例如 ["stderr"]
-	DevelopmentMode   bool     `mapstructure:"development_mode"`  // 是否使用开发模式日志配置（会覆盖上面的一些精细配置）
-	DisableCaller     bool     `mapstructure:"disableCaller"`     // 是否禁用调用者信息
-	DisableStacktrace bool     `mapstructure:"disableStacktrace"` // 是否禁用堆栈跟踪
+	Level             string        `mapstructure:"level"`             // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
+	OutputPaths       []string      `mapstructure:"outputPaths"`       // 日志编码，例如 "json", "console"
+	ErrorOutputPaths  []string      `mapstructure:"errorOutputPaths"`  // 日志输出路径，例如 ["stdout", "/var/log/app.log"]
+	Encoding          string        `mapstructure:"encoding"`          // 错误日志输出路径，例如 ["stderr"]
+	DevelopmentMode   bool          `mapstructure:"development_mode"`  // 是否使用开发模式日志配置（会覆盖上面的一些精细配置）
+	DisableCaller     bool          `mapstructure:"disableCaller"`     // 是否禁用调用者信息
+	DisableStacktrace bool          `mapstructure:"disableStacktrace"` // 是否禁用堆栈跟踪
+	SlowThreshold     time.Duration `mapstructure:"slowThreshold"`     // 慢查询阈值，单位毫秒
 }
 
 type DatabaseConfig struct {
@@ -37,8 +38,6 @@ type DatabaseConfig struct {
 	Port                   string `mapstructure:"port"`
 	Name                   string `mapstructure:"name"`
 	Charset                string `mapstructure:"charset"`
-	LogLevel               string `mapstructure:"logLevel"`      // 日志级别，例如 "debug", "info", "warn", "error", "fatal"
-	SlowThreshold          int    `mapstructure:"slowThreshold"` // 慢查询阈值，单位毫秒
 	MaxOpenConnections     int    `mapstructure:"maxOpenConnections"`
 	MaxIdleConnections     int    `mapstructure:"maxIdleConnections"`
 	ConnMaxLifetimeMinutes int    `mapstructure:"connMaxLifetimeMinutes"` // 连接最大生命周期，单位分钟
