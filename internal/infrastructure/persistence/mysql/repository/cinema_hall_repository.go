@@ -83,7 +83,6 @@ func (r *gormCinemaHallRepository) ListAll(ctx context.Context) ([]*cinema.Cinem
 	logger := r.logger.With(applog.String("Method", "ListAll"))
 	var hallsGorms []*models.CinemaHallGorm
 	if err := r.db.WithContext(ctx).
-		Preload("Seats").
 		Find(&hallsGorms).Error; err != nil {
 		logger.Error("database list all cinema halls error", applog.Error(err))
 		return nil, fmt.Errorf("database list all cinema halls error: %w", err)
