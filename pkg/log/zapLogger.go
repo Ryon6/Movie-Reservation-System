@@ -1,16 +1,17 @@
 package log
 
 import (
-	"fmt"
 	"mrs/internal/infrastructure/config"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 type ZapLogger struct {
-	sugar *zap.SugaredLogger
-	level zap.AtomicLevel // 新增字段，持有 zap 的日志等级控制器
+	sugar         *zap.SugaredLogger
+	level         zap.AtomicLevel // 新增字段，持有 zap 的日志等级控制器
+	slowThreshold time.Duration   // 慢查询阈值
 }
 
 func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, error) {
@@ -28,8 +29,9 @@ func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, error
 		return nil, err
 	}
 	return &ZapLogger{
-		sugar: baseLogger.Sugar(),
-		level: automicLevel,
+		sugar:         baseLogger.Sugar(),
+		level:         automicLevel,
+		slowThreshold: 200 * time.Millisecond,
 	}, nil
 }
 
@@ -97,17 +99,4 @@ func (l *ZapLogger) With(fields ...Field) Logger {
 	// SugaredLogger.With 返回一个新的 SugaredLogger
 	// 我们需要将其包装回我们的 zapLogger 类型
 	return &ZapLogger{sugar: l.sugar.With(convertFields(fields...)...)}
-}
-
-func (l *ZapLogger) GetLoggerLevel() string {
-	return l.level.String()
-}
-
-func (l *ZapLogger) SetLoggerLevel(level string) error {
-	zapLevel, err := zapcore.ParseLevel(level)
-	if err != nil {
-		return fmt.Errorf("parse zap level %s failed: %w", level, err)
-	}
-	l.level.SetLevel(zapLevel)
-	return nil
 }
