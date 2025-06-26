@@ -17,9 +17,8 @@ import (
 
 // RedisShowtimeCache 放映缓存实现
 type RedisShowtimeCache struct {
-	redisClient       *redis.Client
-	logger            applog.Logger
-	defaultExpiration time.Duration
+	redisClient *redis.Client
+	logger      applog.Logger
 }
 
 // 放映缓存键前缀
@@ -29,11 +28,10 @@ const (
 )
 
 // 创建一个RedisShowtimeCache实例
-func NewRedisShowtimeCache(redisClient *redis.Client, logger applog.Logger, defaultExpiration time.Duration) showtime.ShowtimeCache {
+func NewRedisShowtimeCache(redisClient *redis.Client, logger applog.Logger) showtime.ShowtimeCache {
 	return &RedisShowtimeCache{
-		redisClient:       redisClient,
-		logger:            logger.With(applog.String("Component", "RedisShowtimeCache")),
-		defaultExpiration: defaultExpiration,
+		redisClient: redisClient,
+		logger:      logger.With(applog.String("Component", "RedisShowtimeCache")),
 	}
 }
 
@@ -61,20 +59,20 @@ func (c *RedisShowtimeCache) showtimeListKey(options *showtime.ShowtimeQueryOpti
 }
 
 // SetShowtime 设置单个放映的缓存
-func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, showtime *showtime.Showtime, expiration time.Duration) error {
-	logger := c.logger.With(applog.String("Method", "SetShowtime"), applog.Uint("showtime_id", uint(showtime.ID)))
+func (c *RedisShowtimeCache) SetShowtime(ctx context.Context, st *showtime.Showtime, expiration time.Duration) error {
+	logger := c.logger.With(applog.String("Method", "SetShowtime"), applog.Uint("showtime_id", uint(st.ID)))
 
 	if expiration == 0 {
-		expiration = c.defaultExpiration
+		expiration = showtime.DefaultShowtimeExpiration
 	}
 
-	data, err := json.Marshal(showtime)
+	data, err := json.Marshal(st)
 	if err != nil {
 		logger.Error("failed to marshal showtime", applog.Error(err))
 		return fmt.Errorf("failed to marshal showtime: %w", err)
 	}
 
-	key := c.showtimeKey(uint(showtime.ID))
+	key := c.showtimeKey(uint(st.ID))
 	if err := c.redisClient.Set(ctx, key, data, expiration).Err(); err != nil {
 		logger.Error("failed to set showtime", applog.Error(err))
 		return fmt.Errorf("failed to set showtime: %w", err)
@@ -130,7 +128,7 @@ func (c *RedisShowtimeCache) SetShowtimes(ctx context.Context, showtimes []*show
 	logger := c.logger.With(applog.String("Method", "SetShowtimes"), applog.Int("showtimes_count", len(showtimes)))
 
 	if expiration == 0 {
-		expiration = c.defaultExpiration
+		expiration = showtime.DefaultShowtimeExpiration
 	}
 
 	pipe := c.redisClient.Pipeline()
@@ -158,7 +156,7 @@ func (c *RedisShowtimeCache) SetShowtimeList(ctx context.Context, showtimes []*s
 	logger := c.logger.With(applog.String("Method", "SetShowtimeList"), applog.Any("options", options))
 
 	if expiration == 0 {
-		expiration = c.defaultExpiration
+		expiration = showtime.DefaultListExpiration
 	}
 
 	// 提取电影ID列表

@@ -16,17 +16,15 @@ import (
 
 // RedisMovieCache 电影缓存实现
 type RedisMovieCache struct {
-	redisClient       *redis.Client
-	logger            applog.Logger
-	defaultExpiration time.Duration
+	redisClient *redis.Client
+	logger      applog.Logger
 }
 
 // 创建一个RedisMovieCache实例
-func NewRedisMovieCache(redisClient *redis.Client, logger applog.Logger, defaultExpiration time.Duration) movie.MovieCache {
+func NewRedisMovieCache(redisClient *redis.Client, logger applog.Logger) movie.MovieCache {
 	return &RedisMovieCache{
-		redisClient:       redisClient,
-		logger:            logger.With(applog.String("Component", "RedisMovieCache")),
-		defaultExpiration: defaultExpiration,
+		redisClient: redisClient,
+		logger:      logger.With(applog.String("Component", "RedisMovieCache")),
 	}
 }
 
@@ -42,7 +40,7 @@ func (c *RedisMovieCache) SetMovie(ctx context.Context, mv *movie.Movie, expirat
 	}
 
 	if expiration == 0 {
-		expiration = c.defaultExpiration
+		expiration = movie.DefaultMovieExpiration
 	}
 
 	if err := c.redisClient.Set(ctx, key, data, expiration).Err(); err != nil {
@@ -107,7 +105,7 @@ func (c *RedisMovieCache) SetMovies(ctx context.Context, movies []*movie.Movie, 
 	pipe := c.redisClient.Pipeline()
 
 	if expiration == 0 {
-		expiration = c.defaultExpiration
+		expiration = movie.DefaultMovieExpiration
 	}
 
 	for _, mv := range movies {
@@ -136,7 +134,7 @@ func (c *RedisMovieCache) SetMovieList(ctx context.Context, movies []*movie.Movi
 	)
 
 	if expiration == 0 {
-		expiration = c.defaultExpiration
+		expiration = movie.DefaultListExpiration
 	}
 
 	// 提取电影ID列表

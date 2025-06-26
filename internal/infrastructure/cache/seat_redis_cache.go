@@ -17,16 +17,14 @@ import (
 )
 
 type RedisSeatCache struct {
-	client            *redis.Client
-	logger            applog.Logger
-	defaultExpiration time.Duration
+	client *redis.Client
+	logger applog.Logger
 }
 
-func NewRedisSeatCache(client *redis.Client, logger applog.Logger, defaultExpiration time.Duration) cinema.SeatCache {
+func NewRedisSeatCache(client *redis.Client, logger applog.Logger) cinema.SeatCache {
 	return &RedisSeatCache{
-		client:            client,
-		logger:            logger.With(applog.String("Component", "RedisSeatCache")),
-		defaultExpiration: defaultExpiration,
+		client: client,
+		logger: logger.With(applog.String("Component", "RedisSeatCache")),
 	}
 }
 
