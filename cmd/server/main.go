@@ -15,6 +15,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
@@ -73,7 +74,7 @@ func main() {
 
 	// 初始化数据库
 	dbFactory := repository.NewMysqlDBFactory(logger)
-	db, err = dbFactory.CreateDBConnection(cfg.DatabaseConfig)
+	db, err = dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
 	if err != nil {
 		logger.Fatal("Failed to connect to MySQL", applog.Error(err))
 	}
@@ -147,11 +148,14 @@ func main() {
 		bookingHandler,
 		reportHandler,
 		middleware.AuthMiddleware(jwtManager, logger),
-		middleware.AdminMiddleware(jwtManager, logger))
+		middleware.AdminMiddleware(jwtManager, logger),
+		logger,
+	)
 
 	// 启动 HTTP 服务器
 	logger.Info("Starting server on port " + port)
+	gin.SetMode(gin.ReleaseMode)
 	if err := r.Run(":" + port); err != nil {
-		logger.Fatal("Failed to start server", applog.Field{Key: "error", Value: err.Error()})
+		logger.Fatal("Failed to start server", applog.Error(err))
 	}
 }
