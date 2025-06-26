@@ -30,7 +30,7 @@ func main() {
 	defer cleanup() // cleanup 会负责关闭数据库、Redis等连接
 
 	// 从 Viper 中获取配置 (如果其他地方还需要的话)
-	cfg := viper.Get("config").(*config.Config)
+	cfg := viper.Get(config.EnvConfig).(*config.Config)
 	port := cfg.ServerConfig.Port
 
 	fmt.Println("Starting server on port " + port)

@@ -16,6 +16,8 @@ const (
 	EnvConfigPath = "CONFIG_PATH"
 	EnvConfigName = "CONFIG_NAME"
 	EnvConfigType = "CONFIG_TYPE"
+
+	EnvConfig = "CONFIG"
 )
 
 type ConfigInput struct {
@@ -61,6 +63,8 @@ func LoadConfig(input ConfigInput) (*Config, error) {
 	if config.ServerConfig.Port == "" {
 		config.ServerConfig.Port = "8080"
 	}
+
+	viper.Set(EnvConfig, &config) // 设置全局配置
 
 	return &config, nil
 }
