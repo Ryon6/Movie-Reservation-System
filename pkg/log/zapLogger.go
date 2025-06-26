@@ -14,7 +14,7 @@ type ZapLogger struct {
 	slowThreshold time.Duration   // 慢查询阈值
 }
 
-func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, error) {
+func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, func(), error) {
 	zapcfg := zap.NewDevelopmentConfig()
 	zapcfg.OutputPaths = logCfg.OutputPaths
 	zapcfg.ErrorOutputPaths = logCfg.ErrorOutputPaths
@@ -26,13 +26,20 @@ func NewZapLogger(logCfg config.LogConfig, options ...zap.Option) (Logger, error
 	automicLevel := zapcfg.Level
 	baseLogger, err := zapcfg.Build(options...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &ZapLogger{
+
+	cleanup := func() {
+		baseLogger.Sync()
+	}
+
+	zapLogger := ZapLogger{
 		sugar:         baseLogger.Sugar(),
 		level:         automicLevel,
 		slowThreshold: 200 * time.Millisecond,
-	}, nil
+	}
+
+	return &zapLogger, cleanup, nil
 }
 
 // // NewDevelopmentZapLogger 是一个便捷函数，用于创建开发环境的 Zap Logger。
