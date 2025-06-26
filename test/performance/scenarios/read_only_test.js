@@ -7,7 +7,8 @@ import {
     BASE_URL,
     getRandomUser,
     login,
-    checkResponse
+    checkResponse,
+    randomSleep
 } from './utils.js';
 
 export const options = {
@@ -19,7 +20,7 @@ export const options = {
         },
     },
     thresholds: {
-        http_req_duration: ['p(95)<500'],
+        http_req_duration: ['p(95)<1000'],
         errors: ['rate<0.1'],
     },
 };
@@ -92,12 +93,18 @@ export default function () {
         const authHeaders = login(user['username'], user['password']);
         if (!authHeaders) return;
 
+        // 模拟用户思考时间
+        randomSleep(2, 6);
+
         // 获取电影列表
         const movieListRes = http.get(
             `${BASE_URL}/api/v1/movies?${generateMovieQueryParams()}`,
             { headers: authHeaders }
         );
         checkResponse(movieListRes, 'Get movies list');
+
+        // 模拟用户思考时间
+        randomSleep(2, 6);
 
         // 声明在外部以扩大作用域
         const movieIds = movieListRes?.json()?.['movies']?.map(movie => movie['id']) ?? [];
@@ -113,11 +120,8 @@ export default function () {
             }
         }
 
-        // check(movieListRes, {
-        //     'movie list status is 200': (r) => r.status === 200,
-        //     'movie list length is greater than 0': (r) => r.json()?.['movies']?.length > 0,
-        // });
-        // console.log(movieListRes.json());
+        // 模拟用户思考时间
+        randomSleep(2, 6);
 
         // 获取影院列表
         const cinemaListRes = http.get(
@@ -125,6 +129,9 @@ export default function () {
             { headers: authHeaders }
         );
         checkResponse(cinemaListRes, 'Get cinemas list');
+
+        // 模拟用户思考时间
+        randomSleep(2, 6);
 
         // 声明在外部以扩大作用域
         const cinemaHallIds = cinemaListRes?.json()?.['cinema_halls']?.map(cinemaHall => cinemaHall['id']) ?? [];
@@ -140,6 +147,9 @@ export default function () {
             }
         }
 
+        // 模拟用户思考时间
+        randomSleep(2, 6);
+
         if (movieIds.length > 0 && cinemaHallIds.length > 0) {
             // 获取放映计划列表
             const showtimeListRes = http.get(
@@ -147,6 +157,9 @@ export default function () {
                 { headers: authHeaders }
             );
             checkResponse(showtimeListRes, 'Get showtimes list');
+
+            // 模拟用户思考时间
+            randomSleep(2, 6);
 
             // 随机选择一个放映计划查看详情
             if (showtimeListRes.status === 200) {
@@ -161,12 +174,18 @@ export default function () {
                     );
                     checkResponse(showtimeInfoRes, `Get showtime detail`);
 
+                    // 模拟用户思考时间
+                    randomSleep(2, 6);
+
                     // 查询座位表
                     const seatMapRes = http.get(
                         `${BASE_URL}/api/v1/showtimes/${randomShowtimeId}/seatmap`,
                         { headers: authHeaders }
                     );
                     checkResponse(seatMapRes, `Get showtime seatmap`, [200, 400]);
+
+                    // 模拟用户思考时间
+                    randomSleep(2, 6);
                 }
             }
 

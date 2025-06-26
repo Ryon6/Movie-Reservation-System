@@ -69,9 +69,9 @@ export function randomSleep(min = 1, max = 5) {
 }
 
 // 检查响应状态
-export function checkResponse(res, checkName, status = 200) {
+export function checkResponse(res, checkName, statuses = [200]) {
     const success = check(res, {
-        [`${checkName} status is ${status}`]: (r) => r.status === status,
+        [`${checkName} status is ${statuses.join(', ')}`]: (r) => statuses.includes(r.status),
         [`${checkName} response is valid`]: (r) => {
             if (!r.body) return false;
             if (typeof r.body === 'string') return r.body.length > 0;
