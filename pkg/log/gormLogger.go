@@ -93,7 +93,8 @@ func (l *GormLoggerAdapter) Trace(ctx context.Context, begin time.Time, fc func(
 			String("sql", sql),
 		)
 	// 情况2: 慢查询
-	case l.SlowThreshold != 0 && elapsed > l.SlowThreshold && l.LogLevel >= logger.Warn:
+	// 这里的 rows 是 fc() 返回的第二个参数，表示 SQL 语句影响的行数（rows affected）。
+	case l.SlowThreshold != 0 && elapsed > l.SlowThreshold:
 		sql, rows := fc()
 		l.AppLogger.Warn("gorm slow query",
 			Duration("elapsed", elapsed),
