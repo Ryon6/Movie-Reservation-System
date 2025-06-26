@@ -3,8 +3,11 @@ package routers
 
 import (
 	"mrs/internal/api/handlers"
+	"mrs/internal/api/middleware"
 
 	"github.com/gin-gonic/gin"
+
+	applog "mrs/pkg/log"
 )
 
 // SetupRouter 配置并返回 Gin 引擎。
@@ -20,9 +23,12 @@ func SetupRouter(
 	reportHandler *handlers.ReportHandler,
 	authMiddleware gin.HandlerFunc,
 	adminMiddleware gin.HandlerFunc,
+	logger applog.Logger,
 	// ... 其他处理器 ...
 ) *gin.Engine {
-	router := gin.Default() // 或者 gin.New() 并添加必要的中间件
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.LoggerMiddleware(logger))
 
 	// 健康检查路由
 	router.GET("/health", healthHandler.CheckHealth)
