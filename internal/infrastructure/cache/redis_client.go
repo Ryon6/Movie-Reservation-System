@@ -10,7 +10,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (*redis.Client, error) {
+func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (*redis.Client, func(), error) {
 	logger.Info("Initializing Redis client", applog.String("address", cfg.Address), applog.Int("db", cfg.DB))
 	opts := &redis.Options{
 		Addr:         cfg.Address,
@@ -31,10 +31,14 @@ func NewRedisClient(cfg config.RedisConfig, logger applog.Logger) (*redis.Client
 
 	if _, err := rdb.Ping(ctx).Result(); err != nil {
 		logger.Error("failed to connect to Redis", applog.Error(err))
-		return nil, fmt.Errorf("NewRedisClient: %w", err)
+		return nil, nil, fmt.Errorf("NewRedisClient: %w", err)
 	}
 	logger.Info("redis client conneted successfully and ping result is ok",
 		applog.String("address", cfg.Address))
 
-	return rdb, nil
+	cleanup := func() {
+		rdb.Close()
+	}
+
+	return rdb, cleanup, nil
 }
