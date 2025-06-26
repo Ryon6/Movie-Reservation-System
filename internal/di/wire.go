@@ -52,6 +52,7 @@ var RepositorySet = wire.NewSet(
 	repository.NewGormMovieRepository,
 	repository.NewGormGenreRepository,
 	repository.NewGormCinemaHallRepository,
+	repository.NewGormSeatRepository,
 	repository.NewGormShowtimeRepository,
 	repository.NewGormBookingRepository,
 	repository.NewGormBookedSeatRepository,
