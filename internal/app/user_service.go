@@ -28,16 +28,14 @@ type UserService interface {
 }
 
 type userService struct {
-	defaultRoleName string // 注入配置依赖：默认角色
-	uow             shared.UnitOfWork
-	userRepo        user.UserRepository
-	roleRepo        user.RoleRepository
-	hasher          utils.PasswordHasher
-	logger          applog.Logger
+	uow      shared.UnitOfWork
+	userRepo user.UserRepository
+	roleRepo user.RoleRepository
+	hasher   utils.PasswordHasher
+	logger   applog.Logger
 }
 
 func NewUserService(
-	defaultRoleName string,
 	uow shared.UnitOfWork,
 	userRepo user.UserRepository,
 	roleRepo user.RoleRepository,
@@ -45,12 +43,11 @@ func NewUserService(
 	logger applog.Logger,
 ) UserService {
 	return &userService{
-		defaultRoleName: defaultRoleName,
-		uow:             uow,
-		userRepo:        userRepo,
-		roleRepo:        roleRepo,
-		hasher:          hasher,
-		logger:          logger.With(applog.String("Service", "UserService")),
+		uow:      uow,
+		userRepo: userRepo,
+		roleRepo: roleRepo,
+		hasher:   hasher,
+		logger:   logger.With(applog.String("Service", "UserService")),
 	}
 }
 
@@ -74,10 +71,10 @@ func (s *userService) Register(ctx context.Context, req *request.RegisterUserReq
 	// 涉及多表操作，开启事务
 	err := s.uow.Execute(ctx, func(ctx context.Context, provider shared.RepositoryProvider) error {
 		// 查找默认角色，无需事务，因为角色不会被修改
-		defaultRole, err := provider.GetRoleRepository().FindByName(ctx, s.defaultRoleName)
+		defaultRole, err := provider.GetRoleRepository().FindByName(ctx, user.UserRoleName)
 		if err != nil {
 			if errors.Is(err, user.ErrRoleNotFound) {
-				logger.Error("Default role not found", applog.String("role_name", s.defaultRoleName))
+				logger.Error("Default role not found", applog.String("role_name", user.UserRoleName))
 				return err
 			}
 			logger.Error("Failed to find default role", applog.Error(err))
