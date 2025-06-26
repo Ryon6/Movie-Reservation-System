@@ -12,32 +12,8 @@ import (
 	applog "mrs/pkg/log"
 	"os"
 
-	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
-
-func initConfig() (*config.Config, error) {
-	cfg, err := config.LoadConfig("config", "app.dev", "yaml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-	return cfg, nil
-}
-
-func ensureLogDirectory(logPath string) error {
-	if err := os.MkdirAll(logPath, 0755); err != nil {
-		return fmt.Errorf("failed to create log directory: %w", err)
-	}
-	return nil
-}
-
-func initLogger(cfg *config.Config) applog.Logger {
-	logger, err := applog.NewZapLogger(cfg.LogConfig)
-	if err != nil {
-		panic(fmt.Sprintf("failed to initialize logger: %v", err))
-	}
-	return logger
-}
 
 func createInitialRoles(roleRepo user.RoleRepository, logger applog.Logger) error {
 	// 创建管理员角色
@@ -123,32 +99,26 @@ func dropExistingTables(db *gorm.DB, logger applog.Logger) error {
 }
 
 func main() {
-	// 初始化配置
-	cfg, err := initConfig()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-	viper.Set("config", cfg)
-
 	// 确保日志目录存在
-	if err := ensureLogDirectory("./var/log"); err != nil {
+	if err := os.MkdirAll("./var/log", 0755); err != nil {
 		log.Fatalf("Failed to ensure log directory: %v", err)
 	}
 
-	// 初始化日志
-	logger := initLogger(cfg)
-	defer logger.Sync() // 确保所有日志都已刷新到磁盘
+	components, cleanup, err := InitializeMigrate(config.ConfigInput{
+		Path: "config",
+		Name: "app.dev",
+		Type: "yaml",
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize migrate: %v", err)
+	}
+	defer cleanup()
+
+	logger := components.Logger
+	db := components.DB
+	hasher := components.Hasher
 
 	logger.Info("开始数据库迁移程序")
-
-	// 初始化数据库连接
-	dbFactory := appmysql.NewMysqlDBFactory(logger)
-	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
-	if err != nil {
-		logger.Fatal("数据库连接失败", applog.Error(err))
-	}
-
-	logger.Info("数据库连接成功")
 
 	// 先删除已存在的表
 	if err := dropExistingTables(db, logger); err != nil {
@@ -175,9 +145,6 @@ func main() {
 	}
 
 	logger.Info("数据库迁移完成，开始创建初始角色和管理员用户")
-
-	// 创建密码哈希工具
-	hasher := utils.NewBcryptHasher(cfg.AuthConfig.HasherCost)
 
 	// 创建仓储实例
 	roleRepo := appmysql.NewGormRoleRepository(db, logger)
