@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"mrs/internal/infrastructure/config"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,7 +22,8 @@ type bcryptHasher struct {
 	cost int // bcrypt 的计算成本
 }
 
-func NewBcryptHasher(cost int) PasswordHasher {
+func NewBcryptHasher(cfg config.AuthConfig) PasswordHasher {
+	cost := cfg.HasherCost
 	if cost == 0 {
 		cost = bcrypt.DefaultCost
 	}
