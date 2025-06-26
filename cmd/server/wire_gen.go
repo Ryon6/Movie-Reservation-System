@@ -7,6 +7,8 @@
 package main
 
 import (
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"mrs/internal/api/handlers"
 	"mrs/internal/api/middleware"
 	"mrs/internal/api/routers"
@@ -16,9 +18,6 @@ import (
 	"mrs/internal/infrastructure/persistence/mysql/repository"
 	"mrs/internal/utils"
 	"mrs/pkg/log"
-
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 // Injectors from wire.go:
@@ -32,17 +31,20 @@ func InitializeServer(input config.ConfigInput) (*gin.Engine, func(), error) {
 	databaseConfig := configConfig.DatabaseConfig
 	logConfig := configConfig.LogConfig
 	v := _wireValue
-	logger, err := log.NewZapLogger(logConfig, v...)
+	logger, cleanup, err := log.NewZapLogger(logConfig, v...)
 	if err != nil {
 		return nil, nil, err
 	}
-	db, err := repository.CreateDBConnection(databaseConfig, logConfig, logger)
+	db, cleanup2, err := repository.CreateDBConnection(databaseConfig, logConfig, logger)
 	if err != nil {
+		cleanup()
 		return nil, nil, err
 	}
 	redisConfig := configConfig.RedisConfig
-	client, err := cache.NewRedisClient(redisConfig, logger)
+	client, cleanup3, err := cache.NewRedisClient(redisConfig, logger)
 	if err != nil {
+		cleanup2()
+		cleanup()
 		return nil, nil, err
 	}
 	healthHandler := handlers.NewHealthHandler(db, client, logger)
@@ -53,6 +55,9 @@ func InitializeServer(input config.ConfigInput) (*gin.Engine, func(), error) {
 	jwtConfig := configConfig.JWTConfig
 	jwtManager, err := utils.NewJWTManagerImpl(jwtConfig)
 	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
 		return nil, nil, err
 	}
 	authService := app.NewAuthService(unitOfWork, userRepository, passwordHasher, jwtManager, logger)
@@ -85,6 +90,9 @@ func InitializeServer(input config.ConfigInput) (*gin.Engine, func(), error) {
 	middlewareLogger := middleware.LoggerMiddleware(logger)
 	engine := routers.SetupRouter(healthHandler, authHandler, userHandler, movieHandler, cinemaHandler, showtimeHandler, bookingHandler, reportHandler, auth, admin, middlewareLogger)
 	return engine, func() {
+		cleanup3()
+		cleanup2()
+		cleanup()
 	}, nil
 }
 
