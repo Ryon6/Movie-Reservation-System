@@ -13,8 +13,7 @@ var (
 
 // 缓存错误
 var (
-	ErrCacheMissing        = errors.New("cache missing")
-	ErrCacheNotInitialized = errors.New("cache not initialized")
+	ErrCacheMissing = errors.New("cache missing")
 )
 
 var (
