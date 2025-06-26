@@ -1,161 +1,40 @@
+// TODO: 添加CinemaCache expire=0 时的检查
+
 package main
 
 import (
 	"fmt"
 	"log"
-	"mrs/internal/api/handlers"
-	"mrs/internal/api/middleware"
-	"mrs/internal/api/routers"
-	"mrs/internal/app"
-	"mrs/internal/infrastructure/cache"
 	config "mrs/internal/infrastructure/config"
-	repository "mrs/internal/infrastructure/persistence/mysql/repository"
-	"mrs/internal/utils"
-	applog "mrs/pkg/log"
 	"os"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/spf13/viper"
-	"gorm.io/gorm"
 )
 
-// 使用已实现的 LoadConfig 函数加载配置
-func initConfig() (*config.Config, error) {
-	cfg, err := config.LoadConfig("config", "app.dev", "yaml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-	return cfg, nil
-}
-
-func ensureLogDirectory(logPath string) error {
-	if err := os.MkdirAll(logPath, 0755); err != nil {
-		return fmt.Errorf("failed to create log directory: %w", err)
-	}
-	return nil
-}
-
-func initLogger(cfg *config.Config) applog.Logger {
-	// zapcfg := zap.NewDevelopmentConfig()
-	// zapcfg.OutputPaths = cfg.LogConfig.OutputPaths
-	// zapcfg.ErrorOutputPaths = cfg.LogConfig.ErrorOutputPaths
-	// zapLevel, _ := zapcore.ParseLevel(cfg.LogConfig.Level)
-	// zapcfg.Level = zap.NewAtomicLevelAt(zapLevel) // 设置日志级别为 Debug
-	logger, err := applog.NewZapLogger(cfg.LogConfig)
-	if err != nil {
-		panic(fmt.Sprintf("failed to initialize logger: %v", err))
-	}
-	return logger
-}
-
-var db *gorm.DB
-var rdb cache.RedisClient
-
 func main() {
-	// 初始化配置
-	cfg, err := initConfig()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-	viper.Set("config", cfg)
-
-	// 确保日志目录存在
-	if err := ensureLogDirectory("./var/log"); err != nil {
+	// 确保日志目录存在 (这个逻辑可以保留)
+	if err := os.MkdirAll("./var/log", 0755); err != nil {
 		log.Fatalf("Failed to ensure log directory: %v", err)
 	}
 
-	// 初始化日志
-	logger := initLogger(cfg)
-	defer logger.Sync() // 确保所有日志都已刷新到磁盘
-
-	logger.Debug("Logger initialized successfully")
-
-	// 初始化数据库
-	dbFactory := repository.NewMysqlDBFactory(logger)
-	db, err = dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
+	// 调用 Wire 生成的 Injector 函数
+	// 所有依赖注入的细节全部被隐藏
+	engine, cleanup, err := InitializeServer(config.ConfigInput{
+		Path: "config",
+		Name: "app.dev",
+		Type: "yaml",
+	})
 	if err != nil {
-		logger.Fatal("Failed to connect to MySQL", applog.Error(err))
+		log.Fatalf("Failed to initialize server: %v", err)
 	}
+	defer cleanup() // cleanup 会负责关闭数据库、Redis等连接
 
-	// 初始化 Redis
-	rdb, err = cache.NewRedisClient(cfg.RedisConfig, logger)
-	if err != nil {
-		logger.Error("failed to create redis", applog.Error(err))
-	}
-
-	// // 自动迁移
-	// if err := dbsetup.InitializeDatabase(db, cfg.AdminConfig, logger); err != nil {
-	// 	logger.Fatal("Failed to initialize database", applog.Error(err))
-	// }
-
-	// 获取服务端口
+	// 从 Viper 中获取配置 (如果其他地方还需要的话)
+	cfg := viper.Get("config").(*config.Config)
 	port := cfg.ServerConfig.Port
 
-	// 实用工具
-	hasher := utils.NewBcryptHasher(cfg.AuthConfig.HasherCost)
-	jwtManager, err := utils.NewJWTManagerImpl(
-		cfg.JWTConfig.SecretKey,
-		cfg.JWTConfig.Issuer,
-		int64(cfg.JWTConfig.AccessTokenDuration.Hours()),
-	)
-	if err != nil {
-		logger.Error("failed to create jwtManager", applog.Error(err))
-	}
-
-	// 基础设施层
-	userRepo := repository.NewGormUserRepository(db, logger)
-	roleRepo := repository.NewGormRoleRepository(db, logger)
-	movieRepo := repository.NewGormMovieRepository(db, logger)
-	genreRepo := repository.NewGormGenreRepository(db, logger)
-	cinemaRepo := repository.NewGormCinemaHallRepository(db, logger)
-	seatRepo := repository.NewGormSeatRepository(db, logger)
-	showtimeRepo := repository.NewGormShowtimeRepository(db, logger)
-	bookingRepo := repository.NewGormBookingRepository(db, logger)
-	movieCache := cache.NewRedisMovieCache(rdb.(*redis.Client), logger, time.Second*30) // 后续可以改为配置中获取
-	showtimeCache := cache.NewRedisShowtimeCache(rdb.(*redis.Client), logger, time.Second*30)
-	seatCache := cache.NewRedisSeatCache(rdb.(*redis.Client), logger, time.Second*30)
-	lockProvider := cache.NewRedisLockProvider(rdb.(*redis.Client), logger)
-
-	uow := repository.NewGormUnitOfWork(db, logger)
-
-	// 应用层
-	userService := app.NewUserService(cfg.AuthConfig.DefaultRoleName, uow, userRepo, roleRepo, hasher, logger)
-	authService := app.NewAuthService(uow, userRepo, hasher, jwtManager, logger)
-	movieService := app.NewMovieService(uow, movieRepo, genreRepo, movieCache, logger)
-	cinemaService := app.NewCinemaService(uow, cinemaRepo, seatRepo, logger)
-	showtimeService := app.NewShowtimeService(uow, showtimeRepo, seatRepo, bookingRepo, showtimeCache, seatCache, lockProvider, logger)
-	bookingService := app.NewBookingService(uow, bookingRepo, showtimeRepo, seatCache, showtimeCache, showtimeService, lockProvider, logger)
-	reportService := app.NewReportService(logger, bookingRepo)
-
-	// 接口层
-	healthHandler := handlers.NewHealthHandler(db, rdb.(*redis.Client), logger)
-	authHandler := handlers.NewAuthHandler(authService, logger)
-	userHandler := handlers.NewUserHandler(userService, logger)
-	movieHandler := handlers.NewMovieHandler(movieService, logger)
-	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
-	showtimeHandler := handlers.NewShowtimeHandler(showtimeService, logger)
-	bookingHandler := handlers.NewBookingHandler(bookingService, logger)
-	reportHandler := handlers.NewReportHandler(reportService, logger)
-
-	r := routers.SetupRouter(healthHandler,
-		authHandler,
-		userHandler,
-		movieHandler,
-		cinemaHandler,
-		showtimeHandler,
-		bookingHandler,
-		reportHandler,
-		middleware.AuthMiddleware(jwtManager, logger),
-		middleware.AdminMiddleware(jwtManager, logger),
-		logger,
-	)
-
-	// 启动 HTTP 服务器
-	logger.Info("Starting server on port " + port)
-	gin.SetMode(gin.ReleaseMode)
-	if err := r.Run(":" + port); err != nil {
-		logger.Fatal("Failed to start server", applog.Error(err))
+	fmt.Println("Starting server on port " + port)
+	if err := engine.Run(":" + port); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
 }
