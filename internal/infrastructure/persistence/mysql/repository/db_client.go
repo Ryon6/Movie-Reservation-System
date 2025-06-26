@@ -2,16 +2,13 @@ package repository
 
 import (
 	"fmt"
-	"log"
 	"mrs/internal/infrastructure/config"
 	"mrs/internal/infrastructure/persistence/dbFactory"
 	applog "mrs/pkg/log"
-	"os"
 	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 type mysqlDBFactary struct {
@@ -24,7 +21,7 @@ func NewMysqlDBFactory(logger applog.Logger) dbFactory.DBConnectionFactory {
 	}
 }
 
-func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig) (*gorm.DB, error) {
+func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig, logConfig config.LogConfig) (*gorm.DB, error) {
 	f.logger.Info("Initializing MySQL database connection",
 		applog.String("host", dbConfig.Host),
 		applog.String("port", dbConfig.Port),
@@ -39,30 +36,8 @@ func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig) (*go
 		dbConfig.Charset,
 	)
 
-	var gormLogLevel logger.LogLevel
-	switch dbConfig.LogLevel {
-	case "info":
-		gormLogLevel = logger.Info
-	case "warn":
-		gormLogLevel = logger.Warn
-	case "error":
-		gormLogLevel = logger.Error
-	default:
-		gormLogLevel = logger.Silent
-	}
-
-	gormLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             time.Duration(dbConfig.SlowThreshold) * time.Millisecond,
-			LogLevel:                  gormLogLevel,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  false,
-		},
-	)
-
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: gormLogger,
+		Logger: applog.NewGormLoggerAdapter(f.logger, logConfig),
 	})
 
 	if err != nil {
