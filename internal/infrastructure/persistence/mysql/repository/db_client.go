@@ -10,7 +10,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateDBConnection(dbConfig config.DatabaseConfig, logConfig config.LogConfig, logger applog.Logger) (*gorm.DB, error) {
+func CreateDBConnection(dbConfig config.DatabaseConfig,
+	logConfig config.LogConfig,
+	logger applog.Logger) (*gorm.DB, func(), error) {
 	logger.Info("Initializing MySQL database connection",
 		applog.String("host", dbConfig.Host),
 		applog.String("port", dbConfig.Port),
@@ -30,13 +32,13 @@ func CreateDBConnection(dbConfig config.DatabaseConfig, logConfig config.LogConf
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf(("failed to connect to MySQL: %w"), err)
+		return nil, nil, fmt.Errorf(("failed to connect to MySQL: %w"), err)
 	}
 
 	// 设置连接池参数
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database instance: %w", err)
+		return nil, nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
 	if dbConfig.MaxIdleConnections > 0 {
@@ -51,9 +53,13 @@ func CreateDBConnection(dbConfig config.DatabaseConfig, logConfig config.LogConf
 
 	if err := sqlDB.Ping(); err != nil {
 		sqlDB.Close() // 确保在失败时关闭连接
-		return nil, fmt.Errorf("failed to ping MySQL: %w", err)
+		return nil, nil, fmt.Errorf("failed to ping MySQL: %w", err)
+	}
+
+	cleanup := func() {
+		sqlDB.Close()
 	}
 
 	logger.Info("MySQL database connection established successfully", applog.String("dsn", dsn))
-	return db, nil
+	return db, cleanup, nil
 }
