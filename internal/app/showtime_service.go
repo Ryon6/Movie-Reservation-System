@@ -302,6 +302,11 @@ func (s *showtimeService) GetSeatMap(ctx context.Context, req *request.GetSeatMa
 			return nil, lock.ErrRetryLockFailed
 		}
 
+		if errors.Is(err, showtime.ErrShowtimeEnded) {
+			logger.Warn("showtime has already ended, skipping cache initialization")
+			return nil, err
+		}
+
 		// 如果是其他初始化错误，则直接返回
 		logger.Error("failed to init seat map", applog.Error(err))
 		return nil, err
