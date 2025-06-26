@@ -9,7 +9,6 @@ import (
 	"mrs/internal/domain/user"
 	"mrs/internal/infrastructure/config"
 	"mrs/internal/infrastructure/persistence/mysql/models"
-	"mrs/internal/infrastructure/persistence/mysql/repository"
 	applog "mrs/pkg/log"
 	"os"
 	"path/filepath"
@@ -37,29 +36,25 @@ const (
 )
 
 func main() {
-	// 加载配置
-	cfg, err := config.LoadConfig("config", "app.dev", "yaml")
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+	// 确保日志目录存在
+	if err := os.MkdirAll("./var/log", 0755); err != nil {
+		log.Fatalf("Failed to ensure log directory: %v", err)
 	}
 
-	// 初始化日志
-	logger, err := applog.NewZapLogger(cfg.LogConfig)
+	components, cleanup, err := InitializeSeed(config.ConfigInput{
+		Path: "config",
+		Name: "app.dev",
+		Type: "yaml",
+	})
 	if err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		log.Fatalf("Failed to initialize seed: %v", err)
 	}
-	defer logger.Sync()
+	defer cleanup()
+
+	db := components.DB
+	logger := components.Logger
 
 	logger.Info("开始数据填充")
-
-	// 初始化数据库连接
-	dbFactory := repository.NewMysqlDBFactory(logger)
-	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
-	if err != nil {
-		logger.Error("数据库连接失败", applog.Error(err))
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-	logger.Info("数据库连接成功")
 
 	// 设置随机种子
 	gofakeit.Seed(time.Now().UnixNano())
