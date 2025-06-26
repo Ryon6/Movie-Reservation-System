@@ -3,7 +3,6 @@ package repository
 import (
 	"fmt"
 	"mrs/internal/infrastructure/config"
-	"mrs/internal/infrastructure/persistence/dbFactory"
 	applog "mrs/pkg/log"
 	"time"
 
@@ -11,18 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-type mysqlDBFactary struct {
-	logger applog.Logger
-}
-
-func NewMysqlDBFactory(logger applog.Logger) dbFactory.DBConnectionFactory {
-	return &mysqlDBFactary{
-		logger: logger,
-	}
-}
-
-func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig, logConfig config.LogConfig) (*gorm.DB, error) {
-	f.logger.Info("Initializing MySQL database connection",
+func CreateDBConnection(dbConfig config.DatabaseConfig, logConfig config.LogConfig, logger applog.Logger) (*gorm.DB, error) {
+	logger.Info("Initializing MySQL database connection",
 		applog.String("host", dbConfig.Host),
 		applog.String("port", dbConfig.Port),
 	)
@@ -37,7 +26,7 @@ func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig, logC
 	)
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: applog.NewGormLoggerAdapter(f.logger, logConfig),
+		Logger: applog.NewGormLoggerAdapter(logger, logConfig),
 	})
 
 	if err != nil {
@@ -65,6 +54,6 @@ func (f *mysqlDBFactary) CreateDBConnection(dbConfig config.DatabaseConfig, logC
 		return nil, fmt.Errorf("failed to ping MySQL: %w", err)
 	}
 
-	f.logger.Info("MySQL database connection established successfully", applog.String("dsn", dsn))
+	logger.Info("MySQL database connection established successfully", applog.String("dsn", dsn))
 	return db, nil
 }
