@@ -9,7 +9,9 @@
 
 package log
 
-import "time"
+import (
+	"time"
+)
 
 // Logger 定义了应用程序中所有日志记录器应遵循的接口。
 type Logger interface {
@@ -21,8 +23,6 @@ type Logger interface {
 	Panic(msg string, fields ...Field) // Panic 记录紧急错误级别的日志，并随后调用 panic()。
 	With(fields ...Field) Logger       // With 返回一个新的 Logger 实例，该实例会将其所有条目附加上下文字段。
 	Sync() error                       // Sync 确保所有缓冲的日志都被写入。
-	GetLoggerLevel() string            // 获取当前日志级别
-	SetLoggerLevel(level string) error // 设置日志级别
 }
 
 // Field 定义日志字段，通常是一个键值对
@@ -32,12 +32,13 @@ type Field struct {
 }
 
 // Helper functions to create Fields easily
-func String(key string, value string) Field   { return Field{Key: key, Value: value} }
-func Int(key string, value int) Field         { return Field{Key: key, Value: value} }
-func Uint(key string, value uint) Field       { return Field{Key: key, Value: value} }
-func Int64(key string, value int64) Field     { return Field{Key: key, Value: value} }
-func Float64(key string, value float64) Field { return Field{Key: key, Value: value} }
-func Bool(key string, value bool) Field       { return Field{Key: key, Value: value} }
-func Time(key string, value time.Time) Field  { return Field{Key: key, Value: value} }
-func Error(err error) Field                   { return Field{Key: "error", Value: err.Error()} } // Common field for errors
-func Any(key string, value interface{}) Field { return Field{Key: key, Value: value} }
+func String(key string, value string) Field          { return Field{Key: key, Value: value} }
+func Int(key string, value int) Field                { return Field{Key: key, Value: value} }
+func Uint(key string, value uint) Field              { return Field{Key: key, Value: value} }
+func Int64(key string, value int64) Field            { return Field{Key: key, Value: value} }
+func Float64(key string, value float64) Field        { return Field{Key: key, Value: value} }
+func Bool(key string, value bool) Field              { return Field{Key: key, Value: value} }
+func Time(key string, value time.Time) Field         { return Field{Key: key, Value: value} }
+func Duration(key string, value time.Duration) Field { return Field{Key: key, Value: value} }
+func Error(err error) Field                          { return Field{Key: "error", Value: err.Error()} } // Common field for errors
+func Any(key string, value interface{}) Field        { return Field{Key: key, Value: value} }
