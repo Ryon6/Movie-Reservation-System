@@ -54,7 +54,7 @@ func main() {
 
 	// 初始化数据库连接
 	dbFactory := repository.NewMysqlDBFactory(logger)
-	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig)
+	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
 	if err != nil {
 		logger.Error("数据库连接失败", applog.Error(err))
 		log.Fatalf("Failed to connect to database: %v", err)

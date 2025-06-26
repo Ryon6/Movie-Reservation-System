@@ -57,7 +57,7 @@ func NewTestServer(t *testing.T) *TestServer {
 
 	// 初始化数据库
 	dbFactory := appmysql.NewMysqlDBFactory(logger)
-	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig)
+	db, err := dbFactory.CreateDBConnection(cfg.DatabaseConfig, cfg.LogConfig)
 	assert.NoError(t, err)
 
 	// 清理并迁移数据库
@@ -122,7 +122,8 @@ func NewTestServer(t *testing.T) *TestServer {
 		bookingHandler,
 		reportHandler,
 		middleware.AuthMiddleware(jwtManager, logger),
-		middleware.AdminMiddleware(jwtManager, logger), // 修复 AdminMiddleware 参数
+		middleware.AdminMiddleware(jwtManager, logger),
+		logger,
 	)
 
 	server := httptest.NewServer(router)
