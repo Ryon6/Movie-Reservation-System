@@ -1,12 +1,12 @@
 import { group } from 'k6';
 import http from 'k6/http';
-import { 
-    BASE_URL, 
-    headers, 
-    getRandomUser, 
-    login, 
+import {
+    BASE_URL,
+    headers,
+    getRandomUser,
+    login,
     checkResponse,
-    randomSleep 
+    randomSleep
 } from './utils';
 
 export const options = {
@@ -33,8 +33,7 @@ export default function () {
     group('Real User Simulation', function () {
         // 1. 用户登录
         const user = getRandomUser();
-        type User = { username: string; password: string };
-        const authHeaders = login((user as User).username, (user as User).password);
+        const authHeaders = login(user['username'], user['password']);
         if (!authHeaders) return;
 
         // 模拟用户思考时间
@@ -43,8 +42,8 @@ export default function () {
         // 2. 浏览电影列表
         const movieListRes = http.get(`${BASE_URL}/api/v1/movies`, { headers: authHeaders });
         if (!checkResponse(movieListRes, 'Browse movies')) return;
-        
-        const movies = movieListRes.body ? JSON.parse(movieListRes.body as string).data : null;
+
+        const movies = movieListRes.body ? JSON.parse(movieListRes.body.toString()).data : null;
         if (!movies || movies.length === 0) return;
 
         // 模拟用户思考时间
@@ -58,7 +57,7 @@ export default function () {
         );
         if (!checkResponse(showtimesRes, 'View showtimes')) return;
 
-        const showtimes = showtimesRes.body ? JSON.parse(showtimesRes.body as string).data : null;
+        const showtimes = showtimesRes.body ? JSON.parse(showtimesRes.body.toString()) : null;
         if (!showtimes || showtimes.length === 0) return;
 
         // 模拟用户思考时间
@@ -72,7 +71,7 @@ export default function () {
         );
         if (!checkResponse(seatmapRes, 'View seat map')) return;
 
-        const seatmap = seatmapRes.body ? JSON.parse(seatmapRes.body as string).data : null;
+        const seatmap = seatmapRes.body ? JSON.parse(seatmapRes.body.toString()) : null;
         if (!seatmap || !seatmap.seats || seatmap.seats.length === 0) return;
 
         // 模拟用户思考时间
