@@ -15,7 +15,7 @@ export const options = {
     scenarios: {
         read_only: {
             executor: 'constant-vus',
-            vus: 1000,
+            vus: 2000,
             duration: '1m',
         },
     },
@@ -89,7 +89,10 @@ function generateShowtimeQueryParams(movieIds, cinemaHallIds) {
 
 export default function () {
     group('Read Only API Tests', function () {
+
+        // 获取用户
         const user = getRandomUser();
+        randomSleep(0, 1);
         const authHeaders = login(user['username'], user['password']);
         if (!authHeaders) return;
 
