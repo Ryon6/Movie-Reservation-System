@@ -21,23 +21,26 @@ type CinemaService interface {
 }
 
 type cinemaService struct {
-	uow            shared.UnitOfWork
-	cinemaHallRepo cinema.CinemaHallRepository
-	seatRepo       cinema.SeatRepository
-	logger         applog.Logger
+	uow             shared.UnitOfWork
+	cinemaHallRepo  cinema.CinemaHallRepository
+	seatRepo        cinema.SeatRepository
+	cinemaHallCache cinema.CinemaHallCache
+	logger          applog.Logger
 }
 
 func NewCinemaService(
 	uow shared.UnitOfWork,
 	cinemaHallRepo cinema.CinemaHallRepository,
 	seatRepo cinema.SeatRepository,
+	cinemaHallCache cinema.CinemaHallCache,
 	logger applog.Logger,
 ) CinemaService {
 	return &cinemaService{
-		uow:            uow,
-		cinemaHallRepo: cinemaHallRepo,
-		seatRepo:       seatRepo,
-		logger:         logger.With(applog.String("Service", "CinemaHallService")),
+		uow:             uow,
+		cinemaHallRepo:  cinemaHallRepo,
+		seatRepo:        seatRepo,
+		cinemaHallCache: cinemaHallCache,
+		logger:          logger.With(applog.String("Service", "CinemaHallService")),
 	}
 }
 
@@ -91,7 +94,15 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 func (s *cinemaService) GetCinemaHall(ctx context.Context, req *request.GetCinemaHallRequest) (*response.CinemaHallResponse, error) {
 	logger := s.logger.With(applog.String("Method", "GetCinemaHall"), applog.Uint("cinema_hall_id", req.ID))
 
-	cinemaHall, err := s.cinemaHallRepo.FindByID(ctx, vo.CinemaHallID(req.ID))
+	cinemaHall, err := s.cinemaHallCache.GetCinemaHall(ctx, vo.CinemaHallID(req.ID))
+	if err == nil {
+		logger.Info("get cinema hall from cache successfully", applog.Uint("cinema_hall_id", uint(cinemaHall.ID)))
+		return response.ToCinemaHallResponse(cinemaHall), nil
+	}
+
+	logger.Warn("cinema hall not found in cache", applog.Error(err))
+
+	cinemaHall, err = s.cinemaHallRepo.FindByID(ctx, vo.CinemaHallID(req.ID))
 	if err != nil {
 		if errors.Is(err, cinema.ErrCinemaHallNotFound) {
 			logger.Warn("cinema hall not found", applog.Error(err))
@@ -99,6 +110,11 @@ func (s *cinemaService) GetCinemaHall(ctx context.Context, req *request.GetCinem
 		}
 		logger.Error("failed to get cinema hall", applog.Error(err))
 		return nil, err
+	}
+
+	// 设置影厅到缓存
+	if err := s.cinemaHallCache.SetCinemaHall(ctx, cinemaHall, cinema.DefaultCinemaHallExpiration); err != nil {
+		logger.Warn("failed to set cinema hall to cache", applog.Error(err))
 	}
 
 	logger.Info("get cinema hall successfully", applog.Uint("cinema_hall_id", uint(cinemaHall.ID)))
@@ -109,10 +125,26 @@ func (s *cinemaService) GetCinemaHall(ctx context.Context, req *request.GetCinem
 func (s *cinemaService) ListAllCinemaHalls(ctx context.Context) (*response.ListAllCinemaHallsResponse, error) {
 	logger := s.logger.With(applog.String("Method", "ListAllCinemaHalls"))
 
+	listResult, err := s.cinemaHallCache.GetAllCinemaHalls(ctx)
+	// 只有当列表缓存命中且所有影厅都存在时，才返回缓存数据
+	// 否则再次调用仓库层获取所有影厅并写入缓存
+	if err == nil && len(listResult.MissingCinemaHallIDs) == 0 {
+		logger.Info("get all cinema halls from cache successfully", applog.Int("cinema_hall_count", len(listResult.CinemaHalls)))
+		return response.ToListAllCinemaHallsResponse(listResult.CinemaHalls), nil
+	}
+
+	logger.Warn("cinema hall list not found in cache", applog.Error(err))
+
+	// 列表缓存未命中，则需要进一步查询数据库
 	cinemaHalls, err := s.cinemaHallRepo.ListAll(ctx)
 	if err != nil {
 		logger.Error("failed to list all cinema halls", applog.Error(err))
 		return nil, err
+	}
+
+	// 设置所有影厅到缓存
+	if err := s.cinemaHallCache.SetAllCinemaHalls(ctx, cinemaHalls, cinema.DefaultCinemaHallListExpiration); err != nil {
+		logger.Warn("failed to set all cinema halls to cache", applog.Error(err))
 	}
 
 	logger.Info("list all cinema halls successfully", applog.Int("cinema_hall_count", len(cinemaHalls)))
@@ -134,8 +166,15 @@ func (s *cinemaService) UpdateCinemaHall(ctx context.Context, req *request.Updat
 		return nil, err
 	}
 
+	// 更新影厅后，需要重新获取影厅，并设置到缓存
+	resp, err := s.GetCinemaHall(ctx, &request.GetCinemaHallRequest{ID: req.ID})
+	if err != nil {
+		logger.Error("failed to get cinema hall", applog.Error(err))
+		return nil, err
+	}
+
 	logger.Info("update cinema hall successfully", applog.Uint("cinema_hall_id", req.ID))
-	return response.ToCinemaHallResponse(cinemaHall), nil
+	return resp, nil
 }
 
 // 删除影厅
@@ -159,6 +198,11 @@ func (s *cinemaService) DeleteCinemaHall(ctx context.Context, req *request.Delet
 	if err != nil {
 		logger.Error("failed to delete cinema hall", applog.Error(err))
 		return err
+	}
+
+	// 删除影厅后，需要删除影厅缓存
+	if err := s.cinemaHallCache.DeleteCinemaHall(ctx, vo.CinemaHallID(req.ID)); err != nil {
+		logger.Warn("failed to delete cinema hall from cache", applog.Error(err))
 	}
 
 	logger.Info("delete cinema hall successfully", applog.Uint("cinema_hall_id", req.ID))
