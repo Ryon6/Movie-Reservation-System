@@ -29,6 +29,12 @@ func NewCinemaHallCache(redisClient *redis.Client, logger applog.Logger) cinema.
 // 设置单个影厅
 func (c *cinemaHallCache) SetCinemaHall(ctx context.Context, cinemaHall *cinema.CinemaHall, expiration time.Duration) error {
 	logger := c.logger.With(applog.String("Method", "SetCinemaHall"), applog.Uint("cinema_hall_id", uint(cinemaHall.ID)))
+
+	// 如果过期时间小于等于0，则使用默认过期时间
+	if expiration <= 0 {
+		expiration = cinema.DefaultCinemaHallExpiration
+	}
+
 	key := cinema.GetCinemaHallCacheKey(cinemaHall.ID)
 	valBytes, err := json.Marshal(cinemaHall)
 	if err != nil {
@@ -83,6 +89,11 @@ func (c *cinemaHallCache) DeleteCinemaHall(ctx context.Context, id vo.CinemaHall
 // 设置所有影厅
 func (c *cinemaHallCache) SetAllCinemaHalls(ctx context.Context, cinemaHalls []*cinema.CinemaHall, expiration time.Duration) error {
 	logger := c.logger.With(applog.String("Method", "SetAllCinemaHalls"))
+
+	// 如果过期时间小于等于0，则使用默认过期时间
+	if expiration <= 0 {
+		expiration = cinema.DefaultCinemaHallListExpiration
+	}
 
 	// 设置所有影厅的ID列表
 	key := cinema.GetCinemaHallAllIDsKey()
