@@ -62,6 +62,7 @@ var RepositorySet = wire.NewSet(
 var CacheSet = wire.NewSet(
 	cache.NewRedisMovieCache,
 	cache.NewRedisShowtimeCache,
+	cache.NewCinemaHallCache,
 	cache.NewRedisSeatCache,
 )
 
