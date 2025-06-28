@@ -86,6 +86,14 @@ func (s *cinemaService) CreateCinemaHall(ctx context.Context, req *request.Creat
 		return nil, err
 	}
 
+	// 设置影厅到缓存
+	if err := s.cinemaHallCache.DeleteAllCinemaHallIDs(ctx); err != nil {
+		logger.Warn("failed to delete all cinema hall ids from cache", applog.Error(err))
+	}
+	if err := s.cinemaHallCache.SetCinemaHall(ctx, cinemaHall, cinema.DefaultCinemaHallExpiration); err != nil {
+		logger.Warn("failed to set cinema hall to cache", applog.Error(err))
+	}
+
 	logger.Info("create cinema hall successfully", applog.Uint("cinema_hall_id", uint(cinemaHall.ID)))
 	return response.ToCinemaHallResponse(cinemaHall), nil
 }
@@ -166,15 +174,20 @@ func (s *cinemaService) UpdateCinemaHall(ctx context.Context, req *request.Updat
 		return nil, err
 	}
 
-	// 更新影厅后，需要重新获取影厅，并设置到缓存
-	resp, err := s.GetCinemaHall(ctx, &request.GetCinemaHallRequest{ID: req.ID})
+	// 更新影厅后，需要重新获取影厅，并设置到缓存（返回完整记录）
+	cinemaHall, err := s.cinemaHallRepo.FindByID(ctx, vo.CinemaHallID(req.ID))
 	if err != nil {
 		logger.Error("failed to get cinema hall", applog.Error(err))
 		return nil, err
 	}
 
+	// 设置影厅到缓存
+	if err := s.cinemaHallCache.SetCinemaHall(ctx, cinemaHall, cinema.DefaultCinemaHallExpiration); err != nil {
+		logger.Warn("failed to set cinema hall to cache", applog.Error(err))
+	}
+
 	logger.Info("update cinema hall successfully", applog.Uint("cinema_hall_id", req.ID))
-	return resp, nil
+	return response.ToCinemaHallResponse(cinemaHall), nil
 }
 
 // 删除影厅
