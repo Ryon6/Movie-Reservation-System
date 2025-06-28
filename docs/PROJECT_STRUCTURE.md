@@ -7,26 +7,32 @@
 ```
 mrs/
 ├── cmd/                        # 可执行文件入口点
-│   ├── migrate/               # 数据库迁移工具
-│   └── server/               # 主服务器入口
 ├── test/                      # 测试目录
 │   ├── integration/          # 集成测试
 │   ├── e2e/                 # 端到端测试
 │   └── performance/         # 性能测试
 ├── internal/                   # 项目内部私有代码
+│   ├── api/                  # API层
+│   ├── app/                  # 应用层
+│   ├── di/                   # 依赖注入
+│   ├── domain/              # 领域层
+│   ├── infrastructure/      # 基础设施层
+│   └── utils/               # 工具函数
 ├── pkg/                        # 可被外部项目导入的公共库代码
+│   └── log/                  # 日志工具
+├── config/                     # 配置文件目录
 ├── docs/                       # 项目文档
-│   ├── API_SPECIFICATION.md   # API 规范文档
-│   ├── DATA_MODEL.md         # 数据模型文档
-│   ├── DEVELOPMENT_ROADMAP.md # 开发路线图
-│   ├── PROJECT_STRUCTURE.md  # 项目结构文档
-│   └── SERVICE_CLASSIFICATION.md # 服务分类文档
-├── scripts/                    # 构建、部署、工具类脚本
 ├── var/                       # 可变文件目录（如日志）
+├── .vscode/                   # VSCode配置目录
 ├── go.mod                      # Go 模块定义文件
 ├── go.sum                      # Go 模块校验和文件
+├── docker-compose.dev.yml      # 开发环境 Docker Compose 配置
+├── docker-compose.dev-init.yml # 开发环境初始化 Docker Compose 配置
+├── docker-compose.stress.yml   # 压力测试环境 Docker Compose 配置
+├── docker-compose.stress-init.yml # 压力测试环境初始化 Docker Compose 配置
 ├── Dockerfile                  # 服务构建 Dockerfile
-├── docker-compose.yml          # 本地开发环境编排文件
+├── .gitignore                 # Git 忽略文件配置
+├── LICENSE                    # 许可证文件
 └── README.md                   # 项目主 README
 ```
 
@@ -153,8 +159,6 @@ internal/
     │   ├── loader.go
     │   └── model.go
     └── persistence/           # 数据持久化
-        ├── dbFactory/        # 数据库工厂
-        │   └── db_factory.go
         └── mysql/           # MySQL实现
             ├── models/     # GORM模型
             │   ├── booked_seat_gorm.go
@@ -207,11 +211,17 @@ test/                           # 测试根目录
 
 ## 配置文件
 
-项目使用 YAML 格式的配置文件，支持不同环境的配置。配置文件通过环境变量和命令行参数进行覆盖。
+项目使用 YAML 格式的配置文件，支持不同环境的配置。配置文件存放在 `config` 目录下，通过环境变量和命令行参数进行覆盖。
 
 ## 构建和部署
 
-项目使用 Docker 进行容器化部署，使用 docker-compose 进行本地开发环境的管理。生产环境可以使用 Kubernetes 进行部署。
+项目使用 Docker 进行容器化部署，使用多个 docker-compose 文件管理不同环境：
+- `docker-compose.dev.yml`: 开发环境配置
+- `docker-compose.dev-init.yml`: 开发环境初始化配置
+- `docker-compose.stress.yml`: 压力测试环境配置
+- `docker-compose.stress-init.yml`: 压力测试环境初始化配置
+
+生产环境可以使用 Kubernetes 进行部署。
 
 ## 开发工具
 
