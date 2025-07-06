@@ -16,6 +16,12 @@ var (
 	ErrCacheMissing = errors.New("cache missing")
 )
 
+// 熔断器错误
+var (
+	ErrCircuitWriteOperationBusy = errors.New("database write operation busy") // 写操作繁忙
+	ErrCircuitReadOperationBusy  = errors.New("database read operation busy")  // 读操作繁忙
+)
+
 var (
 	// ErrTransactionBeginFailed 事务开启失败
 	ErrTransactionBeginFailed = errors.New("failed to begin transaction")
