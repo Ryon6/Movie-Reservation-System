@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	config "mrs/internal/infrastructure/config"
+	"mrs/internal/infrastructure/persistence/decorators/repository_circuitbreaker"
 	"os"
 
 	"github.com/spf13/viper"
@@ -32,6 +33,10 @@ func main() {
 	// 从 Viper 中获取配置 (如果其他地方还需要的话)
 	cfg := viper.Get(config.EnvConfig).(*config.Config)
 	port := cfg.ServerConfig.Port
+
+	// 配置熔断器
+	repository_circuitbreaker.ConfigMovieRepositoryBreakers()
+	repository_circuitbreaker.ConfigShowtimeRepositoryBreakers()
 
 	fmt.Println("Starting server on port " + port)
 	if err := engine.Run(":" + port); err != nil {
