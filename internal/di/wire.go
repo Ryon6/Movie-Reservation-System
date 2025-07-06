@@ -7,6 +7,7 @@ import (
 	"mrs/internal/app"
 	"mrs/internal/infrastructure/cache"
 	"mrs/internal/infrastructure/config"
+	"mrs/internal/infrastructure/persistence/decorators"
 	"mrs/internal/infrastructure/persistence/mysql/repository"
 	"mrs/internal/utils"
 	applog "mrs/pkg/log"
@@ -49,11 +50,11 @@ var RedisSet = wire.NewSet(
 var RepositorySet = wire.NewSet(
 	repository.NewGormUserRepository,
 	repository.NewGormRoleRepository,
-	repository.NewGormMovieRepository,
+	decorators.NewMovieRepository,
 	repository.NewGormGenreRepository,
 	repository.NewGormCinemaHallRepository,
 	repository.NewGormSeatRepository,
-	repository.NewGormShowtimeRepository,
+	decorators.NewShowtimeRepository,
 	repository.NewGormBookingRepository,
 	repository.NewGormBookedSeatRepository,
 )
