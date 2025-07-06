@@ -91,14 +91,6 @@ func (s *showtimeService) CreateShowtime(ctx context.Context, req *request.Creat
 		return nil, err
 	}
 
-	// 需要将完整信息设置到缓存中
-	st, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(st.ID))
-	if err != nil {
-		logger.Error("failed to find showtime", applog.Error(err))
-		return nil, err
-	}
-	s.showCache.SetShowtime(ctx, st, showtime.DefaultShowtimeExpiration)
-
 	logger.Info("create showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
 	return response.ToShowtimeResponse(st), nil
 }
@@ -160,13 +152,17 @@ func (s *showtimeService) UpdateShowtime(ctx context.Context, req *request.Updat
 		return nil, err
 	}
 
-	// 缓存中需要包含完整内容
+	// 为保证缓存一致性，在进行写操作时，先更新数据库，再删除缓存
+	if err := s.showCache.DeleteShowtime(ctx, vo.ShowtimeID(req.ID)); err != nil {
+		logger.Warn("failed to delete showtime from cache", applog.Error(err))
+	}
+
+	// 更新操作响应报文需要包含完整内容
 	st, err = s.showRepo.FindByID(ctx, vo.ShowtimeID(req.ID))
 	if err != nil {
 		logger.Error("failed to find showtime", applog.Error(err))
 		return nil, err
 	}
-	s.showCache.SetShowtime(ctx, st, showtime.DefaultShowtimeExpiration)
 
 	logger.Info("update showtime successfully", applog.Uint("showtime_id", uint(st.ID)))
 	return response.ToShowtimeResponse(st), nil
@@ -186,8 +182,12 @@ func (s *showtimeService) DeleteShowtime(ctx context.Context, req *request.Delet
 		logger.Error("failed to delete showtime", applog.Error(err))
 		return err
 	}
-	// 删除缓存
-	s.showCache.DeleteShowtime(ctx, vo.ShowtimeID(req.ID))
+
+	// 为保证缓存一致性，在进行写操作时，先更新数据库，再删除缓存
+	if err := s.showCache.DeleteShowtime(ctx, vo.ShowtimeID(req.ID)); err != nil {
+		logger.Warn("failed to delete showtime from cache", applog.Error(err))
+	}
+
 	logger.Info("delete showtime successfully", applog.Uint("showtime_id", req.ID))
 	return nil
 }
