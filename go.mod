@@ -16,6 +16,8 @@ require (
 	gorm.io/gorm v1.30.0
 )
 
+require github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5 // indirect
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/bytedance/sonic v1.13.2 // indirect
