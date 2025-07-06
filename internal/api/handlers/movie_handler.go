@@ -5,6 +5,7 @@ import (
 	"mrs/internal/api/dto/request"
 	"mrs/internal/app"
 	"mrs/internal/domain/movie"
+	"mrs/internal/domain/shared"
 	applog "mrs/pkg/log"
 	"net/http"
 	"strconv"
@@ -42,6 +43,12 @@ func (h *MovieHandler) CreateMovie(ctx *gin.Context) {
 			ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to create movie", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -66,6 +73,12 @@ func (h *MovieHandler) GetMovie(ctx *gin.Context) {
 		if errors.Is(err, movie.ErrMovieNotFound) {
 			logger.Warn("movie not found", applog.Error(err))
 			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitReadOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 			return
 		}
 		logger.Error("failed to get movie", applog.Error(err))
@@ -98,6 +111,12 @@ func (h *MovieHandler) UpdateMovie(ctx *gin.Context) {
 
 	movieResp, err := h.movieService.UpdateMovie(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to update movie", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -118,7 +137,14 @@ func (h *MovieHandler) DeleteMovie(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.movieService.DeleteMovie(ctx, &request.DeleteMovieRequest{ID: uint(movieID)}); err != nil {
+	err = h.movieService.DeleteMovie(ctx, &request.DeleteMovieRequest{ID: uint(movieID)})
+	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to delete movie", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -140,6 +166,12 @@ func (h *MovieHandler) ListMovies(ctx *gin.Context) {
 
 	movieResp, err := h.movieService.ListMovies(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitReadOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to list movies", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -161,6 +193,12 @@ func (h *MovieHandler) CreateGenre(ctx *gin.Context) {
 
 	genreResp, err := h.movieService.CreateGenre(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to create genre", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -191,6 +229,12 @@ func (h *MovieHandler) UpdateGenre(ctx *gin.Context) {
 
 	genreResp, err := h.movieService.UpdateGenre(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to update genre", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -217,6 +261,12 @@ func (h *MovieHandler) DeleteGenre(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to delete genre", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -231,6 +281,12 @@ func (h *MovieHandler) ListAllGenres(ctx *gin.Context) {
 	logger := h.logger.With(applog.String("Method", "ListGenres"))
 	genreResp, err := h.movieService.ListAllGenres(ctx)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitReadOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to list genres", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

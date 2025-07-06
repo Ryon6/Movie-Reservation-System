@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mrs/internal/api/dto/request"
 	"mrs/internal/app"
+	"mrs/internal/domain/shared"
 	"mrs/internal/domain/showtime"
 	applog "mrs/pkg/log"
 	"net/http"
@@ -32,6 +33,12 @@ func (h *ShowtimeHandler) CreateShowtime(ctx *gin.Context) {
 
 	showtimeResp, err := h.showtimeService.CreateShowtime(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to create showtime", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -53,6 +60,12 @@ func (h *ShowtimeHandler) GetShowtime(ctx *gin.Context) {
 
 	showtimeResp, err := h.showtimeService.GetShowtime(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitReadOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, showtime.ErrShowtimeNotFound) {
 			logger.Warn("showtime not found")
 			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -78,6 +91,12 @@ func (h *ShowtimeHandler) ListShowtimes(ctx *gin.Context) {
 
 	showtimeResp, err := h.showtimeService.ListShowtimes(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitReadOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to list showtimes", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -105,6 +124,12 @@ func (h *ShowtimeHandler) UpdateShowtime(ctx *gin.Context) {
 
 	showtimeResp, err := h.showtimeService.UpdateShowtime(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, showtime.ErrShowtimeNotFound) {
 			logger.Warn("showtime not found")
 			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -130,6 +155,12 @@ func (h *ShowtimeHandler) DeleteShowtime(ctx *gin.Context) {
 	req := request.DeleteShowtimeRequest{ID: id}
 
 	if err := h.showtimeService.DeleteShowtime(ctx, &req); err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitWriteOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, showtime.ErrShowtimeNotFound) {
 			logger.Warn("showtime not found")
 			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
@@ -156,6 +187,12 @@ func (h *ShowtimeHandler) GetSeatMap(ctx *gin.Context) {
 
 	seatMapResp, err := h.showtimeService.GetSeatMap(ctx, &req)
 	if err != nil {
+		// 熔断器打开
+		if errors.Is(err, shared.ErrCircuitReadOperationBusy) {
+			logger.Warn("circuit breaker is open", applog.Error(err))
+			ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
 		if errors.Is(err, showtime.ErrShowtimeEnded) {
 			logger.Warn("showtime has already ended")
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
