@@ -88,16 +88,6 @@ func (s *movieService) CreateMovie(ctx context.Context,
 		return nil, err
 	}
 
-	// 设置电影缓存(完整记录)
-	mv, err = s.movieRepo.FindByID(ctx, mv.ID)
-	if err != nil {
-		logger.Error("failed to find movie", applog.Error(err))
-		return nil, err
-	}
-	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultMovieExpiration); err != nil {
-		logger.Error("failed to set movie to cache", applog.Error(err))
-	}
-
 	logger.Info("create movie successfully", applog.Uint("movie_id", uint(mv.ID)))
 	return response.ToMovieResponse(mv), nil
 }
@@ -173,14 +163,16 @@ func (s *movieService) UpdateMovie(ctx context.Context, req *request.UpdateMovie
 		return nil, err
 	}
 
-	// 设置电影缓存(完整记录)
+	// 为保证缓存一致性，在进行写操作时，先更新数据库，再删除缓存
+	if err := s.movieCache.DeleteMovie(ctx, mv.ID); err != nil {
+		logger.Warn("failed to delete movie from cache", applog.Error(err))
+	}
+
+	// 更新操作响应报文需要包含完整内容
 	mv, err = s.movieRepo.FindByID(ctx, mv.ID)
 	if err != nil {
 		logger.Error("failed to find movie", applog.Error(err))
 		return nil, err
-	}
-	if err := s.movieCache.SetMovie(ctx, mv, movie.DefaultMovieExpiration); err != nil {
-		logger.Error("failed to set movie to cache", applog.Error(err))
 	}
 
 	logger.Info("update movie successfully", applog.Uint("movie_id", uint(mv.ID)))
@@ -237,8 +229,9 @@ func (s *movieService) DeleteMovie(ctx context.Context, req *request.DeleteMovie
 		return err
 	}
 
+	// 为保证缓存一致性，在进行写操作时，先更新数据库，再删除缓存
 	if err := s.movieCache.DeleteMovie(ctx, vo.MovieID(req.ID)); err != nil {
-		logger.Error("failed to delete movie from cache", applog.Error(err))
+		logger.Warn("failed to delete movie from cache", applog.Error(err))
 	}
 
 	logger.Info("delete movie successfully")
