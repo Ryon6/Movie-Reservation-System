@@ -17,6 +17,7 @@ import (
 	"mrs/internal/app"
 	"mrs/internal/infrastructure/cache"
 	"mrs/internal/infrastructure/config"
+	"mrs/internal/infrastructure/persistence/decorators"
 	"mrs/internal/infrastructure/persistence/mysql/repository"
 	"mrs/internal/utils"
 	"mrs/pkg/log"
@@ -66,7 +67,7 @@ func InitializeTestServer(input config.ConfigInput) (*TestServerComponents, func
 	roleRepository := repository.NewGormRoleRepository(db, logger)
 	userService := app.NewUserService(unitOfWork, userRepository, roleRepository, passwordHasher, logger)
 	userHandler := handlers.NewUserHandler(userService, logger)
-	movieRepository := repository.NewGormMovieRepository(db, logger)
+	movieRepository := decorators.NewMovieRepository(db, logger)
 	genreRepository := repository.NewGormGenreRepository(db, logger)
 	movieCache := cache.NewRedisMovieCache(client, logger)
 	movieService := app.NewMovieService(unitOfWork, movieRepository, genreRepository, movieCache, logger)
@@ -76,7 +77,7 @@ func InitializeTestServer(input config.ConfigInput) (*TestServerComponents, func
 	cinemaHallCache := cache.NewCinemaHallCache(client, logger)
 	cinemaService := app.NewCinemaService(unitOfWork, cinemaHallRepository, seatRepository, cinemaHallCache, logger)
 	cinemaHandler := handlers.NewCinemaHandler(cinemaService, logger)
-	showtimeRepository := repository.NewGormShowtimeRepository(db, logger)
+	showtimeRepository := decorators.NewShowtimeRepository(db, logger)
 	bookingRepository := repository.NewGormBookingRepository(db, logger)
 	showtimeCache := cache.NewRedisShowtimeCache(client, logger)
 	seatCache := cache.NewRedisSeatCache(client, logger)
