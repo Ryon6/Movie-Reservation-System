@@ -42,6 +42,12 @@ func (h *BookingHandler) CreateBooking(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		// 座位已锁定
+		if errors.Is(err, booking.ErrBookedSeatAlreadyLocked) {
+			logger.Warn("booked seat already locked", applog.Error(err))
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		logger.Error("failed to create booking", applog.Error(err))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -77,12 +77,17 @@ func (s *bookingService) CreateBooking(ctx context.Context, req *request.CreateB
 	}
 
 	// 获取分布式锁（场次锁）
-	lock, err := s.lockProvider.Acquire(ctx, lockKey, lock.DefaultLockTTL)
+	lk, err := s.lockProvider.Acquire(ctx, lockKey, lock.DefaultLockTTL)
 	if err != nil {
+		if errors.Is(err, lock.ErrLockAlreadyAcquired) {
+			logger.Warn("another process is initializing the seat map, will retry locking seats...",
+				applog.Uint("showtimeID", uint(req.ShowtimeID)))
+			return nil, booking.ErrBookedSeatAlreadyLocked
+		}
 		logger.Error("failed to acquire lock", applog.Error(err))
 		return nil, err
 	}
-	defer lock.Release(ctx)
+	defer lk.Release(ctx)
 
 	// 获取座位ID列表
 	seatIDs := make([]vo.SeatID, len(req.SeatIDs))
